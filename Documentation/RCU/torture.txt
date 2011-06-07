@@ -84,14 +84,41 @@ test_no_idle_hz	Whether or not to test the ability of RCU to operate in
 		idle CPUs.  Boolean parameter, "1" to test, "0" otherwise.
 		Defaults to omitting this test.
 
-torture_type	The type of RCU to test: "rcu" for the rcu_read_lock() API,
-		"rcu_sync" for rcu_read_lock() with synchronous reclamation,
-		"rcu_bh" for the rcu_read_lock_bh() API, "rcu_bh_sync" for
-		rcu_read_lock_bh() with synchronous reclamation, "srcu" for
-		the "srcu_read_lock()" API, "sched" for the use of
-		preempt_disable() together with synchronize_sched(),
-		and "sched_expedited" for the use of preempt_disable()
-		with synchronize_sched_expedited().
+torture_type	The type of RCU to test, with string values as follows:
+
+		"rcu":  rcu_read_lock(), rcu_read_unlock() and call_rcu().
+
+		"rcu_sync":  rcu_read_lock(), rcu_read_unlock(), and
+			synchronize_rcu().
+
+		"rcu_expedited": rcu_read_lock(), rcu_read_unlock(), and
+			synchronize_rcu_expedited().
+
+		"rcu_bh": rcu_read_lock_bh(), rcu_read_unlock_bh(), and
+			call_rcu_bh().
+
+		"rcu_bh_sync": rcu_read_lock_bh(), rcu_read_unlock_bh(),
+			and synchronize_rcu_bh().
+
+		"rcu_bh_expedited": rcu_read_lock_bh(), rcu_read_unlock_bh(),
+			and synchronize_rcu_bh_expedited().
+
+		"srcu": srcu_read_lock(), srcu_read_unlock() and
+			synchronize_srcu().
+
+		"srcu_expedited": srcu_read_lock(), srcu_read_unlock() and
+			synchronize_srcu_expedited().
+
+		"sched": preempt_disable(), preempt_enable(), and
+			call_rcu_sched().
+
+		"sched_sync": preempt_disable(), preempt_enable(), and
+			synchronize_sched().
+
+		"sched_expedited": preempt_disable(), preempt_enable(), and
+			synchronize_sched_expedited().
+
+		Defaults to "rcu".
 
 verbose		Enable debug printk()s.  Default is disabled.
 
