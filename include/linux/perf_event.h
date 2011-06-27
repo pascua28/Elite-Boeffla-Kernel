@@ -931,7 +931,6 @@ struct perf_output_handle {
 	unsigned long			size;
 	void				*addr;
 	int				page;
-	int				sample;
 };
 
 #ifdef CONFIG_PERF_EVENTS
@@ -1125,8 +1124,7 @@ extern void perf_bp_event(struct perf_event *event, void *data);
 #endif
 
 extern int perf_output_begin(struct perf_output_handle *handle,
-			     struct perf_event *event, unsigned int size,
-			     int sample);
+			     struct perf_event *event, unsigned int size);
 extern void perf_output_end(struct perf_output_handle *handle);
 extern void perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len);
