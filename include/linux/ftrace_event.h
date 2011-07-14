@@ -78,6 +78,7 @@ struct trace_iterator {
 	struct trace_entry	*ent;
 	unsigned long		lost_events;
 	int			leftover;
+	int			ent_size;
 	int			cpu;
 	u64			ts;
 
