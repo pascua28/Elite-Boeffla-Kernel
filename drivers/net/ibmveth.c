@@ -42,7 +42,7 @@
 #include <linux/ipv6.h>
 #include <linux/slab.h>
 #include <asm/hvcall.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/vio.h>
 #include <asm/iommu.h>
 #include <asm/firmware.h>

@@ -18,7 +18,7 @@
 #include <linux/crypto.h>
 #include <linux/workqueue.h>
 #include <linux/backing-dev.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/scatterlist.h>
 #include <asm/page.h>
 #include <asm/unaligned.h>
