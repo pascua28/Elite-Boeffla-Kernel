@@ -13,7 +13,7 @@
 #include <linux/time.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "midway.h"
 
