@@ -154,7 +154,6 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 power_attr(pm_test);
 #endif /* CONFIG_PM_DEBUG */
-
 #endif /* CONFIG_PM_SLEEP */
 
 struct kobject *power_kobj;
