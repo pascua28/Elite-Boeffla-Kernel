@@ -169,6 +169,9 @@ config FAST_RESUME
 	  called faster on booting time by introducing new initcalls. This has
 	  benefit for fast booting on hibernation
 
+config ARCH_SAVE_PAGE_KEYS
+	bool
+
 config PM_STD_PARTITION
 	string "Default resume partition"
 	depends on HIBERNATION
