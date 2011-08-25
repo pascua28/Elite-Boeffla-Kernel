@@ -20,7 +20,7 @@
 #include <linux/cpufreq.h>
 #include <linux/suspend.h>
 #include <linux/reboot.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/sysfs_helpers.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>

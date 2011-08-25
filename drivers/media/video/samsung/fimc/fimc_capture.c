@@ -28,7 +28,7 @@
 #include <linux/delay.h>
 
 #include <asm/cacheflush.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 
 #include "fimc.h"
 

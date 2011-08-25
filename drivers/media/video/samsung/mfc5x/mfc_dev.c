@@ -31,7 +31,7 @@
 #ifdef CONFIG_PM_RUNTIME
 #include <linux/clk.h>
 #endif
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 
 #ifdef CONFIG_BUSFREQ_OPP
 #include <mach/busfreq_exynos4.h>
