@@ -21,21 +21,15 @@
 #include <linux/wait.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include <linux/anon_inodes.h>
 #include "iio.h"
-#include "trigger_consumer.h"
-
-#define IIO_ID_PREFIX "device"
-#define IIO_ID_FORMAT IIO_ID_PREFIX "%d"
-
-/* IDR to assign each registered device a unique id*/
+#include "iio_core.h"
+#include "iio_core_trigger.h"
+#include "chrdev.h"
+/* IDA to assign each registered device a unique id*/
 static DEFINE_IDA(iio_ida);
-/* IDR to allocate character device minor numbers */
-static DEFINE_IDA(iio_chrdev_ida);
-/* Lock used to protect both of the above */
-static DEFINE_SPINLOCK(iio_ida_lock);
 
-dev_t iio_devt;
-EXPORT_SYMBOL(iio_devt);
+static dev_t iio_devt;
 
 #define IIO_DEV_MAX 256
 struct bus_type iio_bus_type = {
@@ -44,20 +38,22 @@ struct bus_type iio_bus_type = {
 EXPORT_SYMBOL(iio_bus_type);
 
 static const char * const iio_chan_type_name_spec_shared[] = {
-	[IIO_TIMESTAMP] = "timestamp",
-	[IIO_ACCEL] = "accel",
 	[IIO_IN] = "in",
+	[IIO_OUT] = "out",
 	[IIO_CURRENT] = "current",
 	[IIO_POWER] = "power",
+	[IIO_ACCEL] = "accel",
 	[IIO_IN_DIFF] = "in-in",
 	[IIO_GYRO] = "gyro",
-	[IIO_TEMP] = "temp",
 	[IIO_MAGN] = "magn",
+	[IIO_LIGHT] = "illuminance",
+	[IIO_INTENSITY] = "intensity",
+	[IIO_PROXIMITY] = "proximity",
+	[IIO_TEMP] = "temp",
 	[IIO_INCLI] = "incli",
 	[IIO_ROT] = "rot",
-	[IIO_INTENSITY] = "intensity",
-	[IIO_LIGHT] = "illuminance",
 	[IIO_ANGL] = "angl",
+	[IIO_TIMESTAMP] = "timestamp",
 };
 
 static const char * const iio_chan_type_name_spec_complex[] = {
@@ -83,21 +79,49 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_CALIBBIAS_SHARED/2] = "calibbias",
 	[IIO_CHAN_INFO_PEAK_SHARED/2] = "peak_raw",
 	[IIO_CHAN_INFO_PEAK_SCALE_SHARED/2] = "peak_scale",
+	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED/2]
+	= "quadrature_correction_raw",
 };
 
-int iio_push_event(struct iio_dev *dev_info,
-		   int ev_line,
-		   int ev_code,
-		   s64 timestamp)
+/**
+ * struct iio_detected_event_list - list element for events that have occurred
+ * @list:		linked list header
+ * @ev:			the event itself
+ */
+struct iio_detected_event_list {
+	struct list_head		list;
+	struct iio_event_data		ev;
+};
+
+/**
+ * struct iio_event_interface - chrdev interface for an event line
+ * @dev:		device assocated with event interface
+ * @wait:		wait queue to allow blocking reads of events
+ * @event_list_lock:	mutex to protect the list of detected events
+ * @det_events:		list of detected events
+ * @max_events:		maximum number of events before new ones are dropped
+ * @current_events:	number of events in detected list
+ * @flags:		file operations related flags including busy flag.
+ */
+struct iio_event_interface {
+	wait_queue_head_t			wait;
+	struct mutex				event_list_lock;
+	struct list_head			det_events;
+	int					max_events;
+	int					current_events;
+	struct list_head dev_attr_list;
+	unsigned long flags;
+};
+
+int iio_push_event(struct iio_dev *dev_info, int ev_code, s64 timestamp)
 {
-	struct iio_event_interface *ev_int
-		= &dev_info->event_interfaces[ev_line];
+	struct iio_event_interface *ev_int = dev_info->event_interface;
 	struct iio_detected_event_list *ev;
 	int ret = 0;
 
 	/* Does anyone care? */
 	mutex_lock(&ev_int->event_list_lock);
-	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->handler.flags)) {
+	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
 		if (ev_int->current_events == ev_int->max_events) {
 			mutex_unlock(&ev_int->event_list_lock);
 			return 0;
@@ -185,12 +209,11 @@ error_ret:
 
 static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 {
-	struct iio_handler *hand = iio_cdev_to_handler(inode->i_cdev);
-	struct iio_event_interface *ev_int = hand->private;
+	struct iio_event_interface *ev_int = filep->private_data;
 	struct iio_detected_event_list *el, *t;
 
 	mutex_lock(&ev_int->event_list_lock);
-	clear_bit(IIO_BUSY_BIT_POS, &ev_int->handler.flags);
+	clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
 	/*
 	 * In order to maintain a clean state for reopening,
 	 * clear out any awaiting events. The mask will prevent
@@ -200,23 +223,7 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 		list_del(&el->list);
 		kfree(el);
 	}
-	mutex_unlock(&ev_int->event_list_lock);
-
-	return 0;
-}
-
-static int iio_event_chrdev_open(struct inode *inode, struct file *filep)
-{
-	struct iio_handler *hand = iio_cdev_to_handler(inode->i_cdev);
-	struct iio_event_interface *ev_int = hand->private;
-
-	mutex_lock(&ev_int->event_list_lock);
-	if (test_and_set_bit(IIO_BUSY_BIT_POS, &hand->flags)) {
-		fops_put(filep->f_op);
-		mutex_unlock(&ev_int->event_list_lock);
-		return -EBUSY;
-	}
-	filep->private_data = hand->private;
+	ev_int->current_events = 0;
 	mutex_unlock(&ev_int->event_list_lock);
 
 	return 0;
@@ -225,124 +232,35 @@ static int iio_event_chrdev_open(struct inode *inode, struct file *filep)
 static const struct file_operations iio_event_chrdev_fileops = {
 	.read =  iio_event_chrdev_read,
 	.release = iio_event_chrdev_release,
-	.open = iio_event_chrdev_open,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 };
 
-static void iio_event_dev_release(struct device *dev)
+static int iio_event_getfd(struct iio_dev *indio_dev)
 {
-	struct iio_event_interface *ev_int
-		= container_of(dev, struct iio_event_interface, dev);
-	cdev_del(&ev_int->handler.chrdev);
-	iio_device_free_chrdev_minor(MINOR(dev->devt));
-};
+	if (indio_dev->event_interface == NULL)
+		return -ENODEV;
 
-static struct device_type iio_event_type = {
-	.release = iio_event_dev_release,
-};
-
-int iio_device_get_chrdev_minor(void)
-{
-	int ret, val;
-
-ida_again:
-	if (unlikely(ida_pre_get(&iio_chrdev_ida, GFP_KERNEL) == 0))
-		return -ENOMEM;
-	spin_lock(&iio_ida_lock);
-	ret = ida_get_new(&iio_chrdev_ida, &val);
-	spin_unlock(&iio_ida_lock);
-	if (unlikely(ret == -EAGAIN))
-		goto ida_again;
-	else if (unlikely(ret))
-		return ret;
-	if (val > IIO_DEV_MAX)
-		return -ENOMEM;
-	return val;
-}
-
-void iio_device_free_chrdev_minor(int val)
-{
-	spin_lock(&iio_ida_lock);
-	ida_remove(&iio_chrdev_ida, val);
-	spin_unlock(&iio_ida_lock);
-}
-
-static int iio_setup_ev_int(struct iio_event_interface *ev_int,
-			    const char *dev_name,
-			    int index,
-			    struct module *owner,
-			    struct device *dev)
-{
-	int ret, minor;
-
-	ev_int->dev.bus = &iio_bus_type;
-	ev_int->dev.parent = dev;
-	ev_int->dev.type = &iio_event_type;
-	device_initialize(&ev_int->dev);
-
-	minor = iio_device_get_chrdev_minor();
-	if (minor < 0) {
-		ret = minor;
-		goto error_device_put;
+	mutex_lock(&indio_dev->event_interface->event_list_lock);
+	if (test_and_set_bit(IIO_BUSY_BIT_POS,
+			     &indio_dev->event_interface->flags)) {
+		mutex_unlock(&indio_dev->event_interface->event_list_lock);
+		return -EBUSY;
 	}
-	ev_int->dev.devt = MKDEV(MAJOR(iio_devt), minor);
-	dev_set_name(&ev_int->dev, "%s:event%d", dev_name, index);
+	mutex_unlock(&indio_dev->event_interface->event_list_lock);
+	return anon_inode_getfd("iio:event",
+				&iio_event_chrdev_fileops,
+				indio_dev->event_interface, O_RDONLY);
+}
 
-	ret = device_add(&ev_int->dev);
-	if (ret)
-		goto error_free_minor;
-
-	cdev_init(&ev_int->handler.chrdev, &iio_event_chrdev_fileops);
-	ev_int->handler.chrdev.owner = owner;
-
+static void iio_setup_ev_int(struct iio_event_interface *ev_int)
+{
 	mutex_init(&ev_int->event_list_lock);
 	/* discussion point - make this variable? */
 	ev_int->max_events = 10;
 	ev_int->current_events = 0;
 	INIT_LIST_HEAD(&ev_int->det_events);
 	init_waitqueue_head(&ev_int->wait);
-	ev_int->handler.private = ev_int;
-	ev_int->handler.flags = 0;
-
-	ret = cdev_add(&ev_int->handler.chrdev, ev_int->dev.devt, 1);
-	if (ret)
-		goto error_unreg_device;
-
-	return 0;
-
-error_unreg_device:
-	device_unregister(&ev_int->dev);
-error_free_minor:
-	iio_device_free_chrdev_minor(minor);
-error_device_put:
-	put_device(&ev_int->dev);
-
-	return ret;
-}
-
-static void iio_free_ev_int(struct iio_event_interface *ev_int)
-{
-	device_unregister(&ev_int->dev);
-	put_device(&ev_int->dev);
-}
-
-static int __init iio_dev_init(void)
-{
-	int err;
-
-	err = alloc_chrdev_region(&iio_devt, 0, IIO_DEV_MAX, "iio");
-	if (err < 0)
-		printk(KERN_ERR "%s: failed to allocate char dev region\n",
-		       __FILE__);
-
-	return err;
-}
-
-static void __exit iio_dev_exit(void)
-{
-	if (iio_devt)
-		unregister_chrdev_region(iio_devt, IIO_DEV_MAX);
 }
 
 static int __init iio_init(void)
@@ -358,9 +276,12 @@ static int __init iio_init(void)
 		goto error_nothing;
 	}
 
-	ret = iio_dev_init();
-	if (ret < 0)
+	ret = alloc_chrdev_region(&iio_devt, 0, IIO_DEV_MAX, "iio");
+	if (ret < 0) {
+		printk(KERN_ERR "%s: failed to allocate char dev region\n",
+		       __FILE__);
 		goto error_unregister_bus_type;
+	}
 
 	return 0;
 
@@ -372,7 +293,8 @@ error_nothing:
 
 static void __exit iio_exit(void)
 {
-	iio_dev_exit();
+	if (iio_devt)
+		unregister_chrdev_region(iio_devt, IIO_DEV_MAX);
 	bus_unregister(&iio_bus_type);
 }
 
@@ -396,6 +318,11 @@ static ssize_t iio_read_channel_info(struct device *dev,
 			return sprintf(buf, "-%d.%06u\n", val, -val2);
 		else
 			return sprintf(buf, "%d.%06u\n", val, val2);
+	} else if (ret == IIO_VAL_INT_PLUS_NANO) {
+		if (val2 < 0)
+			return sprintf(buf, "-%d.%09u\n", val, -val2);
+		else
+			return sprintf(buf, "%d.%09u\n", val, val2);
 	} else
 		return 0;
 }
@@ -407,25 +334,40 @@ static ssize_t iio_write_channel_info(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int ret, integer = 0, micro = 0, micro_mult = 100000;
+	int ret, integer = 0, fract = 0, fract_mult = 100000;
 	bool integer_part = true, negative = false;
 
 	/* Assumes decimal - precision based on number of digits */
 	if (!indio_dev->info->write_raw)
 		return -EINVAL;
+
+	if (indio_dev->info->write_raw_get_fmt)
+		switch (indio_dev->info->write_raw_get_fmt(indio_dev,
+			this_attr->c, this_attr->address)) {
+		case IIO_VAL_INT_PLUS_MICRO:
+			fract_mult = 100000;
+			break;
+		case IIO_VAL_INT_PLUS_NANO:
+			fract_mult = 100000000;
+			break;
+		default:
+			return -EINVAL;
+		}
+
 	if (buf[0] == '-') {
 		negative = true;
 		buf++;
 	}
+
 	while (*buf) {
 		if ('0' <= *buf && *buf <= '9') {
 			if (integer_part)
 				integer = integer*10 + *buf - '0';
 			else {
-				micro += micro_mult*(*buf - '0');
-				if (micro_mult == 1)
+				fract += fract_mult*(*buf - '0');
+				if (fract_mult == 1)
 					break;
-				micro_mult /= 10;
+				fract_mult /= 10;
 			}
 		} else if (*buf == '\n') {
 			if (*(buf + 1) == '\0')
@@ -443,11 +385,11 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		if (integer)
 			integer = -integer;
 		else
-			micro = -micro;
+			fract = -fract;
 	}
 
 	ret = indio_dev->info->write_raw(indio_dev, this_attr->c,
-					 integer, micro, this_attr->address);
+					 integer, fract, this_attr->address);
 	if (ret)
 		return ret;
 
@@ -502,6 +444,7 @@ static int __iio_build_postfix(struct iio_chan_spec const *chan,
 	return 0;
 }
 
+static
 int __iio_device_attr_init(struct device_attribute *dev_attr,
 			   const char *postfix,
 			   struct iio_chan_spec const *chan,
@@ -574,7 +517,7 @@ error_ret:
 	return ret;
 }
 
-void __iio_device_attr_deinit(struct device_attribute *dev_attr)
+static void __iio_device_attr_deinit(struct device_attribute *dev_attr)
 {
 	kfree(dev_attr->attr.name);
 }
@@ -655,7 +598,8 @@ static int iio_device_add_channel_sysfs(struct iio_dev *dev_info,
 	else
 		ret = __iio_add_chan_devattr("raw", NULL, chan,
 					     &iio_read_channel_info,
-					     NULL,
+					     (chan->type == IIO_OUT ?
+					     &iio_write_channel_info : NULL),
 					     0,
 					     0,
 					     &dev_info->dev,
@@ -702,19 +646,29 @@ static ssize_t iio_show_dev_name(struct device *dev,
 
 static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
 
+static struct attribute *iio_base_dummy_attrs[] = {
+	NULL
+};
+static struct attribute_group iio_base_dummy_group = {
+	.attrs = iio_base_dummy_attrs,
+};
+
 static int iio_device_register_sysfs(struct iio_dev *dev_info)
 {
 	int i, ret = 0;
 	struct iio_dev_attr *p, *n;
 
-	if (dev_info->info->attrs) {
+	if (dev_info->info->attrs)
 		ret = sysfs_create_group(&dev_info->dev.kobj,
 					 dev_info->info->attrs);
-		if (ret) {
-			dev_err(dev_info->dev.parent,
-				"Failed to register sysfs hooks\n");
-			goto error_ret;
-		}
+	else
+		ret = sysfs_create_group(&dev_info->dev.kobj,
+					 &iio_base_dummy_group);
+	
+	if (ret) {
+		dev_err(dev_info->dev.parent,
+			"Failed to register sysfs hooks\n");
+		goto error_ret;
 	}
 
 	/*
@@ -730,7 +684,7 @@ static int iio_device_register_sysfs(struct iio_dev *dev_info)
 			if (ret < 0)
 				goto error_clear_attrs;
 		}
-	if (dev_info->name) {
+	if (dev_info->name) { 
 		ret = sysfs_add_file_to_group(&dev_info->dev.kobj,
 					      &dev_attr_name.attr,
 					      NULL);
@@ -747,6 +701,8 @@ error_clear_attrs:
 	}
 	if (dev_info->info->attrs)
 		sysfs_remove_group(&dev_info->dev.kobj, dev_info->info->attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj, &iio_base_dummy_group);
 error_ret:
 	return ret;
 
@@ -767,37 +723,9 @@ static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 
 	if (dev_info->info->attrs)
 		sysfs_remove_group(&dev_info->dev.kobj, dev_info->info->attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj, &iio_base_dummy_group);
 }
-
-/* Return a negative errno on failure */
-int iio_get_new_ida_val(struct ida *this_ida)
-{
-	int ret;
-	int val;
-
-ida_again:
-	if (unlikely(ida_pre_get(this_ida, GFP_KERNEL) == 0))
-		return -ENOMEM;
-
-	spin_lock(&iio_ida_lock);
-	ret = ida_get_new(this_ida, &val);
-	spin_unlock(&iio_ida_lock);
-	if (unlikely(ret == -EAGAIN))
-		goto ida_again;
-	else if (unlikely(ret))
-		return ret;
-
-	return val;
-}
-EXPORT_SYMBOL(iio_get_new_ida_val);
-
-void iio_free_ida_val(struct ida *this_ida, int id)
-{
-	spin_lock(&iio_ida_lock);
-	ida_remove(this_ida, id);
-	spin_unlock(&iio_ida_lock);
-}
-EXPORT_SYMBOL(iio_free_ida_val);
 
 static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_THRESH] = "thresh",
@@ -888,7 +816,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 				      struct iio_chan_spec const *chan)
 {
 
-	int ret = 0, i, mask;
+	int ret = 0, i, mask = 0;
 	char *postfix;
 	if (!chan->event_mask)
 		return 0;
@@ -921,20 +849,17 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 			break;
 		default:
 			printk(KERN_INFO "currently unhandled type of event\n");
+			continue;
 		}
 		ret = __iio_add_chan_devattr(postfix,
-					     NULL,
+					     "events",
 					     chan,
 					     &iio_ev_state_show,
 					     iio_ev_state_store,
 					     mask,
-					     /*HACK. - limits us to one
-					       event interface - fix by
-					       extending the bitmask - but
-					       how far*/
 					     0,
-					     &dev_info->event_interfaces[0].dev,
-					     &dev_info->event_interfaces[0].
+					     &dev_info->dev,
+					     &dev_info->event_interface->
 					     dev_attr_list);
 		kfree(postfix);
 		if (ret)
@@ -947,15 +872,14 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 			ret = -ENOMEM;
 			goto error_ret;
 		}
-		ret = __iio_add_chan_devattr(postfix, NULL, chan,
+		ret = __iio_add_chan_devattr(postfix, "events", chan,
 					     iio_ev_value_show,
 					     iio_ev_value_store,
 					     mask,
 					     0,
-					     &dev_info->event_interfaces[0]
-					     .dev,
-					     &dev_info->event_interfaces[0]
-					     .dev_attr_list);
+					     &dev_info->dev,
+					     &dev_info->event_interface->
+					     dev_attr_list);
 		kfree(postfix);
 		if (ret)
 			goto error_ret;
@@ -966,120 +890,111 @@ error_ret:
 	return ret;
 }
 
-static inline void __iio_remove_all_event_sysfs(struct iio_dev *dev_info,
-						const char *groupname,
-						int num)
+static inline void __iio_remove_event_config_attrs(struct iio_dev *dev_info)
 {
 	struct iio_dev_attr *p, *n;
 	list_for_each_entry_safe(p, n,
-				 &dev_info->event_interfaces[num].
+				 &dev_info->event_interface->
 				 dev_attr_list, l) {
-		sysfs_remove_file_from_group(&dev_info
-					     ->event_interfaces[num].dev.kobj,
+		sysfs_remove_file_from_group(&dev_info->dev.kobj,
 					     &p->dev_attr.attr,
-					     groupname);
+					     NULL);
 		kfree(p->dev_attr.attr.name);
 		kfree(p);
 	}
 }
 
-static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
+static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info)
 {
 	int j;
 	int ret;
-	INIT_LIST_HEAD(&dev_info->event_interfaces[0].dev_attr_list);
+	INIT_LIST_HEAD(&dev_info->event_interface->dev_attr_list);
 	/* Dynically created from the channels array */
-	if (dev_info->channels) {
-		for (j = 0; j < dev_info->num_channels; j++) {
-			ret = iio_device_add_event_sysfs(dev_info,
-							 &dev_info
-							 ->channels[j]);
-			if (ret)
-				goto error_clear_attrs;
-		}
+	for (j = 0; j < dev_info->num_channels; j++) {
+
+		ret = iio_device_add_event_sysfs(dev_info,
+						 &dev_info->channels[j]);
+		if (ret)
+			goto error_clear_attrs;
 	}
 	return 0;
 
 error_clear_attrs:
-	__iio_remove_all_event_sysfs(dev_info, NULL, i);
+	__iio_remove_event_config_attrs(dev_info);
 
 	return ret;
 }
 
-static inline int __iio_remove_event_config_attrs(struct iio_dev *dev_info,
-						  int i)
+static struct attribute *iio_events_dummy_attrs[] = {
+	NULL
+};
+
+static struct attribute_group iio_events_dummy_group = {
+	.name = "events",
+	.attrs = iio_events_dummy_attrs
+};
+
+static bool iio_check_for_dynamic_events(struct iio_dev *dev_info)
 {
-	__iio_remove_all_event_sysfs(dev_info, NULL, i);
-	return 0;
+	int j;
+	for (j = 0; j < dev_info->num_channels; j++)
+		if (dev_info->channels[j].event_mask != 0)
+			return true;
+	return false;
 }
 
 static int iio_device_register_eventset(struct iio_dev *dev_info)
 {
-	int ret = 0, i, j;
+	int ret = 0;
 
-	if (dev_info->info->num_interrupt_lines == 0)
+	if (!(dev_info->info->event_attrs ||
+	      iio_check_for_dynamic_events(dev_info)))
 		return 0;
 
-	dev_info->event_interfaces =
-		kzalloc(sizeof(struct iio_event_interface)
-			*dev_info->info->num_interrupt_lines,
-			GFP_KERNEL);
-	if (dev_info->event_interfaces == NULL) {
+	dev_info->event_interface =
+		kzalloc(sizeof(struct iio_event_interface), GFP_KERNEL);
+	if (dev_info->event_interface == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 
-	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
-		ret = iio_setup_ev_int(&dev_info->event_interfaces[i],
-				       dev_name(&dev_info->dev),
-				       i,
-				       dev_info->info->driver_module,
-				       &dev_info->dev);
-		if (ret) {
-			dev_err(&dev_info->dev,
-				"Could not get chrdev interface\n");
-			goto error_free_setup_ev_ints;
-		}
-
-		dev_set_drvdata(&dev_info->event_interfaces[i].dev,
-				(void *)dev_info);
-
-		if (dev_info->info->event_attrs != NULL)
-			ret = sysfs_create_group(&dev_info
-						 ->event_interfaces[i]
-						 .dev.kobj,
-						 &dev_info->info
-						 ->event_attrs[i]);
-
-		if (ret) {
-			dev_err(&dev_info->dev,
-				"Failed to register sysfs for event attrs");
-			goto error_remove_sysfs_interfaces;
-		}
+	iio_setup_ev_int(dev_info->event_interface);
+	if (dev_info->info->event_attrs != NULL)
+		ret = sysfs_create_group(&dev_info->dev.kobj,
+					 dev_info->info->event_attrs);
+	else
+		ret = sysfs_create_group(&dev_info->dev.kobj,
+					 &iio_events_dummy_group);
+	if (ret) {
+		dev_err(&dev_info->dev,
+			"Failed to register sysfs for event attrs");
+		goto error_free_setup_event_lines;
 	}
-
-	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
-		ret = __iio_add_event_config_attrs(dev_info, i);
-		if (ret)
-			goto error_unregister_config_attrs;
+	if (dev_info->channels) {
+		ret = __iio_add_event_config_attrs(dev_info);
+		if (ret) {
+			if (dev_info->info->event_attrs != NULL)
+				sysfs_remove_group(&dev_info->dev.kobj,
+						   dev_info->info
+						   ->event_attrs);
+			else
+				sysfs_remove_group(&dev_info->dev.kobj,
+						   &iio_events_dummy_group);
+			goto error_free_setup_event_lines;
+		}
 	}
 
 	return 0;
 
-error_unregister_config_attrs:
-	for (j = 0; j < i; j++)
-		__iio_remove_event_config_attrs(dev_info, i);
-	i = dev_info->info->num_interrupt_lines - 1;
-error_remove_sysfs_interfaces:
-	for (j = 0; j < i; j++)
-		if (dev_info->info->event_attrs != NULL)
-			sysfs_remove_group(&dev_info
-				   ->event_interfaces[j].dev.kobj,
-				   &dev_info->info->event_attrs[j]);
-error_free_setup_ev_ints:
-	for (j = 0; j < i; j++)
-		iio_free_ev_int(&dev_info->event_interfaces[j]);
-	kfree(dev_info->event_interfaces);
+error_free_setup_event_lines:
+	__iio_remove_event_config_attrs(dev_info);
+	if (dev_info->info->event_attrs != NULL)
+		sysfs_remove_group(&dev_info->dev.kobj,
+				   dev_info->info->event_attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj,
+				   &iio_events_dummy_group);
+	kfree(dev_info->event_interface);
 error_ret:
 
 	return ret;
@@ -1087,27 +1002,24 @@ error_ret:
 
 static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 {
-	int i;
-
-	if (dev_info->info->num_interrupt_lines == 0)
+	if (dev_info->event_interface == NULL)
 		return;
-	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
-		__iio_remove_event_config_attrs(dev_info, i);
-		if (dev_info->info->event_attrs != NULL)
-			sysfs_remove_group(&dev_info
-					   ->event_interfaces[i].dev.kobj,
-					   &dev_info->info->event_attrs[i]);
-	}
-
-	for (i = 0; i < dev_info->info->num_interrupt_lines; i++)
-		iio_free_ev_int(&dev_info->event_interfaces[i]);
-	kfree(dev_info->event_interfaces);
+	__iio_remove_event_config_attrs(dev_info);
+	if (dev_info->info->event_attrs != NULL)
+		sysfs_remove_group(&dev_info->dev.kobj,
+				   dev_info->info->event_attrs);
+	else
+		sysfs_remove_group(&dev_info->dev.kobj,
+				   &iio_events_dummy_group);
+	kfree(dev_info->event_interface);
 }
 
 static void iio_dev_release(struct device *device)
 {
+	struct iio_dev *dev_info = container_of(device, struct iio_dev, dev);
+	cdev_del(&dev_info->chrdev);
 	iio_put();
-	kfree(to_iio_dev(device));
+	kfree(dev_info);
 }
 
 static struct device_type iio_dev_type = {
@@ -1145,22 +1057,77 @@ EXPORT_SYMBOL(iio_allocate_device);
 
 void iio_free_device(struct iio_dev *dev)
 {
-	if (dev)
-		iio_put_device(dev);
+	if (dev) {
+		iio_put();
+		kfree(dev);
+	}
 }
 EXPORT_SYMBOL(iio_free_device);
+
+/**
+ * iio_chrdev_open() - chrdev file open for ring buffer access and ioctls
+ **/
+static int iio_chrdev_open(struct inode *inode, struct file *filp)
+{
+	struct iio_dev *dev_info = container_of(inode->i_cdev,
+						struct iio_dev, chrdev);
+	filp->private_data = dev_info;
+	iio_chrdev_ring_open(dev_info);
+	return 0;
+}
+
+/**
+ * iio_chrdev_release() - chrdev file close ring buffer access and ioctls
+ **/
+static int iio_chrdev_release(struct inode *inode, struct file *filp)
+{
+	iio_chrdev_ring_release(container_of(inode->i_cdev,
+					     struct iio_dev, chrdev));
+	return 0;
+}
+
+/* Somewhat of a cross file organization violation - ioctls here are actually
+ * event related */
+static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct iio_dev *indio_dev = filp->private_data;
+	int __user *ip = (int __user *)arg;
+	int fd;
+
+	if (cmd == IIO_GET_EVENT_FD_IOCTL) {
+		fd = iio_event_getfd(indio_dev);
+		if (copy_to_user(ip, &fd, sizeof(fd)))
+			return -EFAULT;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static const struct file_operations iio_ring_fileops = {
+	.read = iio_ring_read_first_n_outer_addr,
+	.release = iio_chrdev_release,
+	.open = iio_chrdev_open,
+	.poll = iio_ring_poll_addr,
+	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
+	.unlocked_ioctl = iio_ioctl,
+	.compat_ioctl = iio_ioctl,
+};
 
 int iio_device_register(struct iio_dev *dev_info)
 {
 	int ret;
 
-	dev_info->id = iio_get_new_ida_val(&iio_ida);
+	dev_info->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 	if (dev_info->id < 0) {
 		ret = dev_info->id;
 		dev_err(&dev_info->dev, "Failed to get id\n");
 		goto error_ret;
 	}
-	dev_set_name(&dev_info->dev, "device%d", dev_info->id);
+	dev_set_name(&dev_info->dev, "iio:device%d", dev_info->id);
+
+	/* configure elements for the chrdev */
+	dev_info->dev.devt = MKDEV(MAJOR(iio_devt), dev_info->id);
 
 	ret = device_add(&dev_info->dev);
 	if (ret)
@@ -1180,6 +1147,9 @@ int iio_device_register(struct iio_dev *dev_info)
 	if (dev_info->modes & INDIO_RING_TRIGGERED)
 		iio_device_register_trigger_consumer(dev_info);
 
+	cdev_init(&dev_info->chrdev, &iio_ring_fileops);
+	dev_info->chrdev.owner = dev_info->info->driver_module;
+	ret = cdev_add(&dev_info->chrdev, dev_info->dev.devt, 1);
 	return 0;
 
 error_free_sysfs:
@@ -1187,7 +1157,7 @@ error_free_sysfs:
 error_del_device:
 	device_del(&dev_info->dev);
 error_free_ida:
-	iio_free_ida_val(&iio_ida, dev_info->id);
+	ida_simple_remove(&iio_ida, dev_info->id);
 error_ret:
 	return ret;
 }
@@ -1199,7 +1169,7 @@ void iio_device_unregister(struct iio_dev *dev_info)
 		iio_device_unregister_trigger_consumer(dev_info);
 	iio_device_unregister_eventset(dev_info);
 	iio_device_unregister_sysfs(dev_info);
-	iio_free_ida_val(&iio_ida, dev_info->id);
+	ida_simple_remove(&iio_ida, dev_info->id);
 	device_unregister(&dev_info->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
