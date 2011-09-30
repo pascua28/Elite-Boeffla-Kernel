@@ -2169,6 +2169,14 @@ void trace_default_header(struct seq_file *m)
 	}
 }
 
+static void test_ftrace_alive(struct seq_file *m)
+{
+	if (!ftrace_is_dead())
+		return;
+	seq_printf(m, "# WARNING: FUNCTION TRACING IS CORRUPTED\n");
+	seq_printf(m, "#          MAY BE MISSING FUNCTION EVENTS\n");
+}
+
 static int s_show(struct seq_file *m, void *v)
 {
 	struct trace_iterator *iter = v;
@@ -2178,6 +2186,7 @@ static int s_show(struct seq_file *m, void *v)
 		if (iter->tr) {
 			seq_printf(m, "# tracer: %s\n", iter->trace->name);
 			seq_puts(m, "#\n");
+			test_ftrace_alive(m);
 		}
 		if (iter->trace && iter->trace->print_header)
 			iter->trace->print_header(m);
@@ -4659,8 +4668,16 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	 * tracing with echo 1 > tracing_on.
 	 */
 	tracing_off();
-
 	local_irq_save(flags);
+
+	/* Did function tracer already get disabled? */
+	if (ftrace_is_dead()) {
+		printk("# WARNING: FUNCTION TRACING IS CORRUPTED\n");
+		printk("#          MAY BE MISSING FUNCTION EVENTS\n");
+	}
+
+	if (disable_tracing)
+		ftrace_kill();
 
 	trace_init_global_iter(&iter);
 
