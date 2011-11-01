@@ -42,6 +42,7 @@ struct cpu_stopper {
 
 static DEFINE_PER_CPU(struct cpu_stopper, cpu_stopper);
 static DEFINE_PER_CPU(struct task_struct *, cpu_stopper_task);
+static bool stop_machine_initialized = false;
 
 static void cpu_stop_init_done(struct cpu_stop_done *done, unsigned int nr_todo)
 {
@@ -438,6 +439,25 @@ int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 	struct stop_machine_data smdata = { .fn = fn, .data = data,
 					    .num_threads = num_online_cpus(),
 					    .active_cpus = cpus };
+
+	if (!stop_machine_initialized) {
+		/*
+		 * Handle the case where stop_machine() is called
+		 * early in boot before stop_machine() has been
+		 * initialized.
+		 */
+		unsigned long flags;
+		int ret;
+
+		WARN_ON_ONCE(smdata.num_threads != 1);
+
+		local_irq_save(flags);
+		hard_irq_disable();
+		ret = (*fn)(data);
+		local_irq_restore(flags);
+
+		return ret;
+	}
 
 	/* Set the initial state and stop all online cpus. */
 	set_state(&smdata, STOPMACHINE_PREPARE);
