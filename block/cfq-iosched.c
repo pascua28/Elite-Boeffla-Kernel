@@ -65,9 +65,6 @@ static DEFINE_PER_CPU(unsigned long, cfq_ioc_count);
 static struct completion *ioc_gone;
 static DEFINE_SPINLOCK(ioc_gone_lock);
 
-static DEFINE_SPINLOCK(cic_index_lock);
-static DEFINE_IDA(cic_index_ida);
-
 #define CFQ_PRIO_LISTS		IOPRIO_BE_NR
 #define cfq_class_idle(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_IDLE)
 #define cfq_class_rt(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_RT)
@@ -288,7 +285,6 @@ struct cfq_data {
 	unsigned int cfq_group_idle;
 	unsigned int cfq_latency;
 
-	unsigned int cic_index;
 	struct list_head cic_list;
 
 	/*
@@ -482,7 +478,7 @@ static inline void cic_set_cfqq(struct cfq_io_context *cic,
 
 static inline void *cfqd_dead_key(struct cfq_data *cfqd)
 {
-	return (void *)(cfqd->cic_index << CIC_DEAD_INDEX_SHIFT | CIC_DEAD_KEY);
+	return (void *)(cfqd->queue->id << CIC_DEAD_INDEX_SHIFT | CIC_DEAD_KEY);
 }
 
 static inline struct cfq_data *cic_to_cfqd(struct cfq_io_context *cic)
@@ -3094,7 +3090,7 @@ cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
 	BUG_ON(rcu_dereference_check(ioc->ioc_data,
 		lockdep_is_held(&ioc->lock)) == cic);
 
-	radix_tree_delete(&ioc->radix_root, cfqd->cic_index);
+	radix_tree_delete(&ioc->radix_root, cfqd->queue->id);
 	hlist_del_rcu(&cic->cic_list);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
@@ -3122,7 +3118,7 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 	}
 
 	do {
-		cic = radix_tree_lookup(&ioc->radix_root, cfqd->cic_index);
+		cic = radix_tree_lookup(&ioc->radix_root, cfqd->queue->id);
 		rcu_read_unlock();
 		if (!cic)
 			break;
@@ -3158,8 +3154,7 @@ static int cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 		cic->key = cfqd;
 
 		spin_lock_irqsave(&ioc->lock, flags);
-		ret = radix_tree_insert(&ioc->radix_root,
-						cfqd->cic_index, cic);
+		ret = radix_tree_insert(&ioc->radix_root, cfqd->queue->id, cic);
 		if (!ret)
 			hlist_add_head_rcu(&cic->cic_list, &ioc->cic_list);
 		spin_unlock_irqrestore(&ioc->lock, flags);
@@ -3931,10 +3926,6 @@ static void cfq_exit_queue(struct elevator_queue *e)
 
 	cfq_shutdown_timer_wq(cfqd);
 
-	spin_lock(&cic_index_lock);
-	ida_remove(&cic_index_ida, cfqd->cic_index);
-	spin_unlock(&cic_index_lock);
-
 	/*
 	 * Wait for cfqg->blkg->key accessors to exit their grace periods.
 	 * Do this wait only if there are other unlinked groups out
@@ -3956,24 +3947,6 @@ static void cfq_exit_queue(struct elevator_queue *e)
 	kfree(cfqd);
 }
 
-static int cfq_alloc_cic_index(void)
-{
-	int index, error;
-
-	do {
-		if (!ida_pre_get(&cic_index_ida, GFP_KERNEL))
-			return -ENOMEM;
-
-		spin_lock(&cic_index_lock);
-		error = ida_get_new(&cic_index_ida, &index);
-		spin_unlock(&cic_index_lock);
-		if (error && error != -EAGAIN)
-			return error;
-	} while (error);
-
-	return index;
-}
-
 static void *cfq_init_queue(struct request_queue *q)
 {
 	struct cfq_data *cfqd;
@@ -3981,23 +3954,9 @@ static void *cfq_init_queue(struct request_queue *q)
 	struct cfq_group *cfqg;
 	struct cfq_rb_root *st;
 
-	i = cfq_alloc_cic_index();
-	if (i < 0)
-		return NULL;
-
 	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
-	if (!cfqd) {
-		spin_lock(&cic_index_lock);
-		ida_remove(&cic_index_ida, i);
-		spin_unlock(&cic_index_lock);
+	if (!cfqd)
 		return NULL;
-	}
-
-	/*
-	 * Don't need take queue_lock in the routine, since we are
-	 * initializing the ioscheduler, and nobody is using cfqd
-	 */
-	cfqd->cic_index = i;
 
 	/* Init root service tree */
 	cfqd->grp_service_tree = CFQ_RB_ROOT;
@@ -4286,7 +4245,6 @@ static void __exit cfq_exit(void)
 	 */
 	if (elv_ioc_count_read(cfq_ioc_count))
 		wait_for_completion(&all_gone);
-	ida_destroy(&cic_index_ida);
 	cfq_slab_kill();
 }
 
