@@ -53,6 +53,8 @@
 #include <plat/cpu.h>
 #endif
 
+#include <asm/memblock.h>
+
 #if defined(CONFIG_DEPRECATED_PARAM_STRUCT)
 #include "compat.h"
 #endif
