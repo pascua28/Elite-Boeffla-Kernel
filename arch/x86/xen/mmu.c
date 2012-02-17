@@ -1729,10 +1729,8 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 	__xen_write_cr3(true, __pa(pgd));
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 
-	memblock_x86_reserve_range(__pa(xen_start_info->pt_base),
-		      __pa(xen_start_info->pt_base +
-			   xen_start_info->nr_pt_frames * PAGE_SIZE),
-		      "XEN PAGETABLES");
+	memblock_reserve(__pa(xen_start_info->pt_base),
+			 xen_start_info->nr_pt_frames * PAGE_SIZE);
 
 	return pgd;
 }
@@ -1808,10 +1806,8 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 			  PFN_DOWN(__pa(initial_page_table)));
 	xen_write_cr3(__pa(initial_page_table));
 
-	memblock_x86_reserve_range(__pa(xen_start_info->pt_base),
-		      __pa(xen_start_info->pt_base +
-			   xen_start_info->nr_pt_frames * PAGE_SIZE),
-		      "XEN PAGETABLES");
+	memblock_reserve(__pa(xen_start_info->pt_base),
+			 xen_start_info->nr_pt_frames * PAGE_SIZE));
 
 	return initial_page_table;
 }
