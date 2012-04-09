@@ -311,13 +311,19 @@ int s3cfb_update_power_state(struct s3cfb_global *fbdev, int id, int state)
 	return 0;
 }
 
+static int s3cfb_vsync_timestamp_changed(struct s3cfb_global *fbdev,
+               ktime_t prev_timestamp)
+{
+       rmb();
+       return !ktime_equal(prev_timestamp, fbdev->vsync_timestamp);
+}
+
 int s3cfb_init_global(struct s3cfb_global *fbdev)
 {
 	fbdev->output = OUTPUT_RGB;
 	fbdev->rgb_mode = MODE_RGB_P;
 
-	fbdev->wq_count = 0;
-	init_waitqueue_head(&fbdev->wq);
+	init_waitqueue_head(&fbdev->vsync_wq);
 	mutex_init(&fbdev->lock);
 
 	s3cfb_set_output(fbdev);
@@ -1175,13 +1181,24 @@ int s3cfb_cursor(struct fb_info *fb, struct fb_cursor *cursor)
 #if !defined(CONFIG_FB_S5P_VSYNC_THREAD)
 int s3cfb_wait_for_vsync(struct s3cfb_global *fbdev)
 {
+	ktime_t prev_timestamp;
+	int ret;
+
 	dev_dbg(fbdev->dev, "waiting for VSYNC interrupt\n");
 
-	sleep_on_timeout(&fbdev->wq, HZ / 10);
+	prev_timestamp = fbdev->vsync_timestamp;
+	ret = wait_event_interruptible_timeout(fbdev->vsync_wq,
+			s3cfb_vsync_timestamp_changed(fbdev, prev_timestamp),
+			msecs_to_jiffies(100));
+
+	if (ret == 0)
+		return -ETIMEDOUT;
+	if (ret < 0)
+		return ret;
 
 	dev_dbg(fbdev->dev, "got a VSYNC interrupt\n");
 
-	return 0;
+	return ret;
 }
 #endif
 

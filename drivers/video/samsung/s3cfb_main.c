@@ -150,8 +150,9 @@ static irqreturn_t s3cfb_irq_frame(int irq, void *dev_id)
 	wake_up_interruptible_all(&fbdev[0]->vsync_info.wait);
 #endif
 
-	fbdev[0]->wq_count++;
-	wake_up(&fbdev[0]->wq);
+	fbdev[0]->vsync_timestamp = ktime_get();
+	wmb();
+	wake_up_interruptible(&fbdev[0]->vsync_wq);
 
 	spin_unlock(&fbdev[0]->vsync_slock);
 
