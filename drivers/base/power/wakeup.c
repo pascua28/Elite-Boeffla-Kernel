@@ -13,6 +13,7 @@
 #include <linux/suspend.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <trace/events/power.h>
 
 #include "power.h"
 
@@ -400,12 +401,16 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
  */
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
+	unsigned int cec;
+
 	ws->active = true;
 	ws->active_count++;
 	ws->last_time = ktime_get();
 
 	/* Increment the counter of events in progress. */
-	atomic_inc(&combined_event_count);
+	cec = atomic_inc_return(&combined_event_count);
+
+	trace_wakeup_source_activate(ws->name, cec);
 }
 
 /**
@@ -514,7 +519,8 @@ static void wakeup_source_deactivate(struct wakeup_source *ws)
 	 * Increment the counter of registered wakeup events and decrement the
 	 * couter of wakeup events in progress simultaneously.
 	 */
-	atomic_add(MAX_IN_PROGRESS, &combined_event_count);
+	cec = atomic_add_return(MAX_IN_PROGRESS, &combined_event_count);
+	trace_wakeup_source_deactivate(ws->name, cec);
 }
 
 /**
@@ -711,7 +717,7 @@ bool pm_get_wakeup_count(unsigned int *count)
  */
 bool pm_save_wakeup_count(unsigned int count)
 {
-	unsigned int cnt, inpr;
+	unsigned int cnt, inpr, cec;
 
 	events_check_enabled = false;
 	spin_lock_irq(&events_lock);
