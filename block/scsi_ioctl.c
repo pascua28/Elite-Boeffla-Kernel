@@ -728,7 +728,7 @@ int scsi_verify_blk_ioctl(struct block_device *bd, unsigned int cmd)
 	printk_ratelimited(KERN_WARNING
 			   "%s: sending ioctl %x to a partition!\n", current->comm, cmd);
 
-	return -ENOTTY;
+	return -ENOIOCTLCMD;
 }
 EXPORT_SYMBOL(scsi_verify_blk_ioctl);
 
