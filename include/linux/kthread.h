@@ -13,6 +13,10 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 #define kthread_create(threadfn, data, namefmt, arg...) \
 	kthread_create_on_node(threadfn, data, -1, namefmt, ##arg)
 
+struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
+					  void *data,
+					  unsigned int cpu,
+					  const char *namefmt);
 
 /**
  * kthread_run - create and wake a thread.
@@ -34,8 +38,12 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 
 void kthread_bind(struct task_struct *k, unsigned int cpu);
 int kthread_stop(struct task_struct *k);
-int kthread_should_stop(void);
+bool kthread_should_stop(void);
+bool kthread_should_park(void);
 void *kthread_data(struct task_struct *k);
+int kthread_park(struct task_struct *k);
+void kthread_unpark(struct task_struct *k);
+void kthread_parkme(void);
 
 int kthreadd(void *unused);
 extern struct task_struct *kthreadd_task;
