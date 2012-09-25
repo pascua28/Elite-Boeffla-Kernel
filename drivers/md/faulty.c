@@ -184,8 +184,7 @@ static int make_request(mddev_t *mddev, struct bio *bio)
 			return 0;
 		}
 
-		if (check_sector(conf, bio->bi_sector, bio->bi_sector+(bio->bi_size>>9),
-				 WRITE))
+		if (check_sector(conf, bio->bi_sector, bio_end_sector(bio), WRITE))
 			failit = 1;
 		if (check_mode(conf, WritePersistent)) {
 			add_sector(conf, bio->bi_sector, WritePersistent);
@@ -195,8 +194,7 @@ static int make_request(mddev_t *mddev, struct bio *bio)
 			failit = 1;
 	} else {
 		/* read request */
-		if (check_sector(conf, bio->bi_sector, bio->bi_sector + (bio->bi_size>>9),
-				 READ))
+		if (check_sector(conf, bio->bi_sector, bio_end_sector(bio), READ))
 			failit = 1;
 		if (check_mode(conf, ReadTransient))
 			failit = 1;
