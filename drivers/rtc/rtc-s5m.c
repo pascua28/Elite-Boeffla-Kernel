@@ -203,7 +203,7 @@ static int s5m_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct s5m_rtc_info *info = dev_get_drvdata(dev);
 	u8 data[8];
-	int ret;
+	int ret, i;
 
 	switch (info->device_type) {
 	case S5M8763X:
@@ -226,7 +226,8 @@ static int s5m_rtc_set_time(struct device *dev, struct rtc_time *tm)
         if (ret < 0)
 		goto out;
 
-	ret = s5m8767_rtc_set_time_reg(info);
+	for (i = 0; i < 2; i++)
+		ret = s5m8767_rtc_set_time_reg(info);
 
 out:
 	mutex_unlock(&info->lock);
