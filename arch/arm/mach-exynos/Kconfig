@@ -1858,3 +1858,9 @@ config MACH_KONA_SENSOR
           BMA254 / BOSCH
           YAS532 / YAMAHA
           GP2A030A / SHARP
+
+config CHARGE_LEVEL
+	bool "Charge level interface"
+	default y
+	help
+	  Allows configuration of ac and usb charging levels
