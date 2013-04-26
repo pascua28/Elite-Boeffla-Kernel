@@ -247,7 +247,6 @@ static inline int is_rt(struct fuse_conn *fc)
 	*/
 	struct io_context *ioc;
 	struct task_struct *tsk = current;
-	int ret = 0;
 
 	if (!fc)
 		return 0;
@@ -258,11 +257,10 @@ static inline int is_rt(struct fuse_conn *fc)
 	if(!ioc)
 		return 0;
 
-	if(IOPRIO_PRIO_CLASS(ioc->ioprio) == IOPRIO_CLASS_RT)
-		ret = 1;
+	if(ioc && IOPRIO_PRIO_CLASS(ioc->ioprio) == IOPRIO_CLASS_RT)
+		return 1;
 
-	put_io_context(ioc);
-	return ret;
+	return 0;
 }
 
 static void queue_request(struct fuse_conn *fc, struct fuse_req *req)

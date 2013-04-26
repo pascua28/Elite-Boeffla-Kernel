@@ -119,7 +119,7 @@ static void mmc_request(struct request_queue *q)
 		/* Set nopacked period if requesting process is RT class */
 		if (IOPRIO_PRIO_CLASS(ioc->ioprio) == IOPRIO_CLASS_RT)
 			mmc_set_nopacked_period(mq, HZ);
-		put_io_context(ioc);
+		put_io_context(ioc, NULL);
 	}
 
 	if (!mq->mqrq_cur->req && !mq->mqrq_prev->req)
