@@ -104,6 +104,7 @@ static void mmc_request(struct request_queue *q)
 	struct mmc_queue *mq = q->queuedata;
 	struct request *req;
 	struct io_context *ioc;
+	struct task_struct *tsk = current;
 
 	if (!mq) {
 		while ((req = blk_fetch_request(q)) != NULL) {
@@ -113,7 +114,7 @@ static void mmc_request(struct request_queue *q)
 		return;
 	}
 
-	ioc = get_io_context(GFP_NOWAIT, 0);
+	ioc = get_task_io_context(tsk, GFP_NOWAIT, 0);
 	if (ioc) {
 		/* Set nopacked period if requesting process is RT class */
 		if (IOPRIO_PRIO_CLASS(ioc->ioprio) == IOPRIO_CLASS_RT)
