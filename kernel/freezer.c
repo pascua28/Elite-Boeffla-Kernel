@@ -87,6 +87,18 @@ static void fake_signal_wake_up(struct task_struct *p)
  */
 bool freeze_task(struct task_struct *p, bool sig_only)
 {
+
+	/*
+	 * This check can race with freezer_do_not_count, but worst case that
+	 * will result in an extra wakeup being sent to the task.  It does not
+	 * race with freezer_count(), the barriers in freezer_count() and
+	 * freezer_should_skip() ensure that either freezer_count() sees
+	 * freezing == true in try_to_freeze() and freezes, or
+	 * freezer_should_skip() sees !PF_FREEZE_SKIP and freezes the task
+	 * normally.
+	 */
+	if (freezer_should_skip(p))
+		return false;
 	/*
 	 * We first check if the task is freezing and next if it has already
 	 * been frozen to avoid the race with frozen_process() which first marks
