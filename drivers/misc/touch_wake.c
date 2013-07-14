@@ -46,7 +46,7 @@ static struct input_dev * powerkey_device;
 static struct wake_lock touchwake_wake_lock;
 static struct timeval last_powerkeypress;
 
-#define TOUCHWAKE_VERSION 1.1
+#define TOUCHWAKE_VERSION "1.1"
 #define TIME_LONGPRESS 500
 #define POWERPRESS_DELAY 100
 #define POWERPRESS_TIMEOUT 1000
@@ -233,18 +233,31 @@ static ssize_t touchwake_delay_write(struct device * dev, struct device_attribut
 
 static ssize_t touchwake_version(struct device * dev, struct device_attribute * attr, char * buf)
 {
-	return sprintf(buf, "%u\n", TOUCHWAKE_VERSION);
+	return sprintf(buf, "%s\n", TOUCHWAKE_VERSION);
 }
+
+#ifdef DEBUG_PRINT
+static ssize_t touchwake_debug(struct device * dev, struct device_attribute * attr, char * buf)
+{
+	return sprintf(buf, "timed_out : %u\nprox_near : %u\n", (unsigned int) timed_out, (unsigned int) prox_near);
+}
+#endif
 
 static DEVICE_ATTR(enabled, S_IRUGO | S_IWUGO, touchwake_status_read, touchwake_status_write);
 static DEVICE_ATTR(delay, S_IRUGO | S_IWUGO, touchwake_delay_read, touchwake_delay_write);
 static DEVICE_ATTR(version, S_IRUGO , touchwake_version, NULL);
+#ifdef DEBUG_PRINT
+static DEVICE_ATTR(debug, S_IRUGO , touchwake_debug, NULL);
+#endif
 
 static struct attribute *touchwake_notification_attributes[] =
 {
 	&dev_attr_enabled.attr,
 	&dev_attr_delay.attr,
 	&dev_attr_version.attr,
+#ifdef DEBUG_PRINT
+	&dev_attr_debug.attr,
+#endif
 	NULL
 };
 
@@ -261,16 +274,10 @@ static struct miscdevice touchwake_device =
 
 void proximity_detected(void)
 {   
-	if(likely(!device_suspended)) {		// Yank555 : only consider this once device is not suspended anymore
-		prox_near = true;
-		#ifdef DEBUG_PRINT
-		pr_info("[TOUCHWAKE] Proximity detected\n");
-		#endif
+	prox_near = true;
 	#ifdef DEBUG_PRINT
-	} else {
-		pr_info("[TOUCHWAKE] Proximity detected ignored, device is still suspended\n");
+	pr_info("[TOUCHWAKE] Proximity enabled\n");
 	#endif
-	}
 
 	return;
 }
@@ -278,16 +285,10 @@ EXPORT_SYMBOL(proximity_detected);
 
 void proximity_off(void)
 {   
-	if(likely(!device_suspended)) {		// Yank555 : only consider this once device is not suspended anymore
-		prox_near = false;
-		#ifdef DEBUG_PRINT
-		pr_info("[TOUCHWAKE] Proximity off\n");
-		#endif
+	prox_near = false;
 	#ifdef DEBUG_PRINT
-	} else {
-		pr_info("[TOUCHWAKE] Proximity off ignored, device is still suspended\n");
+	pr_info("[TOUCHWAKE] Proximity disabled\n");
 	#endif
-	}
 
 	return;
 }
