@@ -315,9 +315,6 @@ static struct bfq_group *__bfq_bic_change_cgroup(struct bfq_data *bfqd,
 	struct bfq_queue *sync_bfqq = bic_to_bfqq(bic, 1);
 	struct bfq_entity *entity;
 	struct bfq_group *bfqg;
-	struct bfqio_cgroup *bgrp;
-
-	bgrp = cgroup_to_bfqio(cgroup);
 
 	bfqg = bfq_find_alloc_group(bfqd, cgroup);
 	if (async_bfqq != NULL) {
@@ -736,60 +733,51 @@ static struct cgroup_subsys_state *bfqio_create(struct cgroup_subsys *subsys,
  * will not be destroyed until the tasks sharing the ioc die.
  */
 static int bfqio_can_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
-			    struct cgroup_taskset *tset)
+			    struct task_struct *tsk)
 {
-	struct task_struct *task;
 	struct io_context *ioc;
 	int ret = 0;
 
-	cgroup_taskset_for_each(task, cgroup, tset) {
-		/* task_lock() is needed to avoid races with exit_io_context() */
-		task_lock(task);
-		ioc = task->io_context;
-		if (ioc != NULL && atomic_read(&ioc->nr_tasks) > 1)
-			/*
-			 * ioc == NULL means that the task is either too young or
-			 * exiting: if it has still no ioc the ioc can't be shared,
-			 * if the task is exiting the attach will fail anyway, no
-			 * matter what we return here.
-			 */
-			ret = -EINVAL;
-		task_unlock(task);
-		if (ret)
-			break;
-	}
+	/* task_lock() is needed to avoid races with exit_io_context() */
+	task_lock(tsk);
+	ioc = tsk->io_context;
+	if (ioc != NULL && atomic_read(&ioc->nr_tasks) > 1)
+		/*
+		 * ioc == NULL means that the task is either too young or
+		 * exiting: if it has still no ioc the ioc can't be shared,
+		 * if the task is exiting the attach will fail anyway, no
+		 * matter what we return here.
+		 */
+		ret = -EINVAL;
+	task_unlock(tsk);
 
 	return ret;
 }
 
 static void bfqio_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
-			 struct cgroup_taskset *tset)
+			 struct cgroup *prev, struct task_struct *tsk)
 {
-	struct task_struct *task;
 	struct io_context *ioc;
 	struct io_cq *icq;
 	struct hlist_node *n;
 
-	/*
-	 * IMPORTANT NOTE: The move of more than one process at a time to a
-	 * new group has not yet been tested.
-	 */
-	cgroup_taskset_for_each(task, cgroup, tset) {
-		ioc = get_task_io_context(task, GFP_ATOMIC, NUMA_NO_NODE);
-		if (ioc) {
-			/*
-			 * Handle cgroup change here.
-			 */
-			rcu_read_lock();
-			hlist_for_each_entry_rcu(icq, n, &ioc->icq_list, ioc_node)
-				if (!strncmp(icq->q->elevator->type->elevator_name,
-					     "bfq", ELV_NAME_MAX))
-					bfq_bic_change_cgroup(icq_to_bic(icq),
-							      cgroup);
-			rcu_read_unlock();
-			put_io_context(ioc);
-		}
+	task_lock(tsk);
+	ioc = tsk->io_context;
+	if (ioc != NULL) {
+		BUG_ON(atomic_long_read(&ioc->refcount) == 0);
+		atomic_long_inc(&ioc->refcount);
 	}
+	task_unlock(tsk);
+
+	if (ioc == NULL)
+		return;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(icq, n, &ioc->icq_list, ioc_node)
+		bfq_bic_change_cgroup(icq_to_bic(icq), cgroup);
+	rcu_read_unlock();
+
+	put_io_context(ioc, NULL);
 }
 
 static void bfqio_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)

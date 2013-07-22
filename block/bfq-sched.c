@@ -981,7 +981,7 @@ static struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 static void __bfq_bfqd_reset_active(struct bfq_data *bfqd)
 {
 	if (bfqd->active_bic != NULL) {
-		put_io_context(bfqd->active_bic->icq.ioc);
+		put_io_context(bfqd->active_bic->icq.ioc, NULL);
 		bfqd->active_bic = NULL;
 	}
 
