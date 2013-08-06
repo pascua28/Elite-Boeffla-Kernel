@@ -1080,8 +1080,8 @@ static int __devinit an30259a_probe(struct i2c_client *client,
 
 #ifdef SEC_LED_SPECIFIC
 	led_enable_fade = 1;  /* default to CM behaviour = fade */
-	led_intensity =  0;   /* default to CM behaviour = brighter blink intensity allowed */
-//	led_intensity = 40;   /* default to Samsung behaviour = normal intensity */
+//	led_intensity =  0;   /* default to CM behaviour = brighter blink intensity allowed */
+	led_intensity = 40;   /* default to Samsung behaviour = normal intensity */
 	led_speed = 1;        /* default to stock behaviour = normal blinking/fading speed */
 	led_slope_up_1 = 1;   /* default slope durations to CM behaviour */
 	led_slope_up_2 = 1;
