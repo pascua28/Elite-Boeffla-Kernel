@@ -46,8 +46,9 @@
 #endif
 #include "linux/charge_level.h"
 
-int ac_level = AC_CHARGE_LEVEL_DEFAULT;    // Set AC default charge level
-int usb_level  = USB_CHARGE_LEVEL_DEFAULT; // Set USB default charge level
+int ac_level 		= AC_CHARGE_LEVEL_DEFAULT;    // Set AC default charge level
+int usb_level  		= USB_CHARGE_LEVEL_DEFAULT; // Set USB default charge level
+int wireless_level	= WIRELESS_CHARGE_LEVEL_DEFAULT; // Set wireless default charge level
 
 
 static char *supply_list[] = {
@@ -1666,8 +1667,8 @@ charge_ok:
 		printk("Boeffla-Kernel: POWER_SUPPLY_TYPE_WIRELESS");
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
-		battery_charge_control(info, info->pdata->chg_curr_wpc,
-						info->pdata->chg_curr_wpc);
+		battery_charge_control(info, wireless_level,
+						wireless_level);
 		break;
 	default:
 		break;
