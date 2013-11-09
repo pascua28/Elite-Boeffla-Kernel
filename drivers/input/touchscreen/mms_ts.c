@@ -14,9 +14,9 @@
  *
  */
 
-#define DEBUG
+/* #define DEBUG
 /* #define VERBOSE_DEBUG */
-/*#define SEC_TSP_DEBUG*/
+/* #define SEC_TSP_DEBUG */
 /* #define SEC_TSP_VERBOSE_DEBUG */
 
 /* #define FORCE_FW_FLASH */
