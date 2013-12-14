@@ -779,21 +779,6 @@ static void exynos4_handler_tmu_state(struct work_struct *work)
 		break;
 	} /* end */
 
-	/* memory throttling */
-	if (cur_temp >= data->ts.start_mem_throttle) {
-		if (!(auto_refresh_changed) && (trend > 0)) {
-			pr_info("set auto_refresh 1.95us\n");
-			set_refresh_rate(info->auto_refresh_tq0);
-			auto_refresh_changed = 1;
-		}
-	} else if (cur_temp <= (data->ts.stop_mem_throttle)) {
-		if ((auto_refresh_changed) && (trend < 0)) {
-			pr_info("set auto_refresh 3.9us\n");
-			set_refresh_rate(info->auto_refresh_normal);
-			auto_refresh_changed = 0;
-		}
-	}
-
 	info->last_temperature = cur_temp;
 
 	/* reschedule the next work */
