@@ -1379,7 +1379,7 @@ static int exfat_setattr(struct dentry *dentry, struct iattr *attr)
 #else
 	if (attr->ia_valid & ATTR_SIZE) {
 		old_size = i_size_read(inode);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,00)
+#if 1//LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,00)
                 down_write(&EXFAT_I(inode)->truncate_lock);
 		truncate_setsize(inode, attr->ia_size);
 		_exfat_truncate(inode, old_size);
@@ -1776,7 +1776,7 @@ static sector_t _exfat_bmap(struct address_space *mapping, sector_t block)
 {
 	sector_t blocknr;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,00)
+#if 1//LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,00)
 	down_read(&EXFAT_I(mapping->host)->truncate_lock);
 	blocknr = generic_block_bmap(mapping, block, exfat_get_block);
 	up_read(&EXFAT_I(mapping->host)->truncate_lock);
