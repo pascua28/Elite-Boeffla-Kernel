@@ -80,7 +80,7 @@ static struct proc_dir_entry *mfc_proc_entry;
 #define MFC_PROC_TOTAL_INSTANCE_NUMBER	"total_instance_number"
 
 #ifdef CONFIG_BUSFREQ
-static struct pm_qos_request_list bus_qos_pm_qos_req;
+static struct pm_qos_request bus_qos_pm_qos_req;
 #endif
 
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
