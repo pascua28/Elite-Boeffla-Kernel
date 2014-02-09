@@ -99,43 +99,55 @@ static struct pm_qos_object network_throughput_pm_qos = {
 };
 
 static BLOCKING_NOTIFIER_HEAD(bus_dma_throughput_notifier);
-static struct pm_qos_object bus_dma_throughput_pm_qos = {
-	.constraints = PLIST_HEAD_INIT(bus_dma_throughput_pm_qos.constraints),
-	.notifiers = &bus_dma_throughput_notifier,
-	.name = "bus_dma_throughput",
+static struct pm_qos_constraints bus_dma_throughput_constraints = {
+	.list = PLIST_HEAD_INIT(bus_dma_throughput_constraints.list),
 	.target_value = PM_QOS_BUS_DMA_THROUGHPUT_DEFAULT_VALUE,
 	.default_value = PM_QOS_BUS_DMA_THROUGHPUT_DEFAULT_VALUE,
 	.type = PM_QOS_MAX,
+	.notifiers = &bus_dma_throughput_notifier,
+};
+static struct pm_qos_object bus_dma_throughput_pm_qos = {
+	.constraints = &bus_dma_throughput_constraints,
+	.name = "bus_dma_throughput",
 };
 
 static BLOCKING_NOTIFIER_HEAD(display_frequency_notifier);
-static struct pm_qos_object display_frequency_pm_qos = {
-	.constraints = PLIST_HEAD_INIT(display_frequency_pm_qos.constraints),
-	.notifiers = &display_frequency_notifier,
-	.name = "display_frequency",
+static struct pm_qos_constraints display_frequency_constraints = {
+	.list = PLIST_HEAD_INIT(display_frequency_constraints.list),
 	.target_value = PM_QOS_DISPLAY_FREQUENCY_DEFAULT_VALUE,
 	.default_value = PM_QOS_DISPLAY_FREQUENCY_DEFAULT_VALUE,
 	.type = PM_QOS_MAX,
+	.notifiers = &display_frequency_notifier,
+};
+static struct pm_qos_object display_frequency_pm_qos = {
+	.constraints = &display_frequency_constraints,
+	.name = "display_frequency",
 };
 
 static BLOCKING_NOTIFIER_HEAD(bus_qos_notifier);
-static struct pm_qos_object bus_qos_pm_qos = {
-	.constraints = PLIST_HEAD_INIT(bus_qos_pm_qos.constraints),
-	.notifiers = &bus_qos_notifier,
-	.name = "bus_qos",
+static struct pm_qos_constraints bus_qos_constraints = {
+	.list = PLIST_HEAD_INIT(bus_qos_constraints.list),
 	.target_value = 0,
 	.default_value = 0,
 	.type = PM_QOS_MAX,
+	.notifiers = &bus_qos_notifier,
+};
+static struct pm_qos_object bus_qos_pm_qos = {
+	.constraints = &bus_qos_constraints,
+	.name = "bus_qos",
 };
 
 static BLOCKING_NOTIFIER_HEAD(dvfs_res_lat_notifier);
-static struct pm_qos_object dvfs_res_lat_pm_qos = {
-	.constraints = PLIST_HEAD_INIT(dvfs_res_lat_pm_qos.constraints),
-	.notifiers = &dvfs_res_lat_notifier,
-	.name = "dvfs_response_latency",
+static struct pm_qos_constraints dvfs_res_lat_constraints = {
+	.list = PLIST_HEAD_INIT(dvfs_res_lat_constraints.list),
 	.target_value = PM_QOS_DVFS_RESPONSE_LAT_DEFAULT_VALUE,
 	.default_value = PM_QOS_DVFS_RESPONSE_LAT_DEFAULT_VALUE,
-	.type = PM_QOS_MIN
+	.type = PM_QOS_MIN,
+	.notifiers = &dvfs_res_lat_notifier,
+};
+static struct pm_qos_object dvfs_res_lat_pm_qos = {
+	.constraints = &dvfs_res_lat_constraints,
+	.name = "dvfs_response_latency",
 };
 
 static struct pm_qos_object *pm_qos_array[] = {
