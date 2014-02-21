@@ -16,4 +16,5 @@ obj-$(CONFIG_EARLY_SUSPEND_DELAY) += fbearlysuspenddelay.o
 obj-$(CONFIG_FB_EARLYSUSPEND)	+= fbearlysuspend.o
 obj-$(CONFIG_SUSPEND_TIME)	+= suspend_time.o
 
+obj-$(CONFIG_QUICK_WAKEUP)	+= quickwakeup.o
 obj-$(CONFIG_MAGIC_SYSRQ)	+= poweroff.o
