@@ -734,6 +734,7 @@ static irqreturn_t touchkey_interrupt(int irq, void *dev_id)
 			// Yank555.lu : enable lights on h/w key pressed
 			touchkey_pressed = TOUCHKEY_HW_PRESSED;
 			if (touchkey_led_status       == TK_CMD_LED_OFF	       &&
+				touch_led_disabled == 0 &&
 			    touch_led_on_screen_touch == TOUCHKEY_LED_DISABLED   ) {
 				pr_debug("[Touchkey] %s: enabling touchled\n", __func__);
 				i2c_touchkey_write(tkey_i2c->client, (u8 *) &ledCmd[0], 1);
@@ -1218,7 +1219,8 @@ static ssize_t touchkey_led_control(struct device *dev,
 	    }
 	} else {
 		// Yank555.lu : ROM is handling (newer CM)
-		ret = i2c_touchkey_write(tkey_i2c->client, (u8 *) &data, 1);
+		if (touch_led_disabled == 0)
+			ret = i2c_touchkey_write(tkey_i2c->client, (u8 *) &data, 1);
 	}
 
 	if (ret == -ENODEV) {
