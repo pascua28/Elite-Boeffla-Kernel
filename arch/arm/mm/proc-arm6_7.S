@@ -24,7 +24,7 @@
 
 ENTRY(cpu_arm6_dcache_clean_area)
 ENTRY(cpu_arm7_dcache_clean_area)
-		mov	pc, lr
+		ret	lr
 
 /*
  * Function: arm6_7_data_abort ()
@@ -49,7 +49,7 @@ ENTRY(cpu_arm7_data_abort)
 	nop
 
 /* 0 */	b	.data_unknown
-/* 1 */	mov	pc, lr				@ swp
+/* 1 */	ret	lr				@ swp
 /* 2 */	b	.data_unknown
 /* 3 */	b	.data_unknown
 /* 4 */	b	.data_arm_lateldrpostconst	@ ldr	rd, [rn], #m
@@ -60,8 +60,8 @@ ENTRY(cpu_arm7_data_abort)
 /* 9 */	b	.data_arm_ldmstm		@ ldm*b	rn, <rlist>
 /* a */	b	.data_unknown
 /* b */	b	.data_unknown
-/* c */	mov	pc, lr				@ ldc	rd, [rn], #m	@ Same as ldr	rd, [rn], #m
-/* d */	mov	pc, lr				@ ldc	rd, [rn, #m]
+/* c */	ret	lr				@ ldc	rd, [rn], #m	@ Same as ldr	rd, [rn], #m
+/* d */	ret	lr				@ ldc	rd, [rn, #m]
 /* e */	b	.data_unknown
 /* f */
 .data_unknown:	@ Part of jumptable
@@ -79,11 +79,11 @@ ENTRY(cpu_arm6_data_abort)
 	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #14 << 24
 	teq	r7, #8 << 24			@ was it ldm/stm
-	movne	pc, lr
+	retne	lr
 
 .data_arm_ldmstm:
 	tst	r8, #1 << 21			@ check writeback bit
-	moveq	pc, lr				@ no writeback -> no fixup
+	reteq	lr				@ no writeback -> no fixup
 	mov	r7, #0x11
 	orr	r7, r7, #0x1100
 	and	r6, r8, r7
@@ -102,7 +102,7 @@ ENTRY(cpu_arm6_data_abort)
 	subne	r7, r7, r6, lsl #2		@ Undo increment
 	addeq	r7, r7, r6, lsl #2		@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	mov	pc, lr
+	ret	lr
 
 .data_arm_apply_r6_and_rn:
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
@@ -111,25 +111,25 @@ ENTRY(cpu_arm6_data_abort)
 	subne	r7, r7, r6			@ Undo incrmenet
 	addeq	r7, r7, r6			@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	mov	pc, lr
+	ret	lr
 
 .data_arm_lateldrpreconst:
 	tst	r8, #1 << 21			@ check writeback bit
-	moveq	pc, lr				@ no writeback -> no fixup
+	reteq	lr				@ no writeback -> no fixup
 .data_arm_lateldrpostconst:
 	movs	r2, r8, lsl #20			@ Get offset
-	moveq	pc, lr				@ zero -> no fixup
+	reteq	lr				@ zero -> no fixup
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
 	ldr	r7, [sp, r5, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
 	subne	r7, r7, r2, lsr #20		@ Undo increment
 	addeq	r7, r7, r2, lsr #20		@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	mov	pc, lr
+	ret	lr
 
 .data_arm_lateldrprereg:
 	tst	r8, #1 << 21			@ check writeback bit
-	moveq	pc, lr				@ no writeback -> no fixup
+	reteq	lr				@ no writeback -> no fixup
 .data_arm_lateldrpostreg:
 	and	r7, r8, #15			@ Extract 'm' from instruction
 	ldr	r6, [sp, r7, lsl #2]		@ Get register 'Rm'
@@ -180,17 +180,17 @@ ENTRY(cpu_arm6_data_abort)
  */
 ENTRY(cpu_arm6_proc_init)
 ENTRY(cpu_arm7_proc_init)
-		mov	pc, lr
+		ret	lr
 
 ENTRY(cpu_arm6_proc_fin)
 ENTRY(cpu_arm7_proc_fin)
 		mov	r0, #0x31			@ ....S..DP...M
 		mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-		mov	pc, lr
+		ret	lr
 
 ENTRY(cpu_arm6_do_idle)
 ENTRY(cpu_arm7_do_idle)
-		mov	pc, lr
+		ret	lr
 
 /*
  * Function: arm6_7_switch_mm(unsigned long pgd_phys)
@@ -206,7 +206,7 @@ ENTRY(cpu_arm7_switch_mm)
 		mcr	p15, 0, r0, c2, c0, 0		@ update page table ptr
 		mcr	p15, 0, r1, c5, c0, 0		@ flush TLBs
 #endif
-		mov	pc, lr
+		ret	lr
 
 /*
  * Function: arm6_7_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext)
@@ -220,7 +220,7 @@ ENTRY(cpu_arm7_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv3_set_pte_ext wc_disable=0
 #endif /* CONFIG_MMU */
-	mov	pc, lr
+	ret	lr
 
 /*
  * Function: _arm6_7_reset
@@ -236,7 +236,7 @@ ENTRY(cpu_arm7_reset)
 #endif
 		mov	r1, #0x30
 		mcr	p15, 0, r1, c1, c0, 0		@ turn off MMU etc
-		mov	pc, r0
+		ret	r0
 
 		__CPUINIT
 
@@ -250,7 +250,7 @@ __arm6_setup:	mov	r0, #0
 #else
 		mov	r0, #0x3c			@ . ..RS BLDP WCA.
 #endif
-		mov	pc, lr
+		ret	lr
 		.size	__arm6_setup, . - __arm6_setup
 
 		.type	__arm7_setup, #function
@@ -264,7 +264,7 @@ __arm7_setup:	mov	r0, #0
 #else
 		mov	r0, #0x7c			@ . ..RS BLDP WCA.
 #endif
-		mov	pc, lr
+		ret	lr
 		.size	__arm7_setup, . - __arm7_setup
 
 		__INITDATA

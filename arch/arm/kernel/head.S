@@ -116,7 +116,7 @@ ENTRY(stext)
 	mov	r8, r4				@ set TTBR1 to swapper_pg_dir
  ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
  THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
+ THUMB(	ret	r12				)
 1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
@@ -271,7 +271,7 @@ __create_page_tables:
 	str	r3, [r0]
 #endif
 #endif
-	mov	pc, lr
+	ret	lr
 ENDPROC(__create_page_tables)
 	.ltorg
 	.align
@@ -312,7 +312,7 @@ ENTRY(secondary_startup)
  ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
 						  @ (return control reg)
  THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
+ THUMB(	ret	r12				)
 ENDPROC(secondary_startup)
 
 	/*
@@ -392,7 +392,7 @@ __turn_mmu_on:
 	mrc	p15, 0, r3, c0, c0, 0		@ read id reg
 	mov	r3, r3
 	mov	r3, r13
-	mov	pc, r3
+	ret	r3
 __enable_mmu_end:
 ENDPROC(__turn_mmu_on)
 
@@ -410,12 +410,12 @@ __fixup_smp:
 	orr	r4, r4, #0x0000b000
 	orr	r4, r4, #0x00000020	@ val 0x4100b020
 	teq	r3, r4			@ ARM 11MPCore?
-	moveq	pc, lr			@ yes, assume SMP
+	reteq	lr			@ yes, assume SMP
 
 	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
 	and	r0, r0, #0xc0000000	@ multiprocessing extensions and
 	teq	r0, #0x80000000		@ not part of a uniprocessor system?
-	moveq	pc, lr			@ yes, assume SMP
+	reteq	lr			@ yes, assume SMP
 
 __fixup_smp_on_up:
 	adr	r0, 1f
@@ -442,7 +442,7 @@ smp_on_up:
 	.text
 __do_fixup_smp_on_up:
 	cmp	r4, r5
-	movhs	pc, lr
+	reths	lr
 	ldmia	r4!, {r0, r6}
  ARM(	str	r6, [r0, r3]	)
  THUMB(	add	r0, r0, r3	)
@@ -561,7 +561,7 @@ __fixup_a_pv_table:
 3:	cmp	r4, r5
 	ldrcc	r7, [r4], #4	@ use branch for delay slot
 	bcc	2b
-	mov	pc, lr
+	ret	lr
 #endif
 ENDPROC(__fixup_a_pv_table)
 

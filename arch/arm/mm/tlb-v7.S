@@ -60,7 +60,7 @@ ENTRY(v7wbi_flush_user_tlb_range)
 	ALT_SMP(mcr	p15, 0, ip, c7, c1, 6)	@ flush BTAC/BTB Inner Shareable
 	ALT_UP(mcr	p15, 0, ip, c7, c5, 6)	@ flush BTAC/BTB
 	dsb
-	mov	pc, lr
+	ret	lr
 ENDPROC(v7wbi_flush_user_tlb_range)
 
 /*
@@ -92,7 +92,7 @@ ENTRY(v7wbi_flush_kern_tlb_range)
 	ALT_UP(mcr	p15, 0, r2, c7, c5, 6)	@ flush BTAC/BTB
 	dsb
 	isb
-	mov	pc, lr
+	ret	lr
 ENDPROC(v7wbi_flush_kern_tlb_range)
 
 	__INIT
