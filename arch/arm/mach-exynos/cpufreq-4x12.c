@@ -48,7 +48,7 @@ struct cpufreq_clkdiv {
 static unsigned int exynos4x12_volt_table[CPUFREQ_LEVEL_END];
 
 static struct cpufreq_frequency_table exynos4x12_freq_table[] = {
-	{L0, 1700*1000},
+	{L0, 1704*1000},
 	{L1, 1600*1000},
 	{L2, 1400*1000},
 	{L3, 1300*1000},
@@ -126,10 +126,10 @@ static unsigned int clkdiv_cpu0_4412[CPUFREQ_LEVEL_END][8] = {
 	 * { DIVCORE, DIVCOREM0, DIVCOREM1, DIVPERIPH,
 	 *		DIVATB, DIVPCLK_DBG, DIVAPLL, DIVCORE2 }
 	 */
-	/* ARM L0: 1600Mhz */
-	{ 0, 3, 7, 0, 6, 1, 7, 0 },
+	/* ARM L0: 1704Mhz */
+	{ 0, 4, 7, 0, 7, 1, 7, 0 },
 
-	/* ARM L1: 1500Mhz */
+	/* ARM L1: 1600Mhz */
 	{ 0, 3, 7, 0, 6, 1, 7, 0 },
 
 	/* ARM L2: 1400Mhz */
@@ -226,10 +226,10 @@ static unsigned int clkdiv_cpu1_4412[CPUFREQ_LEVEL_END][3] = {
 	/* Clock divider value for following
 	 * { DIVCOPY, DIVHPM, DIVCORES }
 	 */
-	/* ARM L0: 1600MHz */
-	{ 6, 0, 7 },
+	/* ARM L0: 1704MHz */
+	{ 7, 0, 7 },
 
-	/* ARM L1: 1500MHz */
+	/* ARM L1: 1600MHz */
 	{ 6, 0, 7 },
 
 	/* ARM L2: 1400MHz */
@@ -273,11 +273,11 @@ static unsigned int clkdiv_cpu1_4412[CPUFREQ_LEVEL_END][3] = {
 };
 
 static unsigned int exynos4x12_apll_pms_table[CPUFREQ_LEVEL_END] = {
-	/* APLL FOUT L0: 1600MHz */
-	((200<<16)|(3<<8)|(0x0)),
+	/* APLL FOUT L0: 1704MHz */
+	((213<<16)|(3<<8)|(0x0)),
 
-	/* APLL FOUT L1: 1500MHz */
-	((250<<16)|(4<<8)|(0x0)),
+	/* APLL FOUT L1: 1600MHz */
+	((200<<16)|(3<<8)|(0x0)),
 
 	/* APLL FOUT L2: 1400MHz */
 	((175<<16)|(3<<8)|(0x0)),
@@ -353,7 +353,7 @@ static const unsigned int asv_voltage_s[CPUFREQ_LEVEL_END] = {
 /* ASV table for 12.5mV step */
 static const unsigned int asv_voltage_step_12_5[CPUFREQ_LEVEL_END][12] = {
 	/*   ASV0,    ASV1,    ASV2,    ASV3,	 ASV4,	  ASV5,	   ASV6,    ASV7,    ASV8,    ASV9,   ASV10,   ASV11 */
-	{ 1425000, 1425000, 1425000, 1425000, 1425000, 1400000,	1400000, 1400000, 1400000, 1387500, 1375000, 1362500 }, /* 1700MHz */
+	{ 1425000, 1425000, 1425000, 1425000, 1425000, 1400000,	1400000, 1400000, 1400000, 1387500, 1375000, 1362500 }, /* 1704MHz */
 	{ 1400000, 1400000, 1400000, 1400000, 1387500, 1387500, 1375000, 1362500, 1350000, 1337500, 1325000, 1312500 },
 	{ 1325000, 1312500, 1300000, 1287500, 1300000, 1287500,	1275000, 1250000, 1250000, 1237500, 1225000, 1212500 },
 	{ 1300000, 1275000, 1237500, 1237500, 1250000, 1250000,	1237500, 1212500, 1200000, 1200000, 1187500, 1175000 },

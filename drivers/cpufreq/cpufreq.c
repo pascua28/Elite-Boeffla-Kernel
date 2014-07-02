@@ -424,6 +424,10 @@ static ssize_t store_scaling_max_freq
 	if (ret != 1)
 		return -EINVAL;
 
+	// andip71: 1700 is not available, convert everyone still using it to 1704
+	if (new_policy.max == 1700000)
+		new_policy.max = 1704000;
+
 	ret = __cpufreq_set_policy(policy, &new_policy);
 	policy->user_policy.max = policy->max;
 
