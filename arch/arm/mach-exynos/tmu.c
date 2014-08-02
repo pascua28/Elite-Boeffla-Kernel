@@ -26,6 +26,7 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/kobject.h>
+#include <linux/cpufreq.h>
 
 #ifdef CONFIG_EXYNOS4_EXPORT_TEMP
 #include <linux/exynos4_export_temp.h>
@@ -566,6 +567,7 @@ static void exynos4_handler_tmu_state(struct work_struct *work)
 	static int auto_refresh_changed;
 	static int check_handle;
 	int trend = 0;
+	int cpu = 0;
 
 	mutex_lock(&tmu_lock);
 
@@ -620,6 +622,9 @@ static void exynos4_handler_tmu_state(struct work_struct *work)
 			pr_debug("check_handle = %d\n", check_handle);
 			notify_change_of_tmu_state(info);
 			pr_info("normal: free cpufreq_limit & interrupt enable.\n");
+
+			for_each_online_cpu(cpu)
+				cpufreq_update_policy(cpu);
 
 			/* clear to prevent from interfupt by peindig bit */
 			__raw_writel(INTCLEARALL,
