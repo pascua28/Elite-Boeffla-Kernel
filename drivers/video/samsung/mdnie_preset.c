@@ -125,6 +125,9 @@ static ssize_t mdnie_preset_store(struct device *dev, struct device_attribute *a
 	// read value from input buffer
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	// check received preset value for validity
 	if ((val >= 0) && (val <= 1))
 	{
