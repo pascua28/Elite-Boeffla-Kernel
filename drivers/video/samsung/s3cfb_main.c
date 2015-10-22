@@ -400,12 +400,27 @@ static ssize_t vsync_event_show(struct device *dev,
 	struct s3cfb_global *fbdev[1];
 	fbdev[0] = fbfimd->fbdev[0];
 
+	return snprintf(buf, PAGE_SIZE, "VSYNC=%llu",
+			((fbdev[0] != 0) ?
+			ktime_to_ns(fbdev[0]->vsync_info.timestamp) : 0));
+}
+
+static DEVICE_ATTR(vsync_event, 0444, vsync_event_show, NULL);
+
+#ifdef CONFIG_FB_S5P_VSYNC_SYSFS
+static ssize_t vsync_time_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct s3cfb_global *fbdev[1];
+	fbdev[0] = fbfimd->fbdev[0];
+
 	return snprintf(buf, PAGE_SIZE, "%llu",
 			((fbdev[0] != 0) ?
 			ktime_to_ns(fbdev[0]->vsync_info.timestamp) : 0));
 }
 
-static DEVICE_ATTR(vsync_time, S_IRUGO, vsync_event_show, NULL);
+static DEVICE_ATTR(vsync_time, 0444, vsync_time_show, NULL);
+#endif
 
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
 static int s3cfb_wait_for_vsync_thread(void *data)
@@ -422,8 +437,23 @@ static int s3cfb_wait_for_vsync_thread(void *data)
 				fbdev->vsync_info.timestamp) &&
 				fbdev->vsync_info.active);
 
-		sysfs_notify(&fbdev->dev->kobj,
-				NULL, "vsync_time");
+#if defined(CONFIG_FB_S5P_VSYNC_SEND_UEVENTS)
+                        char *envp[2];
+                        char buf[64];
+                        snprintf(buf, sizeof(buf), "VSYNC=%llu",
+                                        ktime_to_ns(fbdev->vsync_info.timestamp));
+                        envp[0] = buf;
+                        envp[1] = NULL;
+                        kobject_uevent_env(&fbdev->dev->kobj, KOBJ_CHANGE,
+                                                        envp);
+#endif
+
+		sysfs_notify(&fbdev->fb[pdata->default_win]->dev->kobj,
+				NULL, "vsync_event");
+
+#ifdef CONFIG_FB_S5P_VSYNC_SYSFS
+		sysfs_notify(&fbdev->dev->kobj, NULL, "vsync_time");
+#endif
 	}
 
 	return 0;
@@ -1276,10 +1306,16 @@ static int s3cfb_probe(struct platform_device *pdev)
 		if (ret < 0)
 			dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
 
-		ret = device_create_file(fbdev[i]->dev,
-					&dev_attr_vsync_time);
+		ret = device_create_file(fbdev[i]->fb[pdata->default_win]->dev,
+					&dev_attr_vsync_event);
 		if (ret < 0)
 			dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
+
+#ifdef CONFIG_FB_S5P_VSYNC_SYSFS
+		ret = device_create_file(fbdev[i]->dev, &dev_attr_vsync_time);
+		if (ret < 0)
+			dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
+#endif
 
 #ifdef CONFIG_FB_S5P_GD2EVF
 		ret = device_create_file(fbdev[i]->dev, &dev_attr_lcd_switch);
