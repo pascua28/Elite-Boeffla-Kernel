@@ -1,0 +1,22 @@
+From 23fa2a9d079fa835b7bdfbfb8712a9c97c3539db Mon Sep 17 00:00:00 2001
+From: andip71 <andreasp@gmx.de>
+Date: Tue, 15 Dec 2015 08:07:53 +0100
+Subject: [PATCH] 2
+
+---
+ fstab.smdk4x12 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/fstab.smdk4x12 b/fstab.smdk4x12
+index 507d3ed..dc012b7 100644
+--- a/fstab.smdk4x12
++++ b/fstab.smdk4x12
+@@ -18,4 +18,4 @@
+ /dev/block/mmcblk0p7		/modem				emmc		defaults		recoveryonly
+ 
+ # zram
+-/dev/block/zram0			none				swap		defaults		zramsize=268435456
++# AP: no default zram	/dev/block/zram0			none				swap		defaults		zramsize=268435456
+-- 
+1.9.1
+
