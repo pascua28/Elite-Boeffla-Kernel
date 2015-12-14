@@ -629,6 +629,16 @@ config IO_36
 
 comment "Processor Features"
 
+config ARM_TRUSTZONE
+	bool "Support TrustZone-enabled Trusted Execution Environment"
+	default n
+	help
+	  Select if you want a kernel to be executed at non-secure world.
+	  This option should be used with related secure bootloader and
+	  TrustZone software.
+
+	  If you don't know about TrustZone, say 'N'.
+
 config ARM_THUMB
 	bool "Support Thumb user binaries"
 	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_V6 || CPU_V6K || CPU_V7 || CPU_FEROCEON
@@ -676,6 +686,32 @@ config SWP_EMULATE
 	  perform SWP operations to uncached memory to deadlock.
 
 	  If unsure, say Y.
+
+config IDIV_EMULATE
+	bool "Emulate SDIV/UDIV instructions"
+	depends on !CPU_USE_DOMAINS && CPU_V7
+	select HAVE_PROC_CPU if PROC_FS
+	default y if SMP
+	help
+
+	  The Virtualization Extensions introduce the requirement for an
+	  ARMv7-A implementation to include SDIV and UDIV.  Any
+	  implementation of the Virtualization Extensions must include
+	  the SDIV and UDIV instructions in the Thumb and ARM
+	  instruction sets.
+
+	  In an ARMv7-A implementation that does not include the
+	  Virtualization Extensions, it is IMPLEMENTATION DEFINED whether:
+	  *  SDIV and UDIV are not implemented
+	  *  SDIV and UDIV are implemented only in the Thumb instruction set
+	  *  SDIV and UDIV are implemented in the Thumb and ARM
+	  instruction sets.
+
+	  This option allows to handle exeptions due to unimplemented
+	  SDIV and UDIV instructions in ARM and Thumb modes.
+
+	  If unsure, say Y.
+
 
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"

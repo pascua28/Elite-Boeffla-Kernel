@@ -101,12 +101,16 @@ obj-$(CONFIG_RING_BUFFER) += trace/
 obj-$(CONFIG_TRACEPOINTS) += trace/
 obj-$(CONFIG_SMP) += sched_cpupri.o
 obj-$(CONFIG_IRQ_WORK) += irq_work.o
+obj-$(CONFIG_CPU_PM) += cpu_pm.o
 
 obj-$(CONFIG_PERF_EVENTS) += events/
 
 obj-$(CONFIG_USER_RETURN_NOTIFIER) += user-return-notifier.o
 obj-$(CONFIG_PADATA) += padata.o
 obj-$(CONFIG_CRASH_DUMP) += crash_dump.o
+ifeq ($(CONFIG_MACH_U1_NA_SPR),y)
+obj-$(CONFIG_SEC_DEBUG) += kernel_sec_debug.o
+endif
 
 ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
 # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is
@@ -133,8 +137,16 @@ $(obj)/config_data.h: $(obj)/config_data.gz FORCE
 
 $(obj)/time.o: $(obj)/timeconst.h
 
-quiet_cmd_timeconst  = TIMEC   $@
-      cmd_timeconst  = $(PERL) $< $(CONFIG_HZ) > $@
+quiet_cmd_hzfile = HZFILE  $@
+      cmd_hzfile = echo "hz=$(CONFIG_HZ)" > $@
+
+targets += hz.bc
+$(obj)/hz.bc: $(objtree)/include/config/hz.h FORCE
+	$(call if_changed,hzfile)
+
+quiet_cmd_bc  = BC      $@
+      cmd_bc  = bc -q $(filter-out FORCE,$^) > $@
+
 targets += timeconst.h
-$(obj)/timeconst.h: $(src)/timeconst.pl FORCE
-	$(call if_changed,timeconst)
+$(obj)/timeconst.h: $(obj)/hz.bc $(src)/timeconst.bc FORCE
+	$(call if_changed,bc)
