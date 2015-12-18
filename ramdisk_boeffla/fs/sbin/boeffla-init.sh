@@ -24,7 +24,8 @@
 	INITD_ENABLER="/data/.boeffla/enable-initd"
 	BUSYBOX_ENABLER="/data/.boeffla/enable-busybox"
 	FRANDOM_ENABLER="/data/.boeffla/enable-frandom"
-
+	PERMISSIVE_ENABLER="/data/.boeffla/enable-permissive"
+	
 # If not yet existing, create a boeffla-kernel-data folder on sdcard 
 # which is used for many purposes,
 # always set permissions and owners correctly for pathes and files
@@ -51,7 +52,6 @@
 	echo "=========================" >> $BOEFFLA_LOGFILE
 	/sbin/busybox grep ro.build.version /system/build.prop >> $BOEFFLA_LOGFILE
 	echo "=========================" >> $BOEFFLA_LOGFILE
-
 
 # Correct /sbin and /res directory and file permissions
 	mount -o remount,rw rootfs /
@@ -118,7 +118,6 @@
 # Play sound for Boeffla-Sound compatibility
 	echo $(date) Initialize sound system... >> $BOEFFLA_LOGFILE
 	/sbin/tinyplay /res/misc/silence.wav -D 0 -d 0 -p 880
-
 
 # Interaction with Boeffla-Config app V2
 	# save original stock values for selected parameters
@@ -232,6 +231,14 @@
 		/sbin/busybox chmod 666 $CWM_RESET_ZIP_TARGET
 
 		echo $(date) Recovery reset zip copied >> $BOEFFLA_LOGFILE
+	fi
+
+# If not explicitely configured to permissive, set SELinux to enforcing
+	if [ ! -f $PERMISSIVE_ENABLER ]; then
+		echo "1" > /sys/fs/selinux/enforce
+		echo $(date) "SELinux: enforcing" >> $BOEFFLA_LOGFILE
+	else
+		echo $(date) "SELinux: permissive" >> $BOEFFLA_LOGFILE
 	fi
 
 # Finished
