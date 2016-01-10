@@ -105,7 +105,7 @@ step0_copy_code()
 	echo -e $COLOR_GREEN"\n0 - copy code\n"$COLOR_NEUTRAL
 
 	# remove old build folder and create empty one
-	rm -r -f $BUILD_PATH
+	sudo rm -r -f $BUILD_PATH
 	mkdir $BUILD_PATH
 
 	# copy code from source folder to build folder
@@ -205,7 +205,7 @@ step4_unpack_ramdisk()
 	# Cleanup folder if still existing
 	echo -e ">>> cleanup repack folder\n"
 	{
-		rm -r -f $REPACK_PATH
+		sudo rm -r -f $REPACK_PATH
 		mkdir -p $REPACK_PATH
 	} 2>/dev/null
 
@@ -282,7 +282,8 @@ step6_repack_ramdisk()
 	
 	echo -e ">>> repack new ramdisk\n"
 	cd $REPACK_PATH/ramdisk
-	find . | cpio -o -H newc | gzip > ../newramdisk.cpio.gz
+	sudo chown -R 0:0 *
+	sudo find . | sudo cpio -o -H newc | gzip > ../newramdisk.cpio.gz
 
 	# Create new bootimage
 	echo -e ">>> create boot image\n"
@@ -433,7 +434,7 @@ step7_analyse_log()
 	echo -e "Check for patch file issues:"
 	cd $REPACK_PATH/ramdisk
 	echo -e $COLOR_RED
-	find . -type f -name *.rej
+	sudo find . -type f -name *.rej
 	echo -e $COLOR_NEUTRAL
 
 	echo -e "***************************************************"
@@ -497,9 +498,9 @@ stepC_cleanup()
 	
 	# remove old build and repack folders, remove any logs
 	{
-		rm -r -f $BUILD_PATH
-		rm -r -f $REPACK_PATH
-		rm $ROOT_PATH/*.log
+		sudo rm -r -f $BUILD_PATH
+		sudo rm -r -f $REPACK_PATH
+		sudo rm $ROOT_PATH/*.log
 	} 2>/dev/null
 }
 
@@ -528,6 +529,18 @@ stepB_backup()
 ################
 # main function
 ################
+
+CAN_I_RUN_SUDO=$(sudo -n uptime 2>&1|grep "load"|wc -l)
+if ! [ ${CAN_I_RUN_SUDO} -gt 0 ]; then
+	echo -e $COLOR_RED
+    echo "*** Problem detected ***"
+    echo ""
+    echo "You need to include your local Linux user at the end of /etc/sudoers like this:"
+    echo ""
+    echo "username   ALL=(ALL) NOPASSWD:ALL"
+	echo -e $COLOR_NEUTRAL
+    exit
+fi
 
 unset CCACHE_DISABLE
 
