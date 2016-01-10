@@ -135,17 +135,16 @@
 	else
 		echo $(date) "No startup configuration found"  >> $BOEFFLA_LOGFILE
 
-		# -- temporarily removed, 07.01.2016 --
 		# If not, apply default Boeffla-Kernel zRam
 		# Enable total 256 MB zRam on 1 device as default
-		#echo "1" > /sys/block/zram0/reset
-		#echo "268435456" > /sys/block/zram0/disksize
-		#busybox mkswap /dev/block/zram0
-		#busybox swapon -p 2 /dev/block/zram0
-		#busybox sleep 0.5s
-		#busybox sync
-		#echo "80" > /proc/sys/vm/swappiness
-		#echo $(date) Boeffla default zRam activated >> $BOEFFLA_LOGFILE
+		echo "1" > /sys/block/zram0/reset
+		echo "268435456" > /sys/block/zram0/disksize
+		busybox mkswap /dev/block/zram0
+		busybox swapon -p 2 /dev/block/zram0
+		busybox sleep 0.5s
+		busybox sync
+		echo "80" > /proc/sys/vm/swappiness
+		echo $(date) Boeffla default zRam activated >> $BOEFFLA_LOGFILE
 	fi
 	
 # Turn off debugging for certain modules
