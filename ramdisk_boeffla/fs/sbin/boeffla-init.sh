@@ -109,6 +109,10 @@
 	echo $(date) Initialize sound system... >> $BOEFFLA_LOGFILE
 	/sbin/tinyplay /res/misc/silence.wav -D 0 -d 0 -p 880
 
+# Default LMK to 16/32/64/128/192/256
+	echo "4096,8192,16384,32768,49152,65536" > /sys/module/lowmemorykiller/parameters/minfree
+	echo $(date) Boeffla default LMK settings applied >> $BOEFFLA_LOGFILE
+
 # Interaction with Boeffla-Config app V2
 	# save original stock values for selected parameters
 	cat /sys/devices/system/cpu/cpu0/cpufreq/UV_mV_table > /dev/bk_orig_cpu_voltage
@@ -136,9 +140,9 @@
 		echo $(date) "No startup configuration found"  >> $BOEFFLA_LOGFILE
 
 		# If not, apply default Boeffla-Kernel zRam
-		# Enable total 256 MB zRam on 1 device as default
+		# Enable total 400 MB zRam on 1 device as default
 		echo "1" > /sys/block/zram0/reset
-		echo "268435456" > /sys/block/zram0/disksize
+		echo "419430400" > /sys/block/zram0/disksize
 		busybox mkswap /dev/block/zram0
 		busybox swapon -p 2 /dev/block/zram0
 		busybox sleep 0.5s
