@@ -109,8 +109,8 @@
 	echo $(date) Initialize sound system... >> $BOEFFLA_LOGFILE
 	/sbin/tinyplay /res/misc/silence.wav -D 0 -d 0 -p 880
 
-# Default LMK to 16/32/64/128/192/256
-	echo "4096,8192,16384,32768,49152,65536" > /sys/module/lowmemorykiller/parameters/minfree
+# Default LMK to 16/64/96/128/176/192
+	echo "4096,16384,24576,32768,45056,49152" > /sys/module/lowmemorykiller/parameters/minfree
 	echo $(date) Boeffla default LMK settings applied >> $BOEFFLA_LOGFILE
 
 # Interaction with Boeffla-Config app V2
