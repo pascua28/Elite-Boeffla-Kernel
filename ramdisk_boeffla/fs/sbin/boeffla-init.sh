@@ -103,7 +103,7 @@
 	  /sbin/busybox sleep 1
 	done
 	echo $(date) Rom boot trigger detected, waiting a few more seconds... >> $BOEFFLA_LOGFILE
-	/sbin/busybox sleep 10
+	/sbin/busybox sleep 15
 
 # Play sound for Boeffla-Sound compatibility
 	echo $(date) Initialize sound system... >> $BOEFFLA_LOGFILE
