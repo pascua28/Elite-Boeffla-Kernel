@@ -430,24 +430,38 @@ if [ "apply_governor_profile" == "$1" ]; then
 	if [ "pegasusq - standard" == "$2" ]; then
 		# cpu2
 		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_1_1
-		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_2_0
-		echo "100" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_1_1
-		echo "100" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_2_0
+		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_2_0
+		echo "150" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_1_1
+		echo "150" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_2_0
 		# cpu3
-		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_2_1
-		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_3_0
-		echo "200" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_2_1
-		echo "200" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_3_0
+		echo "700000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_2_1
+		echo "700000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_3_0
+		echo "250" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_2_1
+		echo "250" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_3_0
 		# cpu4
-		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_3_1
-		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_4_0
-		echo "300" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_3_1
-		echo "300" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_4_0
+		echo "900000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_3_1
+		echo "900000" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_freq_4_0
+		echo "350" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_3_1
+		echo "450" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_rq_4_0
 
-		echo "20" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_down_rate
+		echo "10" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_down_rate
 		echo "10" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_rate
-		echo "85" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 		echo "37" > /sys/devices/system/cpu/cpufreq/pegasusq/freq_step
+
+		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_down_freq
+		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_freq
+		echo "3" > /sys/devices/system/cpu/cpufreq/pegasusq/down_differential
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/ignore_nice_load
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/io_is_busy
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/max_cpu_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/min_cpu_lock
+		echo "2" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_down_factor
+		echo "50000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate
+		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
+		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
+		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 
 		busybox sleep 0.5s
 		busybox sync
@@ -475,6 +489,20 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "85" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 		echo "37" > /sys/devices/system/cpu/cpufreq/pegasusq/freq_step
 
+		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_down_freq
+		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_freq
+		echo "3" > /sys/devices/system/cpu/cpufreq/pegasusq/down_differential
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/ignore_nice_load
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/io_is_busy
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/max_cpu_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/min_cpu_lock
+		echo "2" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_down_factor
+		echo "50000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate
+		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
+		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
+		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+
 		busybox sleep 0.5s
 		busybox sync
 	fi
@@ -500,6 +528,20 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "10" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_rate
 		echo "85" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 		echo "37" > /sys/devices/system/cpu/cpufreq/pegasusq/freq_step
+
+		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_down_freq
+		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_freq
+		echo "3" > /sys/devices/system/cpu/cpufreq/pegasusq/down_differential
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/ignore_nice_load
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/io_is_busy
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/max_cpu_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/min_cpu_lock
+		echo "2" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_down_factor
+		echo "50000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate
+		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
+		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
+		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 
 		busybox sleep 0.5s
 		busybox sync
@@ -527,6 +569,20 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "85" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 		echo "37" > /sys/devices/system/cpu/cpufreq/pegasusq/freq_step
 
+		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_down_freq
+		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_freq
+		echo "3" > /sys/devices/system/cpu/cpufreq/pegasusq/down_differential
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/ignore_nice_load
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/io_is_busy
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/max_cpu_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/min_cpu_lock
+		echo "2" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_down_factor
+		echo "50000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate
+		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
+		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
+		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+
 		busybox sleep 0.5s
 		busybox sync
 	fi
@@ -553,6 +609,20 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "95" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 		echo "25" > /sys/devices/system/cpu/cpufreq/pegasusq/freq_step
 
+		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_down_freq
+		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_freq
+		echo "3" > /sys/devices/system/cpu/cpufreq/pegasusq/down_differential
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/ignore_nice_load
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/io_is_busy
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/max_cpu_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/min_cpu_lock
+		echo "2" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_down_factor
+		echo "50000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate
+		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
+		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
+		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+
 		busybox sleep 0.5s
 		busybox sync
 	fi
@@ -578,6 +648,20 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "10" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_rate
 		echo "85" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 		echo "37" > /sys/devices/system/cpu/cpufreq/pegasusq/freq_step
+
+		echo "200000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_down_freq
+		echo "500000" > /sys/devices/system/cpu/cpufreq/pegasusq/cpu_up_freq
+		echo "3" > /sys/devices/system/cpu/cpufreq/pegasusq/down_differential
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/hotplug_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/ignore_nice_load
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/io_is_busy
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/max_cpu_lock
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/min_cpu_lock
+		echo "2" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_down_factor
+		echo "50000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate
+		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
+		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
+		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
 
 		busybox sleep 0.5s
 		busybox sync
