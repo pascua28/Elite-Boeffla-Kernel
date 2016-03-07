@@ -462,6 +462,9 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
 		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
 		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+		echo "700000" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_freq
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_mincpus
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_lock_time
 
 		busybox sleep 0.5s
 		busybox sync
@@ -502,6 +505,9 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
 		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
 		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+		echo "700000" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_freq
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_mincpus
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_lock_time
 
 		busybox sleep 0.5s
 		busybox sync
@@ -542,6 +548,9 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
 		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
 		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+		echo "700000" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_freq
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_mincpus
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_lock_time
 
 		busybox sleep 0.5s
 		busybox sync
@@ -582,6 +591,9 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
 		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
 		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+		echo "700000" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_freq
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_mincpus
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_lock_time
 
 		busybox sleep 0.5s
 		busybox sync
@@ -622,6 +634,9 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
 		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
 		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+		echo "700000" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_freq
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_mincpus
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_lock_time
 
 		busybox sleep 0.5s
 		busybox sync
@@ -662,6 +677,9 @@ if [ "apply_governor_profile" == "$1" ]; then
 		echo "10000" > /sys/devices/system/cpu/cpufreq/pegasusq/sampling_rate_min
 		echo "1" > /sys/devices/system/cpu/cpufreq/pegasusq/up_nr_cpus
 		echo "90" > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold
+		echo "700000" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_freq
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_mincpus
+		echo "0" > /sys/devices/system/cpu/cpufreq/pegasusq/boost_lock_time
 
 		busybox sleep 0.5s
 		busybox sync
