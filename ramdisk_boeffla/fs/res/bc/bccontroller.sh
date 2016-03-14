@@ -1,3 +1,5 @@
+#!/system/bin/sh
+
 # Boeffla-Config controller interface
 #
 # *****************************
