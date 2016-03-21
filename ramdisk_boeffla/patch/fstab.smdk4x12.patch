@@ -15,8 +15,8 @@ index 507d3ed..dc012b7 100644
  /dev/block/mmcblk0p7		/modem				emmc		defaults		recoveryonly
  
  # zram
--/dev/block/zram0			none				swap		defaults		zramsize=268435456
-+# AP: no default zram	/dev/block/zram0			none				swap		defaults		zramsize=268435456
+-/dev/block/zram0			none				swap		defaults		zramsize=419430400
++# AP: no default zram	/dev/block/zram0			none				swap		defaults		zramsize=419430400
 -- 
 1.9.1
 
