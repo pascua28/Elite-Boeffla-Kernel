@@ -1180,7 +1180,7 @@ fi
 
 if [ "apply_cifs" == "$1" ]; then
 	if [ "1" == "$2" ]; then
-		insmod $LIBPATH/cifs.ko
+		busybox insmod $LIBPATH/cifs.ko
 	fi
 
 	if [ "0" == "$2" ]; then
@@ -1191,10 +1191,10 @@ fi
 
 if [ "apply_nfs" == "$1" ]; then
 	if [ "1" == "$2" ]; then
-		insmod $LIBPATH/sunrpc.ko
-		insmod $LIBPATH/auth_rpcgss.ko
-		insmod $LIBPATH/lockd.ko
-		insmod $LIBPATH/nfs.ko
+		busybox insmod $LIBPATH/sunrpc.ko
+		busybox insmod $LIBPATH/auth_rpcgss.ko
+		busybox insmod $LIBPATH/lockd.ko
+		busybox insmod $LIBPATH/nfs.ko
 	fi
 
 	if [ "0" == "$2" ]; then
@@ -1208,7 +1208,7 @@ fi
 
 if [ "apply_xbox" == "$1" ]; then
 	if [ "1" == "$2" ]; then
-		insmod $LIBPATH/xpad.ko
+		busybox insmod $LIBPATH/xpad.ko
 	fi
 
 	if [ "0" == "$2" ]; then
@@ -1219,8 +1219,8 @@ fi
 
 if [ "apply_exfat" == "$1" ]; then
 	if [ "1" == "$2" ]; then
-		insmod $LIBPATH/exfat_core.ko
-		insmod $LIBPATH/exfat_fs.ko
+		busybox insmod $LIBPATH/exfat_core.ko
+		busybox insmod $LIBPATH/exfat_fs.ko
 	fi
 
 	if [ "0" == "$2" ]; then
@@ -1232,7 +1232,7 @@ fi
 
 if [ "apply_usb_ethernet" == "$1" ]; then
 	if [ "1" == "$2" ]; then
-		insmod $LIBPATH/asix.ko
+		busybox insmod $LIBPATH/asix.ko
 		netcfg eth0 up
 		dhcpcd eth0
 		DNS=`getprop net.eth0.dns1`
@@ -1249,7 +1249,7 @@ fi
 
 if [ "apply_ntfs" == "$1" ]; then
 	if [ "1" == "$2" ]; then
-		insmod $LIBPATH/ntfs.ko
+		busybox insmod $LIBPATH/ntfs.ko
 	fi
 
 	if [ "0" == "$2" ]; then
