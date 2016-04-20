@@ -1,4 +1,0 @@
-Please note:<br>
-CM13 is <u><b>still</b></u> not 100% stable, so please "happily" expect some crashes and 
-reboots. This will get better step by step over the time as CM13 is currently under 
-heavy development.<br><br>
