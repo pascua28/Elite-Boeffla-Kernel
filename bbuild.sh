@@ -55,8 +55,7 @@ SMB_SHARE_BACKUP=""
 SMB_FOLDER_BACKUP=""
 SMB_AUTH_BACKUP=""
 
-NUM_CPUS="5"	# number of cpu cores used for build
-
+NUM_CPUS=""   # number of cpu cores used for build (leave empty for auto detection)
 
 #######################################
 # automatic parameters, do not touch !
@@ -81,10 +80,8 @@ TOOLCHAIN_COMPILE=/`echo $TOOLCHAIN_COMPILE | sed -n -e 's/^.* \///p'`
 BOEFFLA_DATE=$(date +%Y%m%d)
 GIT_BRANCH=`git symbolic-ref --short HEAD`
 
-
-# overwrite settings with custom file, if it exists
-if [ -f $ROOT_PATH/x-settings.sh ]; then
-  . $ROOT_PATH/x-settings.sh
+if [ -z "$NUM_CPUS" ]; then
+	NUM_CPUS=`grep -c ^processor /proc/cpuinfo`
 fi
 
 BOEFFLA_FILENAME="boeffla-kernel-$BOEFFLA_VERSION"
@@ -93,6 +90,11 @@ if [ "y" == "$MODULES_IN_SYSTEM" ]; then
 	MODULE_PATH="system/lib/modules"
 else
 	MODULE_PATH="ramdisk/lib/modules"
+fi
+
+# overwrite settings with custom file, if it exists
+if [ -f $ROOT_PATH/x-settings.sh ]; then
+  . $ROOT_PATH/x-settings.sh
 fi
 
 
@@ -646,29 +648,20 @@ esac
 echo
 echo
 echo "Function menu"
-echo "================================================"
+echo "======================================================================"
 echo
-echo "rel = all, execute steps 0-9 - without CCACHE"
-echo "a   = all, execute steps 0-9"
-echo "u   = upd, execute steps 3-9"
-echo "ur  = upd, execute steps 6-9"
+echo "0  = copy code         |  5  = patch ramdisk"
+echo "1  = make clean        |  6  = repack ramdisk"
+echo "2  = make config       |  7  = analyse log"
+echo "3  = compile           |  8  = transfer kernel"
+echo "4  = unpack ramdisk    |  9  = send finish mail"
 echo
-echo "0  = copy code"
-echo "1  = make clean"
-echo "2  = make config"
-echo "3  = compile"
-echo "4  = unpack ramdisk"
-echo "5  = patch ramdisk"
-echo "6  = repack ramdisk"
-echo "7  = analyse log"
-echo "8  = transfer kernel"
-echo "9  = send finish mail"
-echo
-echo "r = rewrite config"
-echo "c = cleanup"
-echo "b = backup"
+echo "rel = all, execute steps 0-9 - without CCACHE  |  r = rewrite config"
+echo "a   = all, execute steps 0-9                   |  c = cleanup"
+echo "u   = upd, execute steps 3-9                   |  b = backup"
+echo "ur  = upd, execute steps 6-9                   |"
 echo 
-echo "================================================"
+echo "======================================================================"
 echo 
 echo "Parameters:"
 echo
@@ -676,6 +669,7 @@ echo "  Boeffla version:  $BOEFFLA_VERSION"
 echo "  Extended cmdline: $EXTENDED_CMDLINE"
 echo "  Boeffla date:     $BOEFFLA_DATE"
 echo "  Git branch:       $GIT_BRANCH"
+echo "  CPU Cores:        $NUM_CPUS"
 echo
 echo "  Toolchain:     $TOOLCHAIN"
 echo "  Cross_compile: $TOOLCHAIN_COMPILE"
@@ -685,6 +679,6 @@ echo "  Source path:   $SOURCE_PATH"
 echo "  Build path:    $BUILD_PATH"
 echo "  Repack path:   $REPACK_PATH"
 echo
-echo "================================================"
+echo "======================================================================"
 
 exit
