@@ -84,17 +84,23 @@ if [ -z "$NUM_CPUS" ]; then
 	NUM_CPUS=`grep -c ^processor /proc/cpuinfo`
 fi
 
+# overwrite settings with repo specific custom file, if it exists
+if [ -f $ROOT_PATH/x-settings.sh ]; then
+  . $ROOT_PATH/x-settings.sh
+fi
+
+# overwrite settings with user specific custom file, if it exists
+if [ -f ~/x-settings.sh ]; then
+  . ~/x-settings.sh
+fi
+
+
 BOEFFLA_FILENAME="boeffla-kernel-$BOEFFLA_VERSION"
 
 if [ "y" == "$MODULES_IN_SYSTEM" ]; then
 	MODULE_PATH="system/lib/modules"
 else
 	MODULE_PATH="ramdisk/lib/modules"
-fi
-
-# overwrite settings with custom file, if it exists
-if [ -f $ROOT_PATH/x-settings.sh ]; then
-  . $ROOT_PATH/x-settings.sh
 fi
 
 
@@ -122,7 +128,7 @@ step0_copy_code()
 step1_make_clean()
 {
 	echo -e $COLOR_GREEN"\n1 - make clean\n"$COLOR_NEUTRAL
-	
+
 	# jump to build path and make clean
 	cd $BUILD_PATH
 	make clean
@@ -132,11 +138,11 @@ step2_make_config()
 {
 	echo -e $COLOR_GREEN"\n2 - make config\n"$COLOR_NEUTRAL
 	echo
-	
+
 	# build make string depending on if we need to compile to an output folder
 	# and if we need to have a defconfig variant
 	MAKESTRING="arch=arm $DEFCONFIG"
-	
+
 	if [ ! -z "$OUTPUT_FOLDER" ]; then
 		rm -rf $BUILD_PATH/output
 		mkdir $BUILD_PATH/output
@@ -146,7 +152,7 @@ step2_make_config()
 	if [ ! -z "$DEFCONFIG_VARIANT" ]; then
 		MAKESTRING="$MAKESTRING VARIANT_DEFCONFIG=$DEFCONFIG_VARIANT"
 	fi
-	
+
 	# jump to build path and make config
 	cd $BUILD_PATH
 	echo "Makestring: $MAKESTRING"
@@ -158,7 +164,7 @@ step3_compile()
 	echo -e $COLOR_GREEN"\n3 - compile\n"$COLOR_NEUTRAL
 
 	TIMESTAMP1=$(date +%s)
-	
+
 	# jump to build path
 	cd $BUILD_PATH
 
@@ -173,14 +179,14 @@ step3_compile()
 	if [ "y" == "$COMPILE_DTB" ]; then
 		echo -e ">>> compiling DTB\n"
 		echo
-		
+
 		# Compile dtb (device tree blob) file
 		chmod 777 tools_boeffla/dtbToolCM
 		tools_boeffla/dtbToolCM -2 -o $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/dt.img -s 2048 -p $BUILD_PATH/$OUTPUT_FOLDER/scripts/dtc/ $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/
 	fi
 
 	TIMESTAMP2=$(date +%s)
-	
+
 	# Log compile time (screen output)
 	echo "compile time:" $(($TIMESTAMP2 - $TIMESTAMP1)) "seconds"
 	echo "zImage size (bytes):"
@@ -203,7 +209,7 @@ step3_compile()
 step4_unpack_ramdisk()
 {
 	echo -e $COLOR_GREEN"\n4 - unpack ramdisk\n"$COLOR_NEUTRAL
-	
+
 	# Cleanup folder if still existing
 	echo -e ">>> cleanup repack folder\n"
 	{
@@ -226,10 +232,10 @@ step4_unpack_ramdisk()
 step5_patch_ramdisk()
 {
 	echo -e $COLOR_GREEN"\n5 - patch ramdisk\n"$COLOR_NEUTRAL
-	
+
 	# Copy compiled files (zImage, dtb and modules)
 	echo -e ">>> copy zImage, dtb and modules\n"
-	
+
 	cp $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/zImage $REPACK_PATH/zImage
 	{
 		# copy dt.img
@@ -237,7 +243,7 @@ step5_patch_ramdisk()
 
 		# copy modules from kernel compile
 		mkdir -p $REPACK_PATH/$MODULE_PATH
-		
+
 		cd $BUILD_PATH/$OUTPUT_FOLDER
 		find -name '*.ko' -exec cp -av {} $REPACK_PATH/$MODULE_PATH/ \;
 
@@ -247,7 +253,7 @@ step5_patch_ramdisk()
 			cd $REPACK_PATH/$MODULE_PATH
 			for i in *.ko_; do mv $i ${i%ko_}ko; echo Static module: ${i%ko_}ko; done
 		fi
-		
+
 		# set module permissions
 		chmod 644 $REPACK_PATH/$MODULE_PATH/*
 
@@ -265,7 +271,7 @@ step5_patch_ramdisk()
 	do
 		patch ramdisk/$(basename $PATCHFILE .patch) < $PATCHFILE
 	done
-		
+
 	{
 		# delete orig files, if patching created some
 		rm ramdisk/*.orig
@@ -281,7 +287,7 @@ step5_patch_ramdisk()
 step6_repack_ramdisk()
 {
 	echo -e $COLOR_GREEN"\n6 - repack ramdisk\n"$COLOR_NEUTRAL
-	
+
 	echo -e ">>> repack new ramdisk\n"
 	cd $REPACK_PATH/ramdisk
 	sudo chown -R 0:0 *
@@ -289,7 +295,7 @@ step6_repack_ramdisk()
 
 	# Create new bootimage
 	echo -e ">>> create boot image\n"
-	
+
 	cd $REPACK_PATH
 	chmod 777 $BUILD_PATH/tools_boeffla/mkbootimg
 
@@ -299,7 +305,7 @@ step6_repack_ramdisk()
 	else
 		$BUILD_PATH/tools_boeffla/mkbootimg --kernel zImage --ramdisk newramdisk.cpio.gz --cmdline "$MKBOOTIMG_CMDLINE $EXTENDED_CMDLINE" --base $MKBOOTIMG_BASE --pagesize $MKBOOTIMG_PAGESIZE --ramdisk_offset $MKBOOTIMG_RAMDISK_OFFSET --tags_offset $MKBOOTIMG_TAGS_OFFSET -o boot.img
 	fi
-	
+
 	# Creating recovery flashable zip
 	echo -e ">>> create flashable zip\n"
 
@@ -356,21 +362,21 @@ step6_repack_ramdisk()
 		echo "getprop(\"ro.product.device\") == \"$ASSERT_12\" ||" >> META-INF/com/google/android/updater-script
 		echo "getprop(\"ro.build.product\") == \"$ASSERT_12\" ||" >> META-INF/com/google/android/updater-script
 	fi
-	
+
 	if [ ! -z $ASSERT_1 ]; then
 		echo "abort(\"This package is for device: $ASSERT_1 $ASSERT_2 $ASSERT_3 $ASSERT_4 $ASSERT_5 $ASSERT_6; this device is \" + getprop(\"ro.product.device\") + \".\"););" >> META-INF/com/google/android/updater-script
 	fi
-	
+
 	echo "ui_print(\"Flashing Boeffla-Kernel $BOEFFLA_VERSION\");" >> META-INF/com/google/android/updater-script
 	echo "package_extract_file(\"boot.img\", \"$BOOT_PARTITION\");" >> META-INF/com/google/android/updater-script
-	
+
 	if [ ! "y" == "$KERNEL_SAMSUNG" ]; then
 		echo "mount(\"ext4\", \"EMMC\", \"$SYSTEM_PARTITION\", \"/system\");" >> META-INF/com/google/android/updater-script
 		echo "delete_recursive(\"/$MODULE_PATH\");" >> META-INF/com/google/android/updater-script
 		echo "package_extract_dir(\"$MODULE_PATH\", \"/$MODULE_PATH\");" >> META-INF/com/google/android/updater-script
 		echo "unmount(\"/system\");" >> META-INF/com/google/android/updater-script
 	fi
-	
+
 	echo "ui_print(\" \");" >> META-INF/com/google/android/updater-script
 	echo "ui_print(\"(c) Lord Boeffla (aka andip71), $(date +%Y.%m.%d-%H:%M:%S)\");" >> META-INF/com/google/android/updater-script
 	echo "ui_print(\" \");" >> META-INF/com/google/android/updater-script
@@ -403,7 +409,7 @@ step6_repack_ramdisk()
 		md5sum $BOEFFLA_FILENAME.tar >> $BOEFFLA_FILENAME.tar
 		mv $BOEFFLA_FILENAME.tar $BOEFFLA_FILENAME.tar.md5
 	fi
-	
+
 	# Creating additional files for load&flash
 	echo -e ">>> create load&flash files\n"
 
@@ -446,24 +452,48 @@ step8_transfer_kernel()
 {
 	echo -e $COLOR_GREEN"\n8 - transfer kernel\n"$COLOR_NEUTRAL
 
-	# exit function if no SMB share configured
-	if [ -z "$SMB_SHARE_KERNEL" ]; then
-		echo -e "No kernel smb share configured, not transfering files.\n"	
+	# transfer only if SMB share configured
+	if [ ! -z "$SMB_SHARE_KERNEL" ]; then
+		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "mkdir $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION"
+		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.recovery.zip"
+		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip.md5 $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.recovery.zip.md5"
+		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/checksum $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\checksum"
+
+		if [ "y" == "$KERNEL_SAMSUNG" ]; then
+				smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.tar.md5 $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.tar.md5"
+				smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/boot.img $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\boot.img"
+		else
+				smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/cm-kernel.zip $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\cm-kernel.zip"
+		fi
 		return
 	fi
 
-	# copy the required files to a SMB network storage
-	smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "mkdir $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION"
-	smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.recovery.zip"
-	smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip.md5 $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.recovery.zip.md5"
-	smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/checksum $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\checksum"
+	# transfer only if ssh ftp configured
+	if [ ! -z "$SSH_FTP_REMOTE" ]; then
+		rm -rf ~/bbuild_transfer
+		mkdir ~/bbuild_transfer
+		echo "$SSH_FTP_PW" | sshfs "$SSH_FTP_REMOTE" ~/bbuild_transfer -p "$SSH_FTP_PORT" -o password_stdin
+		mkdir -p ~/bbuild_transfer/$BOEFFLA_VERSION
 
-	if [ "y" == "$KERNEL_SAMSUNG" ]; then
-		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.tar.md5 $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.tar.md5"
-		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/boot.img $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\boot.img"
-	else
-		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/cm-kernel.zip $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\cm-kernel.zip"
+		cp $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip ~/bbuild_transfer/$BOEFFLA_VERSION
+		cp $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip.md5 ~/bbuild_transfer/$BOEFFLA_VERSION
+		cp $REPACK_PATH/checksum ~/bbuild_transfer/$BOEFFLA_VERSION
+
+		if [ "y" == "$KERNEL_SAMSUNG" ]; then
+			cp $REPACK_PATH/$BOEFFLA_FILENAME.tar.md5 ~/bbuild_transfer/$BOEFFLA_VERSION
+			cp $REPACK_PATH/boot.img ~/bbuild_transfer/$BOEFFLA_VERSION
+		else
+			cp $REPACK_PATH/cm-kernel.zip ~/bbuild_transfer/$BOEFFLA_VERSION
+		fi
+
+		sync
+		sleep 1
+		fusermount -u ~/bbuild_transfer
+		rm -rf ~/bbuild_transfer
+		return
 	fi
+
+	echo -e "No kernel smb share or ssh ftp configured, not transfering files.\n"
 }
 
 step9_send_finished_mail()
@@ -476,19 +506,19 @@ step9_send_finished_mail()
 	else
 		cat $ROOT_PATH/compile.log | /usr/bin/mailx -s "Compilation for Boeffla-Kernel $BOEFFLA_VERSION finished!!!" $FINISH_MAIL_TO
 	fi
-}	
+}
 
 stepR_rewrite_config()
 {
 	echo -e $COLOR_GREEN"\nr - rewrite config\n"$COLOR_NEUTRAL
-	
+
 	# copy defconfig, run make oldconfig and copy it back
 	cd $SOURCE_PATH
 	cp arch/arm/configs/$DEFCONFIG .config
 	make oldconfig
 	cp .config arch/arm/configs/$DEFCONFIG
 	make mrproper
-	
+
 	# commit change
 	git add arch/arm/configs/$DEFCONFIG
 	git commit
@@ -497,7 +527,7 @@ stepR_rewrite_config()
 stepC_cleanup()
 {
 	echo -e $COLOR_GREEN"\nc - cleanup\n"$COLOR_NEUTRAL
-	
+
 	# remove old build and repack folders, remove any logs
 	{
 		sudo rm -r -f $BUILD_PATH
@@ -519,7 +549,7 @@ stepB_backup()
 
 	# transfer backup only if smbshare configured
 	if [ -z "$SMB_SHARE_BACKUP" ]; then
-		echo -e "No backup smb share configured, not transfering backup.\n"	
+		echo -e "No backup smb share configured, not transfering backup.\n"
 	else
 		# copy backup to a SMB network storage and delete backup afterwards
 		smbclient $SMB_SHARE_BACKUP -U $SMB_AUTH_BACKUP -c "put $ROOT_PATH/$BACKUP_FILE $SMB_FOLDER_BACKUP\\$BACKUP_FILE"
@@ -643,7 +673,7 @@ case "$1" in
 		stepR_rewrite_config
 		exit
 		;;
-esac	
+esac
 
 echo
 echo
@@ -660,9 +690,9 @@ echo "rel = all, execute steps 0-9 - without CCACHE  |  r = rewrite config"
 echo "a   = all, execute steps 0-9                   |  c = cleanup"
 echo "u   = upd, execute steps 3-9                   |  b = backup"
 echo "ur  = upd, execute steps 6-9                   |"
-echo 
+echo
 echo "======================================================================"
-echo 
+echo
 echo "Parameters:"
 echo
 echo "  Boeffla version:  $BOEFFLA_VERSION"
