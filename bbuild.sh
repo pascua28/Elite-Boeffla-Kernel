@@ -248,7 +248,7 @@ step5_patch_ramdisk()
 		find -name '*.ko' -exec cp -av {} $REPACK_PATH/$MODULE_PATH/ \;
 
 		# copy static modules and rename from ko_ to ko, only if there are some
-		if [ -f $BUILD_PATH/modules_boeffla/*.ko_ ]; then
+		if [ "$(ls -A $BUILD_PATH/modules_boeffla)" ]; then
 			cp $BUILD_PATH/modules_boeffla/* $REPACK_PATH/$MODULE_PATH
 			cd $REPACK_PATH/$MODULE_PATH
 			for i in *.ko_; do mv $i ${i%ko_}ko; echo Static module: ${i%ko_}ko; done
