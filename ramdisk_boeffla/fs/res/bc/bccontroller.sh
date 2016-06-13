@@ -1109,30 +1109,20 @@ if [ "apply_survival_script" == "$1" ]; then
 fi
 
 if [ "apply_zram" == "$1" ]; then
+
+	# we do not allow online changes to zram anymore
+	if grep 'zram' /proc/swaps; then
+		exit 0;
+	fi
+
 	if [ "1" == "$2" ]; then
 		if [ "1" == "$3" ]; then
-			busybox swapoff /dev/block/zram0
-			busybox swapoff /dev/block/zram1
-			busybox swapoff /dev/block/zram2
-			busybox swapoff /dev/block/zram3
-			echo "1" > /sys/block/zram0/reset
-			echo "1" > /sys/block/zram1/reset
-			echo "1" > /sys/block/zram2/reset
-			echo "1" > /sys/block/zram3/reset
 			busybox mkswap /dev/block/zram0
 			busybox swapon -p 2 /dev/block/zram0
 			busybox sleep 0.5s
 			busybox sync
 		fi
 		if [ "2" == "$3" ]; then
-			busybox swapoff /dev/block/zram0
-			busybox swapoff /dev/block/zram1
-			busybox swapoff /dev/block/zram2
-			busybox swapoff /dev/block/zram3
-			echo "1" > /sys/block/zram0/reset
-			echo "1" > /sys/block/zram1/reset
-			echo "1" > /sys/block/zram2/reset
-			echo "1" > /sys/block/zram3/reset
 			busybox mkswap /dev/block/zram0
 			busybox mkswap /dev/block/zram1
 			busybox swapon -p 2 /dev/block/zram0
@@ -1141,14 +1131,6 @@ if [ "apply_zram" == "$1" ]; then
 			busybox sync
 		fi
 		if [ "4" == "$3" ]; then
-			busybox swapoff /dev/block/zram0
-			busybox swapoff /dev/block/zram1
-			busybox swapoff /dev/block/zram2
-			busybox swapoff /dev/block/zram3
-			echo "1" > /sys/block/zram0/reset
-			echo "1" > /sys/block/zram1/reset
-			echo "1" > /sys/block/zram2/reset
-			echo "1" > /sys/block/zram3/reset
 			busybox mkswap /dev/block/zram0
 			busybox mkswap /dev/block/zram1
 			busybox mkswap /dev/block/zram2
@@ -1163,18 +1145,19 @@ if [ "apply_zram" == "$1" ]; then
 		echo "80" > /proc/sys/vm/swappiness
 	fi
 
-	if [ "0" == "$2" ]; then
-		busybox swapoff /dev/block/zram0
-		busybox swapoff /dev/block/zram1
-		busybox swapoff /dev/block/zram2
-		busybox swapoff /dev/block/zram3
-		echo "1" > /sys/block/zram0/reset
-		echo "1" > /sys/block/zram1/reset
-		echo "1" > /sys/block/zram2/reset
-		echo "1" > /sys/block/zram3/reset
-		busybox sleep 0.5s
-		busybox sync
-	fi
+	# not supported anymore
+	# if [ "0" == "$2" ]; then
+		# busybox swapoff /dev/block/zram0
+		# busybox swapoff /dev/block/zram1
+		# busybox swapoff /dev/block/zram2
+		# busybox swapoff /dev/block/zram3
+		# echo "1" > /sys/block/zram0/reset
+		# echo "1" > /sys/block/zram1/reset
+		# echo "1" > /sys/block/zram2/reset
+		# echo "1" > /sys/block/zram3/reset
+		# busybox sleep 0.5s
+		# busybox sync
+	# fi
 	exit 0
 fi
 
