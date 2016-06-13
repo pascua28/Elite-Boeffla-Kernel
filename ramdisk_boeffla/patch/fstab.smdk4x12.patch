@@ -1,6 +1,6 @@
-From 23fa2a9d079fa835b7bdfbfb8712a9c97c3539db Mon Sep 17 00:00:00 2001
+From cf313ce6708889df9da3bdf44102c72d65c81fa5 Mon Sep 17 00:00:00 2001
 From: andip71 <andreasp@gmx.de>
-Date: Tue, 15 Dec 2015 08:07:53 +0100
+Date: Mon, 13 Jun 2016 09:44:21 +0200
 Subject: [PATCH] 2
 
 ---
@@ -8,15 +8,15 @@ Subject: [PATCH] 2
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/fstab.smdk4x12 b/fstab.smdk4x12
-index 507d3ed..dc012b7 100644
+index 6c86c30..8ddfd53 100644
 --- a/fstab.smdk4x12
 +++ b/fstab.smdk4x12
-@@ -18,4 +18,4 @@
+@@ -20,4 +20,4 @@
  /dev/block/mmcblk0p7		/modem				emmc		defaults		recoveryonly
  
  # zram
--/dev/block/zram0			none				swap		defaults		zramsize=419430400
-+# AP: no default zram	/dev/block/zram0			none				swap		defaults		zramsize=419430400
+-/dev/block/zram0			none				swap		defaults		zramsize=419430400,zramstreams=2
++# AP: no default zram	/dev/block/zram0			none				swap		defaults		zramsize=419430400,zramstreams=2
 -- 
 1.9.1
 
