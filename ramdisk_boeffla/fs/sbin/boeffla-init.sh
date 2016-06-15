@@ -25,6 +25,7 @@
 	BUSYBOX_ENABLER="/data/.boeffla/enable-busybox"
 	FRANDOM_ENABLER="/data/.boeffla/enable-frandom"
 	PERMISSIVE_ENABLER="/data/.boeffla/enable-permissive"
+	DOZE_DISABLER="/data/.boeffla/disable-doze"
 	
 # If not yet existing, create a boeffla-kernel-data folder on sdcard 
 # which is used for many purposes,
@@ -188,6 +189,12 @@
 		/sbin/busybox chmod 666 $CWM_RESET_ZIP_TARGET
 
 		echo $(date) Recovery reset zip copied >> $BOEFFLA_LOGFILE
+	fi
+
+# disable doze if configured
+	if [ -f $DOZE_DISABLER ]; then
+		dumpsys deviceidle disable
+		echo $(date) "Doze disabled" >> $BOEFFLA_LOGFILE
 	fi
 
 # If not explicitely configured to permissive, set SELinux to enforcing

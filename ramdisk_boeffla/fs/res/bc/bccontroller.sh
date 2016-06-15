@@ -18,8 +18,8 @@ KERNEL_SPECS="i9300;cm;cm13.0;http://boeffla.df-kunde.de/sgs3/boeffla-kernel-cm/
 # kernel features 
 # (1=enable-busybox,2=enable-frandom,3=wipe-cache,4=disable-zram-control)
 # (5=enable-default-zram-control,6=enable-selinux-switch, 7=enable-selinux-control)
-# (8=no-hotplugging)
-KERNEL_FEATURES="-3-6-7-"
+# (8=no-hotplugging,9=enable-doze-control)
+KERNEL_FEATURES="-3-6-7-9-"
 
 # path to kernel libraries
 LIBPATH="/system/lib/modules"
