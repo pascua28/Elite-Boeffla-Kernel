@@ -133,13 +133,10 @@
 
 	# if there is a startconfig placed by Boeffla-Config V2 app, execute it;
 	if [ -f $BOEFFLA_STARTCONFIG ]; then
-		echo $(date) "Startup configuration found:"  >> $BOEFFLA_LOGFILE
-		cat $BOEFFLA_STARTCONFIG >> $BOEFFLA_LOGFILE
+		echo $(date) "Startup configuration found"  >> $BOEFFLA_LOGFILE
 		. $BOEFFLA_STARTCONFIG
-		echo $(date) Startup configuration applied  >> $BOEFFLA_LOGFILE
+		echo $(date) "Startup configuration applied"  >> $BOEFFLA_LOGFILE
 	else
-		echo $(date) "No startup configuration found"  >> $BOEFFLA_LOGFILE
-
 		# If not, apply default Boeffla-Kernel zRam
 		# Enable total 400 MB zRam on 1 device as default
 		echo "1" > /sys/block/zram0/reset
@@ -149,7 +146,7 @@
 		busybox sleep 0.5s
 		busybox sync
 		echo "80" > /proc/sys/vm/swappiness
-		echo $(date) Boeffla default zRam activated >> $BOEFFLA_LOGFILE
+		echo $(date) "No startup configuration found, enable all default settings"  >> $BOEFFLA_LOGFILE
 	fi
 	
 # Turn off debugging for certain modules
@@ -197,9 +194,8 @@
 		echo $(date) "Doze disabled" >> $BOEFFLA_LOGFILE
 	fi
 
-# If not explicitely configured to permissive, set SELinux to enforcing
+# SELinux part 1 - only reporting what will be done
 	if [ ! -f $PERMISSIVE_ENABLER ]; then
-		echo "1" > /sys/fs/selinux/enforce
 		echo $(date) "SELinux: enforcing" >> $BOEFFLA_LOGFILE
 	else
 		echo $(date) "SELinux: permissive" >> $BOEFFLA_LOGFILE
@@ -207,3 +203,11 @@
 
 # Finished
 	echo $(date) Boeffla-Kernel initialisation completed >> $BOEFFLA_LOGFILE
+	echo $(date) "Loaded startconfig was:" >> $BOEFFLA_LOGFILE
+	cat $BOEFFLA_STARTCONFIG >> $BOEFFLA_LOGFILE
+	echo $(date) End of kernel startup logfile >> $BOEFFLA_LOGFILE
+
+# SELinux part 2 - actual handling as very last thing (switching it to on will terminate this script)
+	if [ ! -f $PERMISSIVE_ENABLER ]; then
+		echo "1" > /sys/fs/selinux/enforce
+	fi
