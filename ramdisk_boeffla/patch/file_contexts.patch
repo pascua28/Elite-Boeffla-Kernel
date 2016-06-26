@@ -11,10 +11,10 @@ diff --git a/file_contexts b/file_contexts
 index 78d9b1c..de4d89d 100644
 --- a/file_contexts
 +++ b/file_contexts
-@@ -439,3 +439,6 @@
- # fsck
- /system/bin/fsck\.ntfs                          u:object_r:fsck_exec:s0
- /system/bin/fsck\.exfat                         u:object_r:fsck_exec:s0
+@@ -870,3 +870,6 @@
+ 
+ # bash
+ /system/xbin/bash                               u:object_r:shell_exec:s0
 +
 +# Boeffla specific selinux contexts
 +/sbin/busybox			u:object_r:toolbox_exec:s0
