@@ -11,39 +11,15 @@
 #######################################
 
 BOEFFLA_VERSION="5.0-alpha1-CM13.0-i9300"
-EXTENDED_CMDLINE=""
 
 TOOLCHAIN="/opt/toolchains/arm-eabi-4.8/bin/arm-eabi-"
 
 COMPILE_DTB="n"
 MODULES_IN_SYSTEM="y"
-KERNEL_SAMSUNG="n"
 OUTPUT_FOLDER=""
 
 DEFCONFIG="boeffla_defconfig"
 DEFCONFIG_VARIANT=""
-
-MKBOOTIMG_CMDLINE=""
-MKBOOTIMG_BASE="0x10000000"
-MKBOOTIMG_PAGESIZE="2048"
-MKBOOTIMG_RAMDISK_OFFSET="0x01000000"
-MKBOOTIMG_TAGS_OFFSET="0x00000100"
-
-BOOT_PARTITION="dev/block/mmcblk0p5"
-SYSTEM_PARTITION="/dev/block/mmcblk0p9"
-
-ASSERT_1="m0"
-ASSERT_2="i9300"
-ASSERT_3="GT-I9300"
-ASSERT_4=""
-ASSERT_5=""
-ASSERT_6=""
-ASSERT_7=""
-ASSERT_8=""
-ASSERT_9=""
-ASSERT_10=""
-ASSERT_11=""
-ASSERT_12=""
 
 FINISH_MAIL_TO=""
 
@@ -86,22 +62,15 @@ fi
 
 # overwrite settings with repo specific custom file, if it exists
 if [ -f $ROOT_PATH/x-settings.sh ]; then
-  . $ROOT_PATH/x-settings.sh
+	. $ROOT_PATH/x-settings.sh
 fi
 
 # overwrite settings with user specific custom file, if it exists
 if [ -f ~/x-settings.sh ]; then
-  . ~/x-settings.sh
+	. ~/x-settings.sh
 fi
-
 
 BOEFFLA_FILENAME="boeffla-kernel-$BOEFFLA_VERSION"
-
-if [ "y" == "$MODULES_IN_SYSTEM" ]; then
-	MODULE_PATH="system/lib/modules"
-else
-	MODULE_PATH="ramdisk/lib/modules"
-fi
 
 
 #####################
@@ -113,7 +82,7 @@ step0_copy_code()
 	echo -e $COLOR_GREEN"\n0 - copy code\n"$COLOR_NEUTRAL
 
 	# remove old build folder and create empty one
-	sudo rm -r -f $BUILD_PATH
+	rm -r -f $BUILD_PATH
 	mkdir $BUILD_PATH
 
 	# copy code from source folder to build folder
@@ -203,193 +172,72 @@ step3_compile()
 	echo "toolchain compile:" >> ../compile.log
 	grep "^CROSS_COMPILE" $BUILD_PATH/Makefile >> ../compile.log
 	echo "toolchain stripping:" $TOOLCHAIN >> ../compile.log
-	echo "extended cmdline:" $EXTENDED_CMDLINE >> ../compile.log
 }
 
-step4_unpack_ramdisk()
+step4_prepare_anykernel()
 {
-	echo -e $COLOR_GREEN"\n4 - unpack ramdisk\n"$COLOR_NEUTRAL
+	echo -e $COLOR_GREEN"\n4 - prepare anykernel\n"$COLOR_NEUTRAL
 
 	# Cleanup folder if still existing
 	echo -e ">>> cleanup repack folder\n"
 	{
-		sudo rm -r -f $REPACK_PATH
+		rm -r -f $REPACK_PATH
 		mkdir -p $REPACK_PATH
 	} 2>/dev/null
 
-	# Copy and Unpack original ramdisk
-	echo -e ">>> unpack original ramdisk\n"
-
+	# copy anykernel template over
 	cd $REPACK_PATH
+	cp -R $BUILD_PATH/anykernel_boeffla/* .
 
-	cp $BUILD_PATH/ramdisk_original/* .
-	mkdir ramdisk
+	# delete placeholder files
+	find . -name placeholder -delete
 
-	cd $REPACK_PATH/ramdisk
-	gunzip -c ../boot.img-ramdisk.gz | cpio -i
-}
-
-step5_patch_ramdisk()
-{
-	echo -e $COLOR_GREEN"\n5 - patch ramdisk\n"$COLOR_NEUTRAL
-
-	# Copy compiled files (zImage, dtb and modules)
-	echo -e ">>> copy zImage, dtb and modules\n"
-
+	# copy kernel zImage
 	cp $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/zImage $REPACK_PATH/zImage
+
 	{
-		# copy dt.img
-		cp $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/dt.img $REPACK_PATH/dt.img
-
-		# copy modules from kernel compile
-		mkdir -p $REPACK_PATH/$MODULE_PATH
-
-		cd $BUILD_PATH/$OUTPUT_FOLDER
-		find -name '*.ko' -exec cp -av {} $REPACK_PATH/$MODULE_PATH/ \;
-
-		# copy static modules and rename from ko_ to ko, only if there are some
-		if [ "$(ls -A $BUILD_PATH/modules_boeffla)" ]; then
-			cp $BUILD_PATH/modules_boeffla/* $REPACK_PATH/$MODULE_PATH
-			cd $REPACK_PATH/$MODULE_PATH
-			for i in *.ko_; do mv $i ${i%ko_}ko; echo Static module: ${i%ko_}ko; done
+		# copy dtb (if we have one)
+		if [ "y" == "$COMPILE_DTB" ]; then
+			cp $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/dt.img $REPACK_PATH/dtb
 		fi
 
-		# set module permissions
-		chmod 644 $REPACK_PATH/$MODULE_PATH/*
+		# copy modules (if required)
+		if [ "y" == "$MODULES_IN_SYSTEM" ]; then
+			# copy generated modules
+			find $BUILD_PATH -name '*.ko' -exec cp -av {} $REPACK_PATH/modules/ \;
+			
+			# copy static modules and rename from ko_ to ko, only if there are some
+			if [ "$(ls -A $BUILD_PATH/modules_boeffla)" ]; then
+				cp $BUILD_PATH/modules_boeffla/* $REPACK_PATH/modules
+				cd $REPACK_PATH/modules
+				for i in *.ko_; do mv $i ${i%ko_}ko; echo Static module: ${i%ko_}ko; done
+			fi
 
-		# strip modules
-		echo -e ">>> strip modules\n"
-		${TOOLCHAIN}strip --strip-unneeded $REPACK_PATH/$MODULE_PATH/*
+			# strip modules
+			echo -e ">>> strip modules\n"
+			${TOOLCHAIN}strip --strip-unneeded $REPACK_PATH/modules/*
+		fi
+
 	} 2>/dev/null
 
-
-	# Apply boeffla kernel specific patches and copy additional files to ramdisk
-	echo -e ">>> apply Boeffla kernel patches and copy files\n"
-
+	# replace variables in anykernel script
 	cd $REPACK_PATH
-	for PATCHFILE in $BUILD_PATH/ramdisk_boeffla/patch/*.patch
-	do
-		patch ramdisk/$(basename $PATCHFILE .patch) < $PATCHFILE
-	done
-
-	{
-		# delete orig files, if patching created some
-		rm ramdisk/*.orig
-
-		cp -R $BUILD_PATH/ramdisk_boeffla/fs/* ramdisk
-		chmod -R 755 ramdisk/*.rc
-		chmod -R 755 ramdisk/sbin
-		chmod -R 755 ramdisk/res/bc
-		chmod -R 755 ramdisk/res/misc
-	} 2>/dev/null
+	KERNELNAME="Flashing Boeffla-Kernel $BOEFFLA_VERSION"
+	sed -i "s;###kernelname###;${KERNELNAME};" META-INF/com/google/android/update-binary;
+	COPYRIGHT="(c) Lord Boeffla (aka andip71), $(date +%Y.%m.%d-%H:%M:%S)"
+	sed -i "s;###copyright###;${COPYRIGHT};" META-INF/com/google/android/update-binary;
 }
 
-step6_repack_ramdisk()
+step5_create_anykernel_zip()
 {
-	echo -e $COLOR_GREEN"\n6 - repack ramdisk\n"$COLOR_NEUTRAL
-
-	echo -e ">>> repack new ramdisk\n"
-	cd $REPACK_PATH/ramdisk
-	sudo chown -R 0:0 *
-	sudo find . | sudo cpio -o -H newc | gzip > ../newramdisk.cpio.gz
-
-	# Create new bootimage
-	echo -e ">>> create boot image\n"
-
-	cd $REPACK_PATH
-	chmod 777 $BUILD_PATH/tools_boeffla/mkbootimg
-
-# cp boot.img-ramdisk.gz newramdisk.cpio.gz
-	if [ "y" == "$COMPILE_DTB" ]; then
-		$BUILD_PATH/tools_boeffla/mkbootimg --kernel zImage --ramdisk newramdisk.cpio.gz --cmdline "$MKBOOTIMG_CMDLINE $EXTENDED_CMDLINE" --base $MKBOOTIMG_BASE --pagesize $MKBOOTIMG_PAGESIZE --ramdisk_offset $MKBOOTIMG_RAMDISK_OFFSET --tags_offset $MKBOOTIMG_TAGS_OFFSET --dt dt.img -o boot.img
-	else
-		$BUILD_PATH/tools_boeffla/mkbootimg --kernel zImage --ramdisk newramdisk.cpio.gz --cmdline "$MKBOOTIMG_CMDLINE $EXTENDED_CMDLINE" --base $MKBOOTIMG_BASE --pagesize $MKBOOTIMG_PAGESIZE --ramdisk_offset $MKBOOTIMG_RAMDISK_OFFSET --tags_offset $MKBOOTIMG_TAGS_OFFSET -o boot.img
-	fi
+	echo -e $COLOR_GREEN"\n5 - create anykernel zip\n"$COLOR_NEUTRAL
 
 	# Creating recovery flashable zip
 	echo -e ">>> create flashable zip\n"
 
+	# create zip file
 	cd $REPACK_PATH
-	mkdir -p META-INF/com/google/android
-	cp $BUILD_PATH/tools_boeffla/update-binary META-INF/com/google/android
-
-	# compose updater script
-	if [ ! -z $ASSERT_1 ]; then
-		echo "assert(getprop(\"ro.product.device\") == \"$ASSERT_1\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_1\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_2 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_2\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_2\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_3 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_3\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_3\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_4 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_4\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_4\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_5 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_5\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_5\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_6 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_6\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_6\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_7 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_7\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_7\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_8 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_8\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_8\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_9 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_9\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_9\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_10 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_10\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_10\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_11 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_11\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_11\" ||" >> META-INF/com/google/android/updater-script
-	fi
-	if [ ! -z $ASSERT_12 ]; then
-		echo "getprop(\"ro.product.device\") == \"$ASSERT_12\" ||" >> META-INF/com/google/android/updater-script
-		echo "getprop(\"ro.build.product\") == \"$ASSERT_12\" ||" >> META-INF/com/google/android/updater-script
-	fi
-
-	if [ ! -z $ASSERT_1 ]; then
-		echo "abort(\"This package is for device: $ASSERT_1 $ASSERT_2 $ASSERT_3 $ASSERT_4 $ASSERT_5 $ASSERT_6; this device is \" + getprop(\"ro.product.device\") + \".\"););" >> META-INF/com/google/android/updater-script
-	fi
-
-	echo "ui_print(\"Flashing Boeffla-Kernel $BOEFFLA_VERSION\");" >> META-INF/com/google/android/updater-script
-	echo "package_extract_file(\"boot.img\", \"$BOOT_PARTITION\");" >> META-INF/com/google/android/updater-script
-
-	if [ ! "y" == "$KERNEL_SAMSUNG" ]; then
-		echo "mount(\"ext4\", \"EMMC\", \"$SYSTEM_PARTITION\", \"/system\");" >> META-INF/com/google/android/updater-script
-		echo "delete_recursive(\"/$MODULE_PATH\");" >> META-INF/com/google/android/updater-script
-		echo "package_extract_dir(\"$MODULE_PATH\", \"/$MODULE_PATH\");" >> META-INF/com/google/android/updater-script
-		echo "unmount(\"/system\");" >> META-INF/com/google/android/updater-script
-	fi
-
-	echo "ui_print(\" \");" >> META-INF/com/google/android/updater-script
-	echo "ui_print(\"(c) Lord Boeffla (aka andip71), $(date +%Y.%m.%d-%H:%M:%S)\");" >> META-INF/com/google/android/updater-script
-	echo "ui_print(\" \");" >> META-INF/com/google/android/updater-script
-	echo "ui_print(\"Finished, please reboot.\");" >> META-INF/com/google/android/updater-script
-
-	# add required files to new zip
-	zip $BOEFFLA_FILENAME.recovery.zip boot.img
-	zip $BOEFFLA_FILENAME.recovery.zip META-INF/com/google/android/updater-script
-	zip $BOEFFLA_FILENAME.recovery.zip META-INF/com/google/android/update-binary
-
-	if [ ! "y" == "$KERNEL_SAMSUNG" ]; then
-		zip $BOEFFLA_FILENAME.recovery.zip $MODULE_PATH/*
-	fi
+	zip -r9 $BOEFFLA_FILENAME.recovery.zip * -x $BOEFFLA_FILENAME.recovery.zip
 
 	# sign recovery zip if there are keys available
 	if [ -f "$BUILD_PATH/tools_boeffla/testkey.x509.pem" ]; then
@@ -401,28 +249,11 @@ step6_repack_ramdisk()
 
 	md5sum $BOEFFLA_FILENAME.recovery.zip > $BOEFFLA_FILENAME.recovery.zip.md5
 
-	# For Samsung kernels, create tar.md5 for odin
-	if [ "y" == "$KERNEL_SAMSUNG" ]; then
-		echo -e ">>> create Samsung files for Odin\n"
-		cd $REPACK_PATH
-		tar -cvf $BOEFFLA_FILENAME.tar boot.img
-		md5sum $BOEFFLA_FILENAME.tar >> $BOEFFLA_FILENAME.tar
-		mv $BOEFFLA_FILENAME.tar $BOEFFLA_FILENAME.tar.md5
-	fi
-
 	# Creating additional files for load&flash
 	echo -e ">>> create load&flash files\n"
 
-	if [ "y" == "$KERNEL_SAMSUNG" ]; then
-		md5sum boot.img > checksum
-	else
-		cp $BOEFFLA_FILENAME.recovery.zip cm-kernel.zip
-		md5sum cm-kernel.zip > checksum
-	fi
-
-	# Cleanup
-	echo -e ">>> cleanup\n"
-	rm -rf META-INF
+	cp $BOEFFLA_FILENAME.recovery.zip cm-kernel.zip
+	md5sum cm-kernel.zip > checksum
 }
 
 step7_analyse_log()
@@ -439,12 +270,6 @@ step7_analyse_log()
 	grep "forbidden warning" compile.log
 	echo -e $COLOR_NEUTRAL
 
-	echo -e "Check for patch file issues:"
-	cd $REPACK_PATH/ramdisk
-	echo -e $COLOR_RED
-	sudo find . -type f -name *.rej
-	echo -e $COLOR_NEUTRAL
-
 	echo -e "***************************************************"
 }
 
@@ -458,13 +283,7 @@ step8_transfer_kernel()
 		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.recovery.zip"
 		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip.md5 $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.recovery.zip.md5"
 		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/checksum $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\checksum"
-
-		if [ "y" == "$KERNEL_SAMSUNG" ]; then
-				smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/$BOEFFLA_FILENAME.tar.md5 $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\$BOEFFLA_FILENAME.tar.md5"
-				smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/boot.img $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\boot.img"
-		else
-				smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/cm-kernel.zip $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\cm-kernel.zip"
-		fi
+		smbclient $SMB_SHARE_KERNEL -U $SMB_AUTH_KERNEL -c "put $REPACK_PATH/cm-kernel.zip $SMB_FOLDER_KERNEL\\$BOEFFLA_VERSION\\cm-kernel.zip"
 		return
 	fi
 
@@ -478,13 +297,7 @@ step8_transfer_kernel()
 		cp $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip ~/bbuild_transfer/$BOEFFLA_VERSION
 		cp $REPACK_PATH/$BOEFFLA_FILENAME.recovery.zip.md5 ~/bbuild_transfer/$BOEFFLA_VERSION
 		cp $REPACK_PATH/checksum ~/bbuild_transfer/$BOEFFLA_VERSION
-
-		if [ "y" == "$KERNEL_SAMSUNG" ]; then
-			cp $REPACK_PATH/$BOEFFLA_FILENAME.tar.md5 ~/bbuild_transfer/$BOEFFLA_VERSION
-			cp $REPACK_PATH/boot.img ~/bbuild_transfer/$BOEFFLA_VERSION
-		else
-			cp $REPACK_PATH/cm-kernel.zip ~/bbuild_transfer/$BOEFFLA_VERSION
-		fi
+		cp $REPACK_PATH/cm-kernel.zip ~/bbuild_transfer/$BOEFFLA_VERSION
 
 		sync
 		sleep 1
@@ -530,9 +343,9 @@ stepC_cleanup()
 
 	# remove old build and repack folders, remove any logs
 	{
-		sudo rm -r -f $BUILD_PATH
-		sudo rm -r -f $REPACK_PATH
-		sudo rm $ROOT_PATH/*.log
+		rm -r -f $BUILD_PATH
+		rm -r -f $REPACK_PATH
+		rm $ROOT_PATH/*.log
 	} 2>/dev/null
 }
 
@@ -562,18 +375,6 @@ stepB_backup()
 # main function
 ################
 
-CAN_I_RUN_SUDO=$(sudo -n uptime 2>&1|grep "load"|wc -l)
-if ! [ ${CAN_I_RUN_SUDO} -gt 0 ]; then
-	echo -e $COLOR_RED
-    echo "*** Problem detected ***"
-    echo ""
-    echo "You need to include your local Linux user at the end of /etc/sudoers like this:"
-    echo ""
-    echo "username   ALL=(ALL) NOPASSWD:ALL"
-	echo -e $COLOR_NEUTRAL
-    exit
-fi
-
 unset CCACHE_DISABLE
 
 case "$1" in
@@ -583,9 +384,8 @@ case "$1" in
 		step1_make_clean
 		step2_make_config
 		step3_compile
-		step4_unpack_ramdisk
-		step5_patch_ramdisk
-		step6_repack_ramdisk
+		step4_prepare_anykernel
+		step5_create_anykernel_zip
 		step7_analyse_log
 		step8_transfer_kernel
 		step9_send_finished_mail
@@ -596,9 +396,8 @@ case "$1" in
 		step1_make_clean
 		step2_make_config
 		step3_compile
-		step4_unpack_ramdisk
-		step5_patch_ramdisk
-		step6_repack_ramdisk
+		step4_prepare_anykernel
+		step5_create_anykernel_zip
 		step7_analyse_log
 		step8_transfer_kernel
 		step9_send_finished_mail
@@ -606,16 +405,15 @@ case "$1" in
 		;;
 	u)
 		step3_compile
-		step4_unpack_ramdisk
-		step5_patch_ramdisk
-		step6_repack_ramdisk
+		step4_prepare_anykernel
+		step5_create_anykernel_zip
 		step7_analyse_log
 		step8_transfer_kernel
 		step9_send_finished_mail
 		exit
 		;;
 	ur)
-		step6_repack_ramdisk
+		step5_create_anykernel_zip
 		step7_analyse_log
 		step8_transfer_kernel
 		step9_send_finished_mail
@@ -638,15 +436,15 @@ case "$1" in
 		exit
 		;;
 	4)
-		step4_unpack_ramdisk
+		step4_prepare_anykernel
 		exit
 		;;
 	5)
-		step5_patch_ramdisk
+		step5_create_anykernel_zip
 		exit
 		;;
 	6)
-		step6_repack_ramdisk
+		# do nothing
 		exit
 		;;
 	7)
@@ -677,26 +475,25 @@ esac
 
 echo
 echo
-echo "Function menu"
+echo "Function menu (anykernel version)"
 echo "======================================================================"
 echo
-echo "0  = copy code         |  5  = patch ramdisk"
-echo "1  = make clean        |  6  = repack ramdisk"
+echo "0  = copy code         |  5  = create anykernel"
+echo "1  = make clean        |  "
 echo "2  = make config       |  7  = analyse log"
 echo "3  = compile           |  8  = transfer kernel"
-echo "4  = unpack ramdisk    |  9  = send finish mail"
+echo "4  = prepare anykernel |  9  = send finish mail"
 echo
 echo "rel = all, execute steps 0-9 - without CCACHE  |  r = rewrite config"
 echo "a   = all, execute steps 0-9                   |  c = cleanup"
 echo "u   = upd, execute steps 3-9                   |  b = backup"
-echo "ur  = upd, execute steps 6-9                   |"
+echo "ur  = upd, execute steps 5-9                   |"
 echo
 echo "======================================================================"
 echo
 echo "Parameters:"
 echo
 echo "  Boeffla version:  $BOEFFLA_VERSION"
-echo "  Extended cmdline: $EXTENDED_CMDLINE"
 echo "  Boeffla date:     $BOEFFLA_DATE"
 echo "  Git branch:       $GIT_BRANCH"
 echo "  CPU Cores:        $NUM_CPUS"
