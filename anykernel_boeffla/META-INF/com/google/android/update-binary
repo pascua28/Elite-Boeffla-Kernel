@@ -94,13 +94,14 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.devicecheck)" == 1 ]; then
 	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 		testname="$(file_getprop /tmp/anykernel/anykernel.sh device.name$i)";
 		if [ "$(getprop ro.product.device)" == "$testname" -o "$(getprop ro.build.product)" == "$testname" ]; then
-			ui_print "  Kernel is compatible.";
 			match=1;
 		fi;
 	done;
 
 	if [ "$match" != 1 ]; then
 		abort "This kernel is NOT compatible with your device. Aborting.";
+	else
+		ui_print "  Kernel is compatible.";
 	fi;
 
 	ui_print " ";
