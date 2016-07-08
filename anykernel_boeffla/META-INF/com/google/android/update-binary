@@ -81,6 +81,11 @@ ui_print " ";
 mount -o ro /system;
 mount /data;
 
+# remove kernel survival script as it is useless with anykernel
+mount -o remount,rw /system;
+rm /system/addon.d/97-boeffla-kernel.sh
+mount -o remount,ro /system;
+
 if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.devicecheck)" == 1 ]; then
 	ui_print "* Checking device compatibility...";
 	ui_print "  - Detected product.device: $(getprop ro.product.device)";
