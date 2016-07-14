@@ -29,6 +29,7 @@ device.name15=
 
 # shell variables
 block=/dev/block/mmcblk0p5;
+add_seandroidenforce=0
 
 ############### AnyKernel setup end ############### 
 
@@ -140,6 +141,10 @@ write_boot()
 			exit 1;
 		fi;
 	fi;
+
+	if [ $add_seandroidenforce == "1" ]; then
+		echo -n "SEANDROIDENFORCE" >> /tmp/anykernel/boot-new.img
+	fi
 
 	dd if=/tmp/anykernel/boot-new.img of=$block;
 }
