@@ -30,6 +30,7 @@ device.name15=
 # shell variables
 block=/dev/block/mmcblk0p5;
 add_seandroidenforce=0
+boeffla_exclusions=""
 
 ############### AnyKernel setup end ############### 
 
@@ -72,8 +73,15 @@ dump_boot()
 	fi;
 
 	if [ -f $ramdisk/boeffla-anykernel ]; then
-		   ui_print "  Installing over existing Boeffla Anykernel...";
-		   ui_print " ";
+			ui_print "  Installing over existing Boeffla Anykernel...";
+			ui_print " ";
+
+			SAVE_IFS=$IFS;
+			IFS=";"
+			for filename in $boeffla_exclusions; do 
+				rm -f /tmp/anykernel/rdtmp/$filename
+			done
+			IFS=$SAVE_IFS;
 	fi;
 
 	cp -af /tmp/anykernel/rdtmp/* $ramdisk;
