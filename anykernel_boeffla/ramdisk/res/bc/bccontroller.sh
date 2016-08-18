@@ -385,14 +385,14 @@ fi
 # Get settings
 # *******************
 
-#if [ "get_ums" == "$1" ]; then
-#	if [ "`busybox grep 179 /sys/devices/platform/s3c-usbgadget/gadget/lun0/file`" ]; then
-#		echo "1"
-#	else
-#		echo "0"
-#	fi
-#	exit 0
-#fi
+if [ "get_ums" == "$1" ]; then
+	if [ "`busybox grep mmcblk1p1 /sys/devices/platform/s3c-usbgadget/gadget/lun0/file`" ]; then
+		echo "1"
+	else
+		echo "0"
+	fi
+	exit 0
+fi
 
 
 if [ "get_tunables" == "$1" ]; then
@@ -1225,17 +1225,12 @@ fi
 
 if [ "apply_ums" == "$1" ]; then
 	if [ "1" == "$2" ]; then
-		busybox umount -l /mnt/extSdCard
-		busybox umount -l /storage/sdcard1
-		busybox umount -l /mnt/media_rw/sdcard1
-		busybox umount -l /mnt/secure/asec
 		/system/bin/setprop persist.sys.usb.config mass_storage,adb
-		echo /dev/block/vold/179:49 > /sys/devices/platform/s3c-usbgadget/gadget/lun0/file
+		echo "/dev/block/mmcblk1p1" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/file
 	fi
 
 	if [ "0" == "$2" ]; then
 		echo "" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/file
-		/system/bin/vold
 		/system/bin/setprop persist.sys.usb.config mtp,adb
 	fi
 	exit 0
