@@ -1089,24 +1089,6 @@ if [ "apply_ext4_tweaks" == "$1" ]; then
 	exit 0
 fi
 
-if [ "apply_survival_script" == "$1" ]; then
-	if [ "1" == "$2" ]; then
-		mount -o remount,rw -t ext4 $SYSTEM_DEVICE /system
-		busybox mkdir -p /system/addon.d
-		busybox cp /res/misc/97-boeffla-kernel.sh /system/addon.d
-		busybox chmod 755 /system/addon.d/97-boeffla-kernel.sh
-		busybox sync
-		mount -o remount,ro -t ext4 $SYSTEM_DEVICE /system
-	fi
-
-	if [ "0" == "$2" ]; then
-		mount -o remount,rw -t ext4 $SYSTEM_DEVICE /system
-		busybox rm /system/addon.d/97-boeffla-kernel.sh
-		busybox sync
-		mount -o remount,ro -t ext4 $SYSTEM_DEVICE /system
-	fi
-	exit 0
-fi
 
 if [ "apply_zram" == "$1" ]; then
 
@@ -1464,53 +1446,6 @@ if [ "action_debug_info_file" == "$1" ]; then
 	exit 0
 fi
 
-if [ "action_reboot" == "$1" ]; then
-	echo 0 > /sys/kernel/dyn_fsync/Dyn_fsync_active
-	busybox sync
-	busybox sleep 1s
-	/system/bin/reboot
-	exit 0
-fi
-
-if [ "action_reboot_cwm" == "$1" ]; then
-	echo 0 > /sys/kernel/dyn_fsync/Dyn_fsync_active
-	busybox sync
-	busybox sleep 1s
-	/system/bin/reboot recovery
-	exit 0
-fi
-
-if [ "action_reboot_download" == "$1" ]; then
-	echo 0 > /sys/kernel/dyn_fsync/Dyn_fsync_active
-	busybox sync
-	busybox sleep 1s
-	/system/bin/reboot download
-	exit 0
-fi
-
-if [ "action_wipe_caches_reboot" == "$1" ]; then
-	echo 0 > /sys/kernel/dyn_fsync/Dyn_fsync_active
-	busybox rm -rf /cache/*
-	busybox rm -rf /data/dalvik-cache/*
-	busybox sync
-	busybox sleep 1s
-	/system/bin/reboot
-	exit 0
-fi
-
-if [ "action_wipe_cache" == "$1" ]; then
-	busybox rm -rf /cache/*
-	busybox sync
-	busybox sleep 1s
-	exit 0
-fi
-
-if [ "action_wipe_clipboard_cache" == "$1" ]; then
-	busybox rm -rf /data/clipboard/*
-	busybox sync
-	exit 0
-fi
-
 if [ "action_clean_initd" == "$1" ]; then
 	busybox tar cvz -f $2 /system/etc/init.d
 	mount -o remount,rw -t ext4 $SYSTEM_DEVICE /system
@@ -1554,31 +1489,6 @@ if [ "action_fstrim" == "$1" ]; then
 	exit 0
 fi
 
-
-if [ "flash_kernel" == "$1" ]; then
-	busybox dd if=$2 of=$BOOT_DEVICE
-	exit 0
-fi
-
-if [ "archive_kernel" == "$1" ]; then
-	IMGPATH=$2
-	cd ${IMGPATH%/*}
-	busybox rm $3.tar
-	busybox rm $3.tar.md5
-	busybox tar cvf $3.tar ${IMGPATH##*/}
-	busybox md5sum $3.tar >> $3.tar
-	busybox mv $3.tar $3.tar.md5
-	busybox chmod 666 $3.tar.md5
-	busybox rm $2
-	busybox sync
-	exit 0
-fi
-
-if [ "extract_kernel" == "$1" ]; then
-	busybox tar -xvf $2 -C $3
-	exit 0
-fi
-
 if [ "flash_recovery" == "$1" ]; then
 	busybox dd if=$2 of=$RECOVERY_DEVICE
 	exit 0
@@ -1596,23 +1506,5 @@ fi
 
 if [ "extract_modem" == "$1" ]; then
 	busybox tar -xvf $2 -C $3
-	exit 0
-fi
-
-if [ "flash_cm_kernel" == "$1" ]; then
-	busybox dd if=$2/boot.img of=$BOOT_DEVICE
-	mount -o remount,rw -t ext4 $SYSTEM_DEVICE /system
-	busybox mkdir -p $LIBPATH
-	busybox chmod 755 $LIBPATH
-	busybox rm -f $LIBPATH/*
-	busybox cp $2$LIBPATH/* $LIBPATH
-	busybox chmod 644 $LIBPATH/*
-	busybox sync
-	mount -o remount,ro -t ext4 $SYSTEM_DEVICE /system
-	exit 0
-fi
-
-if [ "extract_cm_kernel" == "$1" ]; then
-	busybox unzip $2 -d $3
 	exit 0
 fi
