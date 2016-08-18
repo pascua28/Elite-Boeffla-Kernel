@@ -181,7 +181,7 @@ replace_section()
 {
 	S1=$(echo ${2} | sed 's/\//\\\//g'); # escape forward slashes
 	S2=$(echo ${3} | sed 's/\//\\\//g'); # escape forward slashes
-	line=`grep -n "$2" $1 | cut -d: -f1`;
+	line=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
 	sed -i "/${S1}/,/${S2}/d" $1;
 	sed -i "${line}s;^;${4}\n;" $1;
 }
@@ -203,7 +203,7 @@ insert_line()
 			after) offset=1;;
 		esac;
 
-		line=$((`grep -n "$4" $1 | cut -d: -f1` + offset));
+		line=$((`grep -n "$4" $1 | head -n1 | cut -d: -f1` + offset));
 		sed -i "${line}s;^;${5}\n;" $1;
 	fi;
 }
@@ -212,7 +212,7 @@ insert_line()
 replace_line()
 {
 	if [ ! -z "$(grep "$2" $1)" ]; then
-		line=`grep -n "$2" $1 | cut -d: -f1`;
+		line=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
 		sed -i "${line}s;.*;${3};" $1;
 	fi;
 }
@@ -221,7 +221,7 @@ replace_line()
 remove_line()
 {
 	if [ ! -z "$(grep "$2" $1)" ]; then
-		line=`grep -n "$2" $1 | cut -d: -f1`;
+		line=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
 		sed -i "${line}d" $1;
 	fi;
 }
@@ -243,7 +243,7 @@ insert_file()
 			after) offset=1;;
 		esac;
 
-		line=$((`grep -n "$4" $1 | cut -d: -f1` + offset));
+		line=$((`grep -n "$4" $1 | head -n1 | cut -d: -f1` + offset));
 		sed -i "${line}s;^;\n;" $1;
 		sed -i "$((line - 1))r $patch/$5" $1;
 	fi;
