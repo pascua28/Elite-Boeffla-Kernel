@@ -1225,6 +1225,7 @@ fi
 
 if [ "apply_ums" == "$1" ]; then
 	if [ "1" == "$2" ]; then
+		echo "0" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/cdrom
 		/system/bin/setprop persist.sys.usb.config mass_storage,adb
 		echo "/dev/block/mmcblk1p1" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/file
 	fi
