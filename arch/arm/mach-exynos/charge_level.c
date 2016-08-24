@@ -170,8 +170,10 @@ static ssize_t charge_info_show(struct kobject *kobj, struct kobj_attribute *att
 {
 
 	// print charge info
-	return sprintf(buf, "%s / %d mA", charge_info_text, charge_info_level);
-
+	if (charge_info_level != 0)
+	    return sprintf(buf, "%s / %d mA", charge_info_text, charge_info_level);
+	else
+	    return sprintf(buf, "%s", charge_info_text);
 }
 
 
