@@ -13,6 +13,7 @@
 BOEFFLA_VERSION="5.0-alpha1-CM13.0-i9300"
 
 TOOLCHAIN="/opt/toolchains/arm-eabi-4.8/bin/arm-eabi-"
+ARCHITECTURE=arm
 
 COMPILE_DTB="n"
 MODULES_IN_SYSTEM="y"
@@ -71,6 +72,10 @@ if [ -f ~/x-settings.sh ]; then
 fi
 
 BOEFFLA_FILENAME="boeffla-kernel-$BOEFFLA_VERSION"
+
+# set environment
+export ARCH=$ARCHITECTURE
+export CROSS_COMPILE="${CCACHE} $TOOLCHAIN"
 
 
 #####################
