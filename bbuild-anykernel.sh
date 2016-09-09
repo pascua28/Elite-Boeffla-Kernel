@@ -14,6 +14,8 @@ BOEFFLA_VERSION="5.0-alpha1-CM13.0-i9300"
 
 TOOLCHAIN="/opt/toolchains/arm-eabi-4.8/bin/arm-eabi-"
 ARCHITECTURE=arm
+COMPILER_FLAGS_KERNEL="-mtune=cortex-a9 -fno-diagnostics-show-caret"
+COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 
 COMPILE_DTB="n"
 MODULES_IN_SYSTEM="y"
@@ -144,9 +146,9 @@ step3_compile()
 
 	# compile source
 	if [ -z "$OUTPUT_FOLDER" ]; then
-		make -j$NUM_CPUS 2>&1 |tee ../compile.log
+		make -j$NUM_CPUS CFLAGS_KERNEL="$COMPILER_FLAGS_KERNEL" CFLAGS_MODULE="$COMPILER_FLAGS_MODULE" 2>&1 |tee ../compile.log
 	else
-		make -j$NUM_CPUS O=$OUTPUT_FOLDER 2>&1 |tee ../compile.log
+		make -j$NUM_CPUS O=$OUTPUT_FOLDER CFLAGS_KERNEL="$COMPILER_FLAGS_KERNEL" CFLAGS_MODULE="$COMPILER_FLAGS_MODULE" 2>&1 |tee ../compile.log
 	fi
 
 	# compile dtb if required
