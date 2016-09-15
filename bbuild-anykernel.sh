@@ -208,22 +208,31 @@ step4_prepare_anykernel()
 			cp $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/dt.img $REPACK_PATH/dtb
 		fi
 
-		# copy modules (if required)
+		# copy modules to either modules folder (CM and derivates) or directly in ramdisk (Samsung stock)
 		if [ "y" == "$MODULES_IN_SYSTEM" ]; then
-			# copy generated modules
-			find $BUILD_PATH -name '*.ko' -exec cp -av {} $REPACK_PATH/modules/ \;
-			
-			# copy static modules and rename from ko_ to ko, only if there are some
-			if [ "$(ls -A $BUILD_PATH/modules_boeffla)" ]; then
-				cp $BUILD_PATH/modules_boeffla/* $REPACK_PATH/modules
-				cd $REPACK_PATH/modules
-				for i in *.ko_; do mv $i ${i%ko_}ko; echo Static module: ${i%ko_}ko; done
-			fi
-
-			# strip modules
-			echo -e ">>> strip modules\n"
-			${TOOLCHAIN}strip --strip-unneeded $REPACK_PATH/modules/*
+			MODULES_PATH=$REPACK_PATH/modules
+		else
+			MODULES_PATH=$REPACK_PATH/ramdisk/lib/modules
 		fi
+
+		mkdir -p $MODULES_PATH
+
+		# copy generated modules
+		find $BUILD_PATH -name '*.ko' -exec cp -av {} $MODULES_PATH \;
+
+		# copy static modules and rename from ko_ to ko, only if there are some
+		if [ "$(ls -A $BUILD_PATH/modules_boeffla)" ]; then
+			cp $BUILD_PATH/modules_boeffla/* $MODULES_PATH
+			cd $MODULES_PATH
+			for i in *.ko_; do mv $i ${i%ko_}ko; echo Static module: ${i%ko_}ko; done
+		fi
+
+		# set module permissions
+		chmod 644 $MODULES_PATH/*
+
+		# strip modules
+		echo -e ">>> strip modules\n"
+		${TOOLCHAIN}strip --strip-unneeded $MODULES_PATH/*
 
 	} 2>/dev/null
 
