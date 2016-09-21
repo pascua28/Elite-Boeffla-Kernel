@@ -24,6 +24,8 @@ OUTPUT_FOLDER=""
 DEFCONFIG="boeffla_defconfig"
 DEFCONFIG_VARIANT=""
 
+KERNEL_NAME="Boeffla-Kernel"
+
 FINISH_MAIL_TO=""
 
 SMB_SHARE_KERNEL=""
@@ -53,9 +55,6 @@ cd $SOURCE_PATH
 BUILD_PATH="$ROOT_PATH/build"
 REPACK_PATH="$ROOT_PATH/repack"
 
-TOOLCHAIN_COMPILE=`grep "^CROSS_COMPILE" $SOURCE_PATH/Makefile`
-TOOLCHAIN_COMPILE=/`echo $TOOLCHAIN_COMPILE | sed -n -e 's/^.* \///p'`
-
 BOEFFLA_DATE=$(date +%Y%m%d)
 GIT_BRANCH=`git symbolic-ref --short HEAD`
 
@@ -73,7 +72,7 @@ if [ -f ~/x-settings.sh ]; then
 	. ~/x-settings.sh
 fi
 
-BOEFFLA_FILENAME="boeffla-kernel-$BOEFFLA_VERSION"
+BOEFFLA_FILENAME="${KERNEL_NAME,,}-$BOEFFLA_VERSION"
 
 # set environment
 export ARCH=$ARCHITECTURE
@@ -97,7 +96,7 @@ step0_copy_code()
 	cp -r $SOURCE_PATH/* $BUILD_PATH
 
 	# Replace version information in mkcompile_h with the one from x-settings.sh
-	sed "s/\`echo \$LINUX_COMPILE_BY | \$UTS_TRUNCATE\`/Boeffla-Kernel-$BOEFFLA_VERSION-$BOEFFLA_DATE/g" -i $BUILD_PATH/scripts/mkcompile_h
+	sed "s/\`echo \$LINUX_COMPILE_BY | \$UTS_TRUNCATE\`/$KERNEL_NAME-$BOEFFLA_VERSION-$BOEFFLA_DATE/g" -i $BUILD_PATH/scripts/mkcompile_h
 	sed "s/\`echo \$LINUX_COMPILE_HOST | \$UTS_TRUNCATE\`/andip71/g" -i $BUILD_PATH/scripts/mkcompile_h
 }
 
@@ -238,7 +237,7 @@ step4_prepare_anykernel()
 
 	# replace variables in anykernel script
 	cd $REPACK_PATH
-	KERNELNAME="Flashing Boeffla-Kernel $BOEFFLA_VERSION"
+	KERNELNAME="Flashing $KERNEL_NAME $BOEFFLA_VERSION"
 	sed -i "s;###kernelname###;${KERNELNAME};" META-INF/com/google/android/update-binary;
 	COPYRIGHT="(c) Lord Boeffla (aka andip71), $(date +%Y.%m.%d-%H:%M:%S)"
 	sed -i "s;###copyright###;${COPYRIGHT};" META-INF/com/google/android/update-binary;
@@ -333,7 +332,7 @@ step9_send_finished_mail()
 	if [ -z "$FINISH_MAIL_TO" ]; then
 		echo -e "No mail address configured, not sending mail.\n"	
 	else
-		cat $ROOT_PATH/compile.log | /usr/bin/mailx -s "Compilation for Boeffla-Kernel $BOEFFLA_VERSION finished!!!" $FINISH_MAIL_TO
+		cat $ROOT_PATH/compile.log | /usr/bin/mailx -s "Compilation for $KERNEL_NAME $BOEFFLA_VERSION finished!!!" $FINISH_MAIL_TO
 	fi
 }
 
@@ -408,18 +407,19 @@ display_help()
 	echo
 	echo "Parameters:"
 	echo
-	echo "  Boeffla version:  $BOEFFLA_VERSION"
-	echo "  Boeffla date:     $BOEFFLA_DATE"
-	echo "  Git branch:       $GIT_BRANCH"
-	echo "  CPU Cores:        $NUM_CPUS"
+	echo "  Boeffla version: $BOEFFLA_VERSION"
+	echo "  Boeffla date:    $BOEFFLA_DATE"
+	echo "  Kernel name:     $KERNEL_NAME"
+	echo "  Git branch:      $GIT_BRANCH"
+	echo "  CPU Cores:       $NUM_CPUS"
 	echo
-	echo "  Toolchain:     $TOOLCHAIN"
-	echo "  Cross_compile: $TOOLCHAIN_COMPILE"
-	echo "  Root path:     $ROOT_PATH"
-	echo "  Root dir:      $ROOT_DIR_NAME"
-	echo "  Source path:   $SOURCE_PATH"
-	echo "  Build path:    $BUILD_PATH"
-	echo "  Repack path:   $REPACK_PATH"
+	echo "  Toolchain:       $TOOLCHAIN"
+	echo "  Root path:       $ROOT_PATH"
+	echo "  Root dir:        $ROOT_DIR_NAME"
+	echo "  Source path:     $SOURCE_PATH"
+	echo "  Build path:      $BUILD_PATH"
+	echo "  Repack path:     $REPACK_PATH"
+	echo "  Kernel Filename: $BOEFFLA_FILENAME"
 	echo
 	echo "======================================================================"
 }
