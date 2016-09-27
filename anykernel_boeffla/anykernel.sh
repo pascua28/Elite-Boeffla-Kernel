@@ -125,9 +125,13 @@ write_boot()
 		dtb="--dt $split_img/$dtb";
 	fi;
 
-	cd $ramdisk;
-	find . | cpio -H newc -o | gzip > /tmp/anykernel/ramdisk-new.cpio.gz;
-	
+	if [ -f "$bin/mkbootfs" ]; then
+		$bin/mkbootfs /tmp/anykernel/ramdisk | gzip > /tmp/anykernel/ramdisk-new.cpio.gz;
+	else
+		cd $ramdisk;
+		find . | cpio -H newc -o | gzip > /tmp/anykernel/ramdisk-new.cpio.gz;
+	fi;
+
 	if [ $? != 0 ]; then
 		ui_print " ";
 		ui_print "Repacking ramdisk failed. Aborting...";
