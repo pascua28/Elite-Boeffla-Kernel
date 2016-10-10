@@ -17,6 +17,7 @@ ARCHITECTURE=arm
 COMPILER_FLAGS_KERNEL="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 
+KERNEL_IMAGE="zImage"
 COMPILE_DTB="n"
 MODULES_IN_SYSTEM="y"
 OUTPUT_FOLDER=""
@@ -156,22 +157,26 @@ step3_compile()
 		echo
 
 		# Compile dtb (device tree blob) file
+		if [ -f $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img ]; then
+			rm $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img
+		fi
+
 		chmod 777 tools_boeffla/dtbToolCM
-		tools_boeffla/dtbToolCM -2 -o $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/dt.img -s 2048 -p $BUILD_PATH/$OUTPUT_FOLDER/scripts/dtc/ $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/
+		tools_boeffla/dtbToolCM -2 -o $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img -s 2048 -p $BUILD_PATH/$OUTPUT_FOLDER/scripts/dtc/ $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/
 	fi
 
 	TIMESTAMP2=$(date +%s)
 
 	# Log compile time (screen output)
 	echo "compile time:" $(($TIMESTAMP2 - $TIMESTAMP1)) "seconds"
-	echo "zImage size (bytes):"
-	stat -c%s $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/zImage
+	echo "Kernel image size (bytes):"
+	stat -c%s $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/$KERNEL_IMAGE
 
 	# Log compile time and parameters (log file output)
 	echo -e "\n***************************************************" >> ../compile.log
 	echo -e "\ncompile time:" $(($TIMESTAMP2 - $TIMESTAMP1)) "seconds" >> ../compile.log
-	echo "zImage size (bytes):" >> ../compile.log
-	stat -c%s $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/zImage >> ../compile.log
+	echo "Kernel image size (bytes):" >> ../compile.log
+	stat -c%s $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/$KERNEL_IMAGE >> ../compile.log
 
 	echo -e "\n***************************************************" >> ../compile.log
 	echo -e "\nroot path:" $ROOT_PATH >> ../compile.log
@@ -198,13 +203,13 @@ step4_prepare_anykernel()
 	# delete placeholder files
 	find . -name placeholder -delete
 
-	# copy kernel zImage
-	cp $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/zImage $REPACK_PATH/zImage
+	# copy kernel image
+	cp $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/$KERNEL_IMAGE $REPACK_PATH/zImage
 
 	{
 		# copy dtb (if we have one)
 		if [ "y" == "$COMPILE_DTB" ]; then
-			cp $BUILD_PATH/$OUTPUT_FOLDER/arch/arm/boot/dt.img $REPACK_PATH/dtb
+			cp $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img $REPACK_PATH/dtb
 		fi
 
 		# copy modules to either modules folder (CM and derivates) or directly in ramdisk (Samsung stock)
@@ -342,13 +347,13 @@ stepR_rewrite_config()
 
 	# copy defconfig, run make oldconfig and copy it back
 	cd $SOURCE_PATH
-	cp arch/arm/configs/$DEFCONFIG .config
+	cp arch/$ARCHITECTURE/configs/$DEFCONFIG .config
 	make oldconfig
-	cp .config arch/arm/configs/$DEFCONFIG
+	cp .config arch/$ARCHITECTURE/configs/$DEFCONFIG
 	make mrproper
 
 	# commit change
-	git add arch/arm/configs/$DEFCONFIG
+	git add arch/$ARCHITECTURE/configs/$DEFCONFIG
 	git commit
 }
 
