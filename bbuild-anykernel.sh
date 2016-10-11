@@ -2,7 +2,7 @@
 
 # Boeffla Kernel Universal Build Script
 #
-# Version 1.2, 26.08.2015
+# Version 1.3, 11.10.2016
 #
 # (C) Lord Boeffla (aka andip71)
 
@@ -117,7 +117,7 @@ step2_make_config()
 
 	# build make string depending on if we need to compile to an output folder
 	# and if we need to have a defconfig variant
-	MAKESTRING="arch=arm $DEFCONFIG"
+	MAKESTRING="arch=$ARCHITECTURE $DEFCONFIG"
 
 	if [ ! -z "$OUTPUT_FOLDER" ]; then
 		rm -rf $BUILD_PATH/output
