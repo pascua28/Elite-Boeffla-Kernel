@@ -19,6 +19,8 @@ COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 
 KERNEL_IMAGE="zImage"
 COMPILE_DTB="n"
+DTBTOOL=""
+DTBTOOL_CMD=""
 MODULES_IN_SYSTEM="y"
 OUTPUT_FOLDER=""
 
@@ -161,8 +163,8 @@ step3_compile()
 			rm $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img
 		fi
 
-		chmod 777 tools_boeffla/dtbToolCM
-		tools_boeffla/dtbToolCM -2 -o $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img -s 2048 -p $BUILD_PATH/$OUTPUT_FOLDER/scripts/dtc/ $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/
+		chmod 777 tools_boeffla/$DTBTOOL
+		tools_boeffla/$DTBTOOL $DTBTOOL_CMD -o $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img -s 2048 -p $BUILD_PATH/$OUTPUT_FOLDER/scripts/dtc/ $BUILD_PATH/$OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/
 	fi
 
 	TIMESTAMP2=$(date +%s)
