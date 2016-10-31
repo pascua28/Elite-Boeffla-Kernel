@@ -112,7 +112,9 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.initd)" == 1 ]; then
 	ui_print " ";
 
 	mount -o remount,rw /system;
-	mkdir /system/etc/init.d;
+	if [ ! -d /system/etc/init.d ]; then
+	    mkdir -p /system/etc/init.d;
+	fi;
 	set_perm_recursive 0 0 0755 0755 /system/etc/init.d;
 	mount -o remount,ro /system;
 fi;
@@ -139,7 +141,10 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.modules)" == 1 ]; then
 	ui_print " ";
 
 	mount -o remount,rw /system;
-	mkdir -p /system/lib/modules;
+	if [ ! -d /system/lib/modules ]; then
+	    mkdir -p /system/lib/modules;
+	fi;
+	rm -rf /system/lib/modules/*;
 	cp -rf /tmp/anykernel/modules/* /system/lib/modules/;
 	set_perm_recursive 0 0 0755 0644 /system/lib/modules;
 	mount -o remount,ro /system;
