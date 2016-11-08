@@ -56,11 +56,6 @@
 	/sbin/busybox grep ro.build.version /system/build.prop >> $BOEFFLA_LOGFILE
 	echo "=========================" >> $BOEFFLA_LOGFILE
 
-# set busybox selinux labels
-	mount -o rw,remount rootfs /
-	chcon u:object_r:toolbox_exec:s0 /sbin/busybox
-	mount -o ro,remount rootfs /
-
 # remove any obsolete Boeffla-Config V2 startconfig done file
 	/sbin/busybox rm -f $BOEFFLA_STARTCONFIG_DONE
 
