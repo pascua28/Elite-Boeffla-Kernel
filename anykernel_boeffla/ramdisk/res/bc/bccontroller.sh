@@ -1442,49 +1442,6 @@ if [ "action_debug_info_file" == "$1" ]; then
 	exit 0
 fi
 
-if [ "action_clean_initd" == "$1" ]; then
-	busybox tar cvz -f $2 /system/etc/init.d
-	mount -o remount,rw -t ext4 $SYSTEM_DEVICE /system
-	busybox rm /system/etc/init.d/*
-	busybox sync
-	mount -o remount,ro -t ext4 $SYSTEM_DEVICE /system
-	exit 0
-fi
-
-if [ "action_fix_permissions" == "$1" ]; then
-	mount -o remount,rw -t ext4 $SYSTEM_DEVICE /system
-
-	# User apps
-	busybox chmod 644 /data/app/*.apk
-	busybox chown 1000:1000 /data/app/*.apk
-	# System apps
-	busybox chmod 644 /system/app/*.apk
-	busybox chown 0:0 /system/app/*.apk
-	# System framework
-	busybox chmod 644 /system/framework/*.apk
-	busybox chown 0:0 /system/framework/*.apk
-	busybox chmod 644 /system/framework/*.jar
-	busybox chown 0:0 /system/framework/*.jar
-
-	mount -o remount,ro -t ext4 $SYSTEM_DEVICE /system
-	busybox sync
-	exit 0
-fi
-
-if [ "action_fstrim" == "$1" ]; then
-	echo -e "Trim /data"
-	busybox fstrim -v /data
-	echo -e ""
-	echo -e "Trim /cache"
-	busybox fstrim -v /cache
-	echo -e ""
-	echo -e "Trim /system"
-	busybox fstrim -v /system
-	echo -e ""
-	busybox sync
-	exit 0
-fi
-
 if [ "flash_recovery" == "$1" ]; then
 	busybox dd if=$2 of=$RECOVERY_DEVICE
 	exit 0
