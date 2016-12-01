@@ -78,13 +78,13 @@ ui_print " ";
 ui_print "###copyright###";
 ui_print " ";
 
-mount -o ro /system;
+mount -o ro -t auto /system;
 mount /data;
 
 # remove kernel survival script as it is useless with anykernel
-mount -o remount,rw /system;
+mount -o remount,rw -t auto /system;
 rm /system/addon.d/97-boeffla-kernel.sh
-mount -o remount,ro /system;
+mount -o remount,ro -t auto /system;
 
 if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.devicecheck)" == 1 ]; then
 	ui_print "* Checking device compatibility...";
@@ -111,12 +111,12 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.initd)" == 1 ]; then
 	ui_print "* Creating init.d...";
 	ui_print " ";
 
-	mount -o remount,rw /system;
+	mount -o remount,rw -t auto /system;
 	if [ ! -d /system/etc/init.d ]; then
 	    mkdir -p /system/etc/init.d;
 	fi;
 	set_perm_recursive 0 0 0755 0755 /system/etc/init.d;
-	mount -o remount,ro /system;
+	mount -o remount,ro -t auto /system;
 fi;
 
 ui_print "* Installing kernel...";
@@ -140,14 +140,14 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.modules)" == 1 ]; then
 	ui_print "* Copying modules...";
 	ui_print " ";
 
-	mount -o remount,rw /system;
+	mount -o remount,rw -t auto /system;
 	if [ ! -d /system/lib/modules ]; then
 	    mkdir -p /system/lib/modules;
 	fi;
 	rm -rf /system/lib/modules/*;
 	cp -rf /tmp/anykernel/modules/* /system/lib/modules/;
 	set_perm_recursive 0 0 0755 0644 /system/lib/modules;
-	mount -o remount,ro /system;
+	mount -o remount,ro -t auto /system;
 fi;
 
 if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.cleanup)" == 1 ]; then
