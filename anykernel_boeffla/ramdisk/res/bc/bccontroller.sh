@@ -3,7 +3,7 @@
 # Boeffla-Config controller interface
 #
 # *****************************
-# i9300 Cyanogenmod 13.0 version
+# i9300 Cyanogenmod 14.1 version
 #
 # V0.1
 # *****************************
@@ -13,13 +13,15 @@
 # ********************************
 
 # kernel specification (hardware; type; target; url)
-KERNEL_SPECS="i9300;cm;cm14.0;http://kernel.boeffla.de/sgs3/boeffla-kernel-cm/;boeffla-kernel-#VERSION#-CM14.1-i9300-anykernel.recovery.zip"
+KERNEL_SPECS="i9300;cm;cm14.1;https://77.119.236.213/cm-i9300/boeffla-oc/cm-14.1/"
 
 # kernel features 
 # (1=enable-busybox,2=enable-frandom,3=wipe-cache,4=disable-zram-control)
 # (5=enable-default-zram-control,6=enable-selinux-switch, 7=enable-selinux-control)
 # (8=no-hotplugging,9=enable-doze-control)
-KERNEL_FEATURES="-3-6-7-9-"
+# default by Boeffla
+#KERNEL_FEATURES="-3-6-7-9-"
+KERNEL_FEATURES="-3-9-"
 
 # path to kernel libraries
 LIBPATH="/system/lib/modules"
@@ -53,7 +55,7 @@ if [ "lov_gpu_freq_profiles" == "$1" ]; then
 fi
 
 if [ "lov_gpu_volt_profiles" == "$1" ]; then
-	echo "No undervolting;undervolt -25mV;undervolt -50mV;undervolt -75mV;undervolt -100mV;undervolt light;undervolt medium;undervolt heavy;overvolt +25mV;overvolt +50mV;overvolt +75mV;overvolt +100mV"
+	echo "No undervolting;undervolt -25mV;undervolt -50mV;undervolt -75mV;undervolt -100mV;undervolt -125mV;undervolt -150mV;undervolt -175mV;undervolt -200mV;undervolt light;undervolt medium;undervolt heavy;overvolt +25mV;overvolt +50mV;overvolt +75mV;overvolt +100mV"
 	exit 0
 fi
 
@@ -208,6 +210,18 @@ if [ "conf_gpu_volt" == "$1" ]; then
 	if [ "undervolt -100mV" == "$2" ]; then
 		echo "-100000;-100000;-100000;-100000;-100000"
 	fi
+	if [ "undervolt -125mV" == "$2" ]; then
+		echo "-125000;-125000;-125000;-125000;-125000"
+	fi
+	if [ "undervolt -150mV" == "$2" ]; then
+		echo "-150000;-150000;-150000;-150000;-150000"
+	fi
+	if [ "undervolt -175mV" == "$2" ]; then
+		echo "-175000;-175000;-175000;-175000;-175000"
+	fi
+	if [ "undervolt -200mV" == "$2" ]; then
+		echo "-200000;-200000;-200000;-200000;-200000"
+	fi
 	if [ "undervolt light" == "$2" ]; then
 		echo "-25000;-25000;-25000;-50000;-50000"
 	fi
@@ -234,28 +248,28 @@ fi
 
 if [ "conf_cpu_volt" == "$1" ]; then
 	if [ "No undervolting" == "$2" ]; then
-		echo "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0"
+		echo "0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0"
 	fi
 	if [ "undervolt -25mV" == "$2" ]; then
-		echo "-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25"
+		echo "-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25;-25"
 	fi
 	if [ "undervolt -50mV" == "$2" ]; then
-		echo "-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50"
+		echo "-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50;-50"
 	fi
 	if [ "undervolt -75mV" == "$2" ]; then
-		echo "-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75"
+		echo "-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75;-75"
 	fi
 	if [ "undervolt -100mV" == "$2" ]; then
-		echo "-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100"
+		echo "-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100;-100"
 	fi
 	if [ "undervolt light" == "$2" ]; then
-		echo "0;0;0;0;0;0;-25;-25;-25;-25;-25;-50;-50;-50;-50"
+		echo "0;0;0;0;0;0;-25;-25;-25;-25;-25;-50;-50;-50;-50;-50;-50;-50;-50;-50"
 	fi
 	if [ "undervolt medium" == "$2" ]; then
-		echo "-25;-25;-25;-25;-25;-25;-50;-50;-50;-50;-50;-75;-75;-75;-75"
+		echo "-25;-25;-25;-25;-25;-25;-50;-50;-50;-50;-50;-75;-75;-75;-75;-75;-75;-75;-75;-75"
 	fi
 	if [ "undervolt heavy" == "$2" ]; then
-		echo "-50;-50;-50;-50;-50;-50;-75;-75;-75;-75;-75;-100;-100;-100;-100"
+		echo "-50;-50;-50;-50;-50;-50;-75;-75;-75;-75;-75;-100;-100;-100;-100;-100;-100;-100;-100;-100"
 	fi
 	exit 0
 fi
@@ -326,7 +340,7 @@ fi
 
 if [ "param_cpu_uv" == "$1" ]; then
 	# CPU UV min/max/steps
-	echo "600;1500;25"
+	echo "600;1600;25"
 	exit 0
 fi
 
@@ -338,9 +352,9 @@ fi
 
 if [ "param_led" == "$1" ]; then
 	# LED speed min/max/steps
-	echo "0;15;1;"
+	echo "0;60;1;"
 	# LED brightness min/max/steps
-	echo "0;130;5"
+	echo "0;255;1"
 	exit 0
 fi
 
@@ -348,29 +362,29 @@ if [ "param_touchwake" == "$1" ]; then
 	# Touchwake min/max/steps
 	echo "0;600000;5000;"
 	# Knockon min/max/steps
-	echo "100;2000;100"
+	echo "100;2000;10"
 	exit 0
 fi
 
 if [ "param_early_suspend_delay" == "$1" ]; then
 	# Early suspend delay min/max/steps
-	echo "0;700;25"
+	echo "0;5000;10"
 	exit 0
 fi
 
 if [ "param_zram" == "$1" ]; then
 	# zRam size min/max/steps
-	echo "104857600;838860800;20971520"
+	echo "104857600;838860800;8388608"
 	exit 0
 fi
 
 if [ "param_charge_rates" == "$1" ]; then
 	# AC charge min/max/steps
-	echo "100;1600;25;"
+	echo "0;2100;5;"
 	# USB charge min/max/steps
-	echo "0;1600;25;"
+	echo "0;2100;5;"
 	# Wireless charge min/max/steps
-	echo "100;1600;25"
+	echo "0;2100;5"
 	exit 0
 fi
 
@@ -1439,6 +1453,49 @@ if [ "action_debug_info_file" == "$1" ]; then
 	echo $(date) Full debug log file end >> $2
 
 	busybox chmod 666 $2
+	exit 0
+fi
+
+if [ "action_clean_initd" == "$1" ]; then
+	busybox tar cvz -f $2 /system/etc/init.d
+	mount -o remount,rw -t ext4 $SYSTEM_DEVICE /system
+	busybox rm /system/etc/init.d/*
+	busybox sync
+	mount -o remount,ro -t ext4 $SYSTEM_DEVICE /system
+	exit 0
+fi
+
+if [ "action_fix_permissions" == "$1" ]; then
+	mount -o remount,rw -t ext4 $SYSTEM_DEVICE /system
+
+	# User apps
+	busybox chmod 644 /data/app/*.apk
+	busybox chown 1000:1000 /data/app/*.apk
+	# System apps
+	busybox chmod 644 /system/app/*.apk
+	busybox chown 0:0 /system/app/*.apk
+	# System framework
+	busybox chmod 644 /system/framework/*.apk
+	busybox chown 0:0 /system/framework/*.apk
+	busybox chmod 644 /system/framework/*.jar
+	busybox chown 0:0 /system/framework/*.jar
+
+	mount -o remount,ro -t ext4 $SYSTEM_DEVICE /system
+	busybox sync
+	exit 0
+fi
+
+if [ "action_fstrim" == "$1" ]; then
+	echo -e "Trim /data"
+	busybox fstrim -v /data
+	echo -e ""
+	echo -e "Trim /cache"
+	busybox fstrim -v /cache
+	echo -e ""
+	echo -e "Trim /system"
+	busybox fstrim -v /system
+	echo -e ""
+	busybox sync
 	exit 0
 fi
 
