@@ -13,7 +13,7 @@
 # ********************************
 
 # kernel specification (hardware; type; target; url)
-KERNEL_SPECS="i9300;cm;cm14.1;https://77.119.236.213/cm-i9300/boeffla-oc/cm-14.1/"
+KERNEL_SPECS="i9300;lineage;lineage14.1;https://77.119.236.213/cm-i9300/boeffla-oc/cm-14.1/"
 
 # kernel features 
 # (1=enable-busybox,2=enable-frandom,3=wipe-cache,4=disable-zram-control)

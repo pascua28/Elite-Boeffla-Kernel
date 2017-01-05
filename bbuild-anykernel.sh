@@ -10,9 +10,9 @@
 # Parameters to be configured manually
 #######################################
 
-BOEFFLA_VERSION="6.0.0.1-beta1-CM14.1-i9300"
+BOEFFLA_VERSION="6.0.0.1-beta4-LineageOS14.1-i9300"
 
-TOOLCHAIN="/mnt/mount3/source/linux/toolchain/gcc-linaro-6.1.1-2016.08-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-"
+TOOLCHAIN="/mnt/mount3/source/linux/toolchain/gcc-linaro-6.2.1-2016.11-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-"
 ARCHITECTURE=arm
 COMPILER_FLAGS_KERNEL="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
@@ -55,8 +55,9 @@ ROOT_PATH=$PWD
 ROOT_DIR_NAME=`basename "$PWD"`
 cd $SOURCE_PATH
 
-BUILD_PATH="$ROOT_PATH/build"
-REPACK_PATH="$ROOT_PATH/repack"
+WDIR="/home/user/tmpfs"
+BUILD_PATH="$WDIR/build"
+REPACK_PATH="$WDIR/repack"
 
 BOEFFLA_DATE=$(date +%Y%m%d)
 GIT_BRANCH=`git symbolic-ref --short HEAD`
@@ -286,7 +287,7 @@ step7_analyse_log()
 	echo -e "\n***************************************************"
 	echo -e "Check for compile errors:"
 
-	cd $ROOT_PATH
+	cd $WDIR
 	echo -e $COLOR_RED
 	grep " error" compile.log
 	grep "forbidden warning" compile.log
@@ -449,6 +450,7 @@ unset CCACHE_DISABLE
 case "$1" in
 	rel)
 		export CCACHE_DISABLE=1
+		stepW_wipe
 		step0_copy_code
 		step1_make_clean
 		step2_make_config
