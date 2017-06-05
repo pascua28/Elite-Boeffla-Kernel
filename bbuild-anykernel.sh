@@ -10,9 +10,9 @@
 # Parameters to be configured manually
 #######################################
 
-BOEFFLA_VERSION="6.0.0.1-beta4-LineageOS14.1-i9300"
+BOEFFLA_VERSION="6.0.0.1-beta11-LineageOS14.1-i9300"
 
-TOOLCHAIN="/mnt/mount3/source/linux/toolchain/gcc-linaro-6.2.1-2016.11-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-"
+TOOLCHAIN="/mnt/mount3/source/linux/toolchain/gcc-linaro-6.3.1-2017.02-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-"
 ARCHITECTURE=arm
 COMPILER_FLAGS_KERNEL="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
@@ -380,7 +380,7 @@ stepB_backup()
 	BACKUP_FILE="$ROOT_DIR_NAME""_$(date +"%Y-%m-%d_%H-%M").tar.gz"
 
 	cd $ROOT_PATH
-	tar cvfz $BACKUP_FILE source x-settings.sh
+	tar --use-compress-program=pigz -cvf $BACKUP_FILE source x-settings.sh
 	cd $SOURCE_PATH
 
 	# transfer backup only if smbshare configured

@@ -1514,9 +1514,9 @@ static struct samsung_battery_platform_data samsung_battery_pdata = {
 #if defined(CONFIG_MACH_GC1)
 	.voltage_max = 4200000,
 #else
-	.voltage_max = 4350000,
+	.voltage_max = 4300000,
 #endif
-	.voltage_min = 3400000,
+	.voltage_min = 3300000,
 
 #if defined(CONFIG_MACH_GC1)
 	.in_curr_limit = 700,
@@ -1533,9 +1533,14 @@ static struct samsung_battery_platform_data samsung_battery_pdata = {
 	.chg_curr_siop_lv2 = 475,
 	.chg_curr_siop_lv3 = 1,	/* zero make charger off */
 #else
+/* default:
 	.in_curr_limit = 1000,
 	.chg_curr_ta = 1000,
-	.chg_curr_dock = 1000,
+	.chg_curr_dock = 1000,*/
+
+	.in_curr_limit = 2100,
+	.chg_curr_ta = 2100,
+	.chg_curr_dock = 2100,
 	.chg_curr_siop_lv1 = 475,
 	.chg_curr_siop_lv2 = 475,
 	.chg_curr_siop_lv3 = 475,
@@ -1561,7 +1566,7 @@ static struct samsung_battery_platform_data samsung_battery_pdata = {
 	.recharge_voltage = 4150000,
 #else
 	/* it will be cacaluated in probe */
-	.recharge_voltage = 4300000,
+	.recharge_voltage = 4200000,
 #endif
 
 #if defined(CONFIG_TARGET_LOCALE_KOR) || defined(CONFIG_MACH_M0_CTC) || \
@@ -2379,10 +2384,10 @@ static struct platform_device *midas_devices[] __initdata = {
 /* below temperature base on the celcius degree */
 struct s5p_platform_tmu midas_tmu_data __initdata = {
 	.ts = {
-		.stop_1st_throttle  = 85,
-		.start_1st_throttle = 90,
-		.stop_2nd_throttle  = 95,
-		.start_2nd_throttle = 100,
+		.stop_1st_throttle  = 90,
+		.start_1st_throttle = 95,
+		.stop_2nd_throttle  = 100,
+		.start_2nd_throttle = 105,
 		.start_tripping	    = 110, /* temp to do tripping */
 		.start_emergency    = 120, /* To protect chip,forcely kernel panic */
 		.stop_mem_throttle  = 83,
@@ -2391,8 +2396,8 @@ struct s5p_platform_tmu midas_tmu_data __initdata = {
 		.start_tc = 10,
 	},
 	.cpufreq = {
-		.limit_1st_throttle  = 1400000, /* 1.200MHz in KHz order */
-		.limit_2nd_throttle  = 600000, /* 200MHz in KHz order */
+		.limit_1st_throttle  = 1400000, /* 1.400MHz in KHz order */
+		.limit_2nd_throttle  = 200000, /* 200MHz in KHz order */
 	},
 	.temp_compensate = {
 		.arm_volt = 925000, /* vdd_arm in uV for temperature compensation */

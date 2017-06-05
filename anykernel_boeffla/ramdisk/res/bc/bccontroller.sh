@@ -20,8 +20,7 @@ KERNEL_SPECS="i9300;lineage;lineage14.1;https://77.119.236.213/cm-i9300/boeffla-
 # (5=enable-default-zram-control,6=enable-selinux-switch, 7=enable-selinux-control)
 # (8=no-hotplugging,9=enable-doze-control)
 # default by Boeffla
-#KERNEL_FEATURES="-3-6-7-9-"
-KERNEL_FEATURES="-3-9-"
+KERNEL_FEATURES="-3-6-7-9-"
 
 # path to kernel libraries
 LIBPATH="/system/lib/modules"
@@ -360,7 +359,7 @@ fi
 
 if [ "param_touchwake" == "$1" ]; then
 	# Touchwake min/max/steps
-	echo "0;600000;5000;"
+	echo "0;600000;1000;"
 	# Knockon min/max/steps
 	echo "100;2000;10"
 	exit 0
@@ -374,7 +373,7 @@ fi
 
 if [ "param_zram" == "$1" ]; then
 	# zRam size min/max/steps
-	echo "104857600;838860800;8388608"
+	echo "104857600;838860800;4194304"
 	exit 0
 fi
 
@@ -1239,14 +1238,22 @@ fi
 
 if [ "apply_ums" == "$1" ]; then
 	if [ "1" == "$2" ]; then
+		echo "1" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/nofua
+		echo "0" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/ro
 		echo "0" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/cdrom
-		/system/bin/setprop persist.sys.usb.config mass_storage,adb
 		echo "/dev/block/mmcblk1p1" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/file
+		echo 0 > /sys/class/android_usb/android0/enable;
+		echo mass_storage > /sys/class/android_usb/android0/functions
+		echo 1 > /sys/class/android_usb/android0/enable
+		setprop sys.usb.config mass_storage,adb
 	fi
 
 	if [ "0" == "$2" ]; then
 		echo "" > /sys/devices/platform/s3c-usbgadget/gadget/lun0/file
-		/system/bin/setprop persist.sys.usb.config mtp,adb
+		echo 0 > /sys/class/android_usb/android0/enable;
+		echo mtp > /sys/class/android_usb/android0/functions
+		echo 1 > /sys/class/android_usb/android0/enable
+		setprop sys.usb.config mtp,adb
 	fi
 	exit 0
 fi
