@@ -15,13 +15,13 @@
 #define aid_180nit_110nit_F8_18th	0x42
 #define aid_180nit_110nit_F8_1st	0x59
 #define aid_100nit_20nit_F8_1st	0x59
-#define aid_108nit_F8_18th		0x38
-#define aid_106nit_F8_18th		0x2F
-#define aid_104nit_F8_18th		0x25
-#define aid_102nit_F8_18th		0x1C
-#define aid_100nit_F8_18th		0x22
-#define aid_90nit_F8_18th		0x5E
-#define aid_80nit_F8_18th		0x86
+#define aid_108nit_F8_18th		0x04
+#define aid_106nit_F8_18th		0x1B
+#define aid_104nit_F8_18th		0x32
+#define aid_102nit_F8_18th		0x49
+#define aid_100nit_F8_18th		0x5E
+#define aid_90nit_F8_18th		0x73
+#define aid_80nit_F8_18th		0x88
 #define aid_70nit_F8_18th		0x90
 #define aid_60nit_F8_18th		0x97
 #define aid_50nit_F8_18th		0x9B
@@ -40,10 +40,10 @@
 #define AOR40_BASE_130		200
 #define AOR40_BASE_120		186
 #define AOR40_BASE_110		171
-#define AOR40_BASE_108		156
-#define AOR40_BASE_106		143
-#define AOR40_BASE_104		130
-#define AOR40_BASE_102		120
+#define AOR40_BASE_108		110
+#define AOR40_BASE_106		110
+#define AOR40_BASE_104		110
+#define AOR40_BASE_102		110
 #define base_20to100			110
 
 const struct rgb_offset_info aid_rgb_fix_table[] = {
