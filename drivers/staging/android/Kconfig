@@ -83,6 +83,12 @@ config ANDROID_TIMED_GPIO
 	tristate "Android timed gpio driver"
 	depends on GENERIC_GPIO && ANDROID_TIMED_OUTPUT
 	default n
+config ANDROID_DOZE_HELPER
+	bool "Android Doze Helper"
+	default N
+	---help---
+	  Android Doze powesaving helper module. 
+	  Turns on full Doze mode when screen is off.
 
 config ANDROID_LOW_MEMORY_KILLER
 	bool "Android Low Memory Killer"
