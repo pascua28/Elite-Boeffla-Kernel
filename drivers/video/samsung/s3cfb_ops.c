@@ -1875,9 +1875,22 @@ static int s3c_fb_set_win_buffer(struct s3cfb_global *fbdev,
 	regs->wincon[win_no] = wincon(fb->var.bits_per_pixel,
 			fb->var.transp.length,
 			fb->var.red.length);
-	if (win_no)
+
+	if (win_no) {
+		if ((win_config->plane_alpha > 0) && (win_config->plane_alpha < 0xFF)) {
+			if (fb->var.transp.length) {
+				// we have an alpha channel in the pixel format
+				if (win_config->blending != S3C_FB_BLENDING_NONE)
+					regs->wincon[win_no] |= WINCON1_ALPHA_MUL;
+			} else {
+				regs->wincon[win_no] &= ~(WINCON1_ALPHA_SEL);
+				if (win_config->blending == S3C_FB_BLENDING_PREMULT)
+					win_config->blending = S3C_FB_BLENDING_COVERAGE;
+			}
+		}
 		regs->blendeq[win_no - 1] = blendeq(win_config->blending,
 				fb->var.transp.length, win_config->plane_alpha);
+	}
 
 	return 0;
 
