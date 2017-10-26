@@ -246,6 +246,7 @@
 #define WINCON1_BLD_PLANE			(0 << 6)
 
 #define WINCON1_ALPHA_SEL			(1 << 1)
+#define WINCON1_ALPHA_MUL			(1 << 7)
 #define WINCON1_BPPMODE_MASK			(0xf << 2)
 #define WINCON1_BPPMODE_SHIFT			(2)
 #define WINCON1_BPPMODE_1BPP			(0x0 << 2)
