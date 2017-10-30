@@ -92,10 +92,13 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.devicecheck)" == 1 ]; then
 	ui_print "* Checking device compatibility...";
 	ui_print "  - Detected product.device: $(getprop ro.product.device)";
 	ui_print "  - Detected build.product : $(getprop ro.build.product)";
+	ui_print "  - Detected display.series: $(getprop ro.display.series)";
 
 	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 		testname="$(file_getprop /tmp/anykernel/anykernel.sh device.name$i)";
-		if [ "$(getprop ro.product.device)" == "$testname" -o "$(getprop ro.build.product)" == "$testname" ]; then
+		if [ "$(getprop ro.product.device)" == "$testname" -o \
+			"$(getprop ro.build.product)" == "$testname" -o \
+			"$(getprop ro.display.series)" == "$testname" ]; then
 			match=1;
 		fi;
 	done;
@@ -117,6 +120,13 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.initd)" == 1 ]; then
 	if [ ! -d $root/system/etc/init.d ]; then
 	    mkdir $root/system/etc/init.d;
 	fi;
+	ui_print "* Enabling doze...";
+	ui_print " ";
+	echo "#!/system/bin/sh" > $root/system/etc/init.d/10dozefix
+	echo "#" >> $root/system/etc/init.d/10dozefix
+	echo "# Workaround for Doze mode" >> $root/system/etc/init.d/10dozefix
+	echo "#" >> $root/system/etc/init.d/10dozefix
+	echo "dumpsys deviceidle enable" >> $root/system/etc/init.d/10dozefix
 	set_perm_recursive 0 0 0755 0755 $root/system/etc/init.d;
 	mount -o remount,ro -t auto /system;
 fi;

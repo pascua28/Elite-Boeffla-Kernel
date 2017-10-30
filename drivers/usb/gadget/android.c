@@ -775,7 +775,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
 #ifdef CONFIG_MACH_U1
 		config->fsg.nluns = 2;
 #else
-		config->fsg.nluns = 1;
+		config->fsg.nluns = 4;
 #endif
 		for (i = 0; i < config->fsg.nluns; i++) {
 			config->fsg.luns[i].removable = 1;

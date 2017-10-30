@@ -389,7 +389,7 @@ fi
 
 if [ "param_lmk" == "$1" ]; then
 	# LMK size min/max/steps
-	echo "5;300;1"
+	echo "2;300;1"
 	exit 0
 fi
 

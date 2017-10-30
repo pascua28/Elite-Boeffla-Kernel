@@ -20,14 +20,14 @@
 #define aid_104nit_F8_18th		0x32
 #define aid_102nit_F8_18th		0x49
 #define aid_100nit_F8_18th		0x5E
-#define aid_90nit_F8_18th		0x73
+#define aid_90nit_F8_18th		0x77
 #define aid_80nit_F8_18th		0x88
 #define aid_70nit_F8_18th		0x90
 #define aid_60nit_F8_18th		0x97
 #define aid_50nit_F8_18th		0x9B
 #define aid_40nit_F8_18th		0x9E
 #define aid_30nit_F8_18th		0xA0
-#define aid_20nit_F8_18th		0xA1
+#define aid_20nit_F8_18th		0xA2
 #define AOR40_BASE_188		201
 #define AOR40_BASE_186		214
 #define AOR40_BASE_184		234
