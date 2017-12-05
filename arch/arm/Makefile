@@ -255,6 +255,8 @@ core-y				+= arch/arm/kernel/ arch/arm/mm/ arch/arm/common/
 core-y				+= $(machdirs) $(platdirs)
 core-y				+= arch/arm/crypto/
 
+core-$(CONFIG_INTELLI_PLUG)	+= arch/arm/hotplug/
+
 drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
 
 libs-y				:= arch/arm/lib/ $(libs-y)
