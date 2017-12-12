@@ -1036,6 +1036,7 @@ int exynos4x12_init(struct device *dev, struct busfreq_data *data)
 		/* opp_disable(dev, 267200); */
 	}
 
+	data->int_table = (unsigned int *)&exynos4_int_volt[asv_group_index];
 	data->table = exynos4_busfreq_table;
 	data->table_size = LV_END;
 

@@ -59,6 +59,7 @@ struct busfreq_data {
 	struct kobject *busfreq_kobject;
 	int table_size;
 	struct busfreq_table *table;
+	unsigned int *int_table;
 	unsigned long long *time_in_state;
 	unsigned long long last_time;
 	unsigned int load_history[PPMU_END][LOAD_HISTORY_SIZE];
