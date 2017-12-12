@@ -1872,3 +1872,8 @@ config CHARGE_LEVEL
 	default y
 	help
 	  Allows configuration of ac and usb charging levels
+
+config ABB_CONTROL
+	bool "Adaptive body bias control"
+	depends on EXYNOS4_CPUFREQ && CPU_EXYNOS4412
+	default n
