@@ -12,7 +12,7 @@
 
 BOEFFLA_VERSION="6.0.0.3-LineageOS14.1-i9300"
 
-TOOLCHAIN="/mnt/mount3/source/linux/toolchain/gcc-linaro-7.1.1-2017.08-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-"
+TOOLCHAIN="/home/sammy/toolchain/bin/arm-eabi-"
 ARCHITECTURE=arm
 COMPILER_FLAGS_KERNEL="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
@@ -55,7 +55,7 @@ ROOT_PATH=$PWD
 ROOT_DIR_NAME=`basename "$PWD"`
 cd $SOURCE_PATH
 
-WDIR="/home/user/tmpfs"
+WDIR="/home/sammy/Desktop"
 BUILD_PATH="$WDIR/build"
 REPACK_PATH="$WDIR/repack"
 
