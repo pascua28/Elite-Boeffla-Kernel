@@ -13,10 +13,12 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/types.h>
+#include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sysfs.h>
+#include <linux/sysfs_helpers.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -30,6 +32,8 @@
 #include <linux/opp.h>
 #include <linux/clk.h>
 #include <linux/workqueue.h>
+#include <linux/list.h>
+#include <linux/rculist.h>
 
 #include <asm/mach-types.h>
 
@@ -444,24 +448,190 @@ static ssize_t store_load_history_size(struct device *device,
 	return count;
 }
 
-static DEVICE_ATTR(curr_freq, 0664, show_level_lock, store_level_lock);
-static DEVICE_ATTR(lock_list, 0664, show_locklist, NULL);
-static DEVICE_ATTR(time_in_state, 0664, show_time_in_state, NULL);
-static DEVICE_ATTR(up_threshold, 0664, show_up_threshold, store_up_threshold);
-static DEVICE_ATTR(ppmu_threshold, 0664, show_ppmu_threshold,
-					store_ppmu_threshold);
-static DEVICE_ATTR(idle_threshold, 0664, show_idle_threshold,
-					store_idle_threshold);
-static DEVICE_ATTR(up_cpu_threshold, 0664, show_up_cpu_threshold,
-					store_up_cpu_threshold);
-static DEVICE_ATTR(max_cpu_threshold, 0664, show_max_cpu_threshold,
-					store_max_cpu_threshold);
-static DEVICE_ATTR(cpu_slope_size, 0664, show_cpu_slope_size,
-					store_cpu_slope_size);
-static DEVICE_ATTR(dmc_max_threshold, 0664, show_dmc_max_threshold,
-					store_dmc_max_threshold);
-static DEVICE_ATTR(load_history_size, 0664, show_load_history_size,
-					store_load_history_size);
+static ssize_t show_sampling_rate(struct device *device,
+		struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(bus_ctrl.dev);
+	struct busfreq_data *data = (struct busfreq_data *)platform_get_drvdata(pdev);
+	int len = 0;
+
+	len = sprintf(buf, "%d\n", jiffies_to_usecs(data->sampling_rate));
+
+	return len;
+}
+static ssize_t store_sampling_rate(struct device *device,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(bus_ctrl.dev);
+	struct busfreq_data *data = (struct busfreq_data *)platform_get_drvdata(pdev);
+	int ret, tmp;
+
+	ret = sscanf(buf, "%d", &tmp);
+	if (tmp < 10000)
+		tmp = 10000;
+	if (tmp > 200000)
+		tmp = 200000;
+
+	data->sampling_rate = usecs_to_jiffies(tmp);
+
+	return count;
+}
+
+static ssize_t show_mif_volt_table(struct device *device,
+		struct device_attribute *attr, char *buf)
+{	
+	struct device_opp *dev_opp = ERR_PTR(-ENODEV);
+	struct opp *temp_opp;
+	int len = 0;
+
+	dev_opp = find_device_opp(bus_ctrl.dev);
+
+	list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
+		if (temp_opp->available)
+			len += sprintf(buf + len, "%lu %lu\n",
+					opp_get_freq(temp_opp),
+					opp_get_voltage(temp_opp));
+	}
+
+	return len;
+}
+
+#define BUSVOLT_SYSFS_FUNC_DECL()	\
+	struct platform_device *pdev = to_platform_device(bus_ctrl.dev);		\
+	struct busfreq_data *data = (struct busfreq_data *)platform_get_drvdata(pdev);	\
+	struct device_opp *dev_opp = find_device_opp(bus_ctrl.dev);			\
+	struct opp *temp_opp;								
+
+static ssize_t store_mif_volt_table(struct device *device,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	BUSVOLT_SYSFS_FUNC_DECL()
+	int u[data->table_size];
+	int t, i = 0;
+
+	if((t = read_into((int*)&u, data->table_size, buf, count)) < 0)
+		return -EINVAL;
+
+	if(t == 2 && data->table_size != 2) {
+		temp_opp = opp_find_freq_exact(bus_ctrl.dev, u[0], true);
+		if(IS_ERR(temp_opp))
+			return -EINVAL;
+
+		if(u[i] % 50000)
+			u[i] += u[i] % 50000;
+		if(u[i] < 750000)
+			u[i] = 750000;
+		if(u[i] > 1100000)
+			u[i] = 1100000;
+
+		temp_opp->u_volt = u[1];
+	} else {
+		list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
+			if (temp_opp->available) {
+				/* Regulator constraint sanitation 
+				 * Buck1 on MAX77686
+				 */
+
+				if(u[i] % 50000)
+					u[i] += u[i] % 50000;
+				if(u[i] < 750000)
+					u[i] = 750000;
+				if(u[i] > 1100000)
+					u[i] = 1100000;
+				
+				temp_opp->u_volt = u[i++];
+			}
+		}
+	}
+
+	return count;
+}
+
+static ssize_t show_int_volt_table(struct device *device,
+		struct device_attribute *attr, char *buf)
+{
+	BUSVOLT_SYSFS_FUNC_DECL()
+	int index, len = 0;
+
+	list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
+		if (temp_opp->available) {
+			index = data->get_table_index(temp_opp);
+			len += sprintf(buf + len, "%lu %u\n",
+					opp_get_freq(temp_opp),
+					data->get_int_volt(index));
+		}
+	}
+
+	return len;
+}
+
+static ssize_t store_int_volt_table(struct device *device,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	BUSVOLT_SYSFS_FUNC_DECL()
+	int u[data->table_size];
+	int t, i = 0;
+	int index = 0;
+
+	if((t = read_into((int*)&u, data->table_size, buf, count)) < 0)
+		return -EINVAL;
+
+	if(t == 2 && data->table_size != 2) {
+		temp_opp = opp_find_freq_exact(bus_ctrl.dev, u[0], true);
+		if(IS_ERR(temp_opp))
+			return -EINVAL;
+
+		index = data->get_table_index(temp_opp);
+
+		if(u[i] % 12500)
+			u[i] += u[i] % 12500;
+		if(u[i] < 600000)
+			u[i] = 600000;
+		if(u[i] > 1100000)
+			u[i] = 1100000;
+
+		data->int_table[index] = u[1];
+	} else {
+		list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
+			if (temp_opp->available) {
+				index = data->get_table_index(temp_opp);
+
+				/* Regulator constraint sanitation 
+				 * Buck3 on MAX77686
+				 */
+
+				if(u[i] % 12500)
+					u[i] += u[i] % 12500;
+				if(u[i] < 600000)
+					u[i] = 600000;
+				if(u[i] > 1100000)
+					u[i] = 1100000;
+
+				data->int_table[index] = u[i++];
+			}
+		}
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(curr_freq, S_IRUGO | S_IWUGO, show_level_lock, store_level_lock);
+static DEVICE_ATTR(lock_list, S_IRUGO, show_locklist, NULL);
+static DEVICE_ATTR(time_in_state, S_IRUGO, show_time_in_state, NULL);
+static DEVICE_ATTR(up_threshold, S_IRUGO | S_IWUGO, show_up_threshold, store_up_threshold);
+static DEVICE_ATTR(ppmu_threshold, S_IRUGO | S_IWUGO, show_ppmu_threshold, store_ppmu_threshold);
+static DEVICE_ATTR(idle_threshold, S_IRUGO | S_IWUGO, show_idle_threshold, store_idle_threshold);
+static DEVICE_ATTR(up_cpu_threshold, S_IRUGO | S_IWUGO, show_up_cpu_threshold, store_up_cpu_threshold);
+static DEVICE_ATTR(max_cpu_threshold, S_IRUGO | S_IWUGO, show_max_cpu_threshold, store_max_cpu_threshold);
+static DEVICE_ATTR(cpu_slope_size, S_IRUGO | S_IWUGO, show_cpu_slope_size, store_cpu_slope_size);
+static DEVICE_ATTR(dmc_max_threshold, S_IRUGO | S_IWUGO, show_dmc_max_threshold, store_dmc_max_threshold);
+static DEVICE_ATTR(load_history_size, S_IRUGO | S_IWUGO, show_load_history_size, store_load_history_size);
+static DEVICE_ATTR(sampling_rate, S_IRUGO | S_IWUGO, show_sampling_rate, store_sampling_rate);
+static DEVICE_ATTR(mif_volt_table, S_IRUGO | S_IWUGO, show_mif_volt_table, store_mif_volt_table);
+static DEVICE_ATTR(int_volt_table, S_IRUGO | S_IWUGO, show_int_volt_table, store_int_volt_table);
 
 static struct attribute *busfreq_attributes[] = {
 	&dev_attr_curr_freq.attr,
@@ -475,6 +645,9 @@ static struct attribute *busfreq_attributes[] = {
 	&dev_attr_cpu_slope_size.attr,
 	&dev_attr_dmc_max_threshold.attr,
 	&dev_attr_load_history_size.attr,
+	&dev_attr_sampling_rate.attr,
+	&dev_attr_mif_volt_table.attr,
+	&dev_attr_int_volt_table.attr,
 
 	NULL
 };
