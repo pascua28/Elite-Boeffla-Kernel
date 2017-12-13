@@ -279,16 +279,16 @@ void abb_control_init()
 				/* Default variable values */
 				break;
 			case 2:
-				set_slice_voltage(ABB_ARM, FREQ_ALL, 1050);
-				set_slice_voltage(ABB_G3D, FREQ_ALL, 1050);
-				set_slice_voltage(ABB_INT, FREQ_ALL, 1050);
-				set_slice_voltage(ABB_MIF, FREQ_ALL, 1050);
+				set_slice_voltage(ABB_ARM, FREQ_ALL, 1000);
+				set_slice_voltage(ABB_G3D, FREQ_ALL, 1000);
+				set_slice_voltage(ABB_INT, FREQ_ALL, 1000);
+				set_slice_voltage(ABB_MIF, FREQ_ALL, 1000);
 				break;
 			case 3:
 				set_slice_voltage(ABB_ARM, FREQ_ALL, 1300);
-				set_slice_voltage(ABB_ARM, 100000, 1050);
-				set_slice_voltage(ABB_G3D, FREQ_ALL, 1050);
-				set_slice_voltage(ABB_INT, FREQ_ALL, 1050);
+				set_slice_voltage(ABB_ARM, 200000, 1000);
+				set_slice_voltage(ABB_G3D, FREQ_ALL, 1000);
+				set_slice_voltage(ABB_INT, FREQ_ALL, 1000);
 				set_slice_voltage(ABB_MIF, FREQ_ALL, 1400);
 				break;
 			case 4:
@@ -296,7 +296,7 @@ void abb_control_init()
 			case 6:
 			case 7:
 				set_slice_voltage(ABB_ARM, FREQ_ALL, 1300);
-				set_slice_voltage(ABB_G3D, FREQ_ALL, 1050);
+				set_slice_voltage(ABB_G3D, FREQ_ALL, 1000);
 				set_slice_voltage(ABB_INT, FREQ_ALL, 1400);
 				set_slice_voltage(ABB_MIF, FREQ_ALL, 1400);
 				break;
@@ -321,7 +321,7 @@ void abb_control_init()
 			case 1:
 			case 2:
 			case 3:
-				set_slice_voltage(ABB_ARM, FREQ_ALL, 1050);
+				set_slice_voltage(ABB_ARM, FREQ_ALL, 1000);
 				break;
 			case 4:
 			case 5:
@@ -332,7 +332,7 @@ void abb_control_init()
 				set_slice_voltage(ABB_INT, FREQ_ALL, 1300);
 				set_slice_voltage(ABB_INT, 110110, 1000);
 				set_slice_voltage(ABB_ARM, FREQ_ALL, 1300);
-				set_slice_voltage(ABB_ARM, 100000, 1050);
+				set_slice_voltage(ABB_ARM, 200000, 1000);
 				break;
 			default:
 				set_slice_voltage(ABB_ARM, FREQ_ALL, 1300);
