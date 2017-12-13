@@ -111,7 +111,7 @@ static struct abb_slice g3d_abb_slices[G3D_FREQ_SLICE_NR] = {
 };
 
 static struct abb_slice arm_abb_slices[ARM_FREQ_SLICE_NR] = {
-	_abb_slice(arm_slice_1,	200000	, ABB_MODE_075V),
+	_abb_slice(arm_slice_1,	100000	, ABB_MODE_075V),
 	_abb_slice(arm_slice_2,	800000	, ABB_MODE_075V),
 	_abb_slice(arm_slice_3,	1600000	, ABB_MODE_075V),
 	_abb_slice(arm_slice_4,	FREQ_MAX, ABB_MODE_075V),
