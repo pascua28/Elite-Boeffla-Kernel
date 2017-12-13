@@ -27,7 +27,7 @@ OUTPUT_FOLDER=""
 DEFCONFIG="boeffla_defconfig"
 DEFCONFIG_VARIANT=""
 
-KERNEL_NAME="Elite-Boeffla-Kernel"
+KERNEL_NAME="Optimized-Elite-Boeffla-Kernel"
 
 FINISH_MAIL_TO=""
 
@@ -99,9 +99,6 @@ step0_copy_code()
 	# (usage of * prevents .git folder to be copied)
 	cp -r $SOURCE_PATH/* $BUILD_PATH
 
-	# Replace version information in mkcompile_h with the one from x-settings.sh
-	sed "s/\`echo \$LINUX_COMPILE_BY | \$UTS_TRUNCATE\`/$KERNEL_NAME-$BOEFFLA_VERSION-$BOEFFLA_DATE/g" -i $BUILD_PATH/scripts/mkcompile_h
-	sed "s/\`echo \$LINUX_COMPILE_HOST | \$UTS_TRUNCATE\`/Oebbler/g" -i $BUILD_PATH/scripts/mkcompile_h
 }
 
 step1_make_clean()
@@ -247,7 +244,7 @@ step4_prepare_anykernel()
 	cd $REPACK_PATH
 	KERNELNAME="Flashing $KERNEL_NAME $BOEFFLA_VERSION"
 	sed -i "s;###kernelname###;${KERNELNAME};" META-INF/com/google/android/update-binary;
-	COPYRIGHT="(c) Lord Boeffla (aka andip71) and Oebbler, $(date +%Y.%m.%d-%H:%M:%S)"
+	COPYRIGHT="(c) Lord Boeffla (aka andip71), Oebbler and pascua28, $(date +%Y.%m.%d-%H:%M:%S)"
 	sed -i "s;###copyright###;${COPYRIGHT};" META-INF/com/google/android/update-binary;
 }
 
