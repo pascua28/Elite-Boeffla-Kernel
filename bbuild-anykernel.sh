@@ -10,7 +10,7 @@
 # Parameters to be configured manually
 #######################################
 
-BOEFFLA_VERSION="6.0.0.3-LineageOS14.1-i9300"
+BOEFFLA_VERSION="0.2-LineageOS14.1-i9300"
 
 TOOLCHAIN="/home/sammy/toolchain/bin/arm-eabi-"
 ARCHITECTURE=arm
@@ -27,7 +27,7 @@ OUTPUT_FOLDER=""
 DEFCONFIG="boeffla_defconfig"
 DEFCONFIG_VARIANT=""
 
-KERNEL_NAME="Elite-Boeffla-Kernel"
+KERNEL_NAME="Optimized Elite-Boeffla-Kernel"
 
 FINISH_MAIL_TO=""
 
