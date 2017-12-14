@@ -270,7 +270,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/random.h>
 
-/* #define ADD_INTERRUPT_BENCH *
+/* #define ADD_INTERRUPT_BENCH */
 
 /*
  * Configuration information
@@ -306,7 +306,7 @@
  * The minimum number of bits of entropy before we wake up a read on
  * /dev/random.  Should be enough to do a significant reseed.
  */
-static int random_read_wakeup_thresh = 64;
+static int random_read_wakeup_bits = 64;
 
 /*
  * If the entropy count falls under this number of bits, then we
@@ -409,7 +409,6 @@ static struct poolinfo {
 	{ S(64),	52,	39,	26,	14,	1 },
 #endif
 };
-
 
 /*
  * Static global variables
