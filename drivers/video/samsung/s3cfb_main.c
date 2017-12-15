@@ -393,15 +393,18 @@ static ssize_t fimd_dump_show(struct device *dev,
 static DEVICE_ATTR(fimd_dump, 0444, fimd_dump_show, NULL);
 
 #ifdef CONFIG_FB_S5P_VSYNC_SYSFS
-static ssize_t s3c_fb_vsync_time(struct device *dev,
-                struct device_attribute *attr, char *buf)
+static ssize_t vsync_time_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
 {
-    struct s3cfb_global *fbdev = fbfimd->fbdev[0];
+	struct s3cfb_global *fbdev[1];
+	fbdev[0] = fbfimd->fbdev[0];
 
-    return snprintf(buf, PAGE_SIZE, "%llu", ktime_to_ns(fbdev->vsync_info.timestamp));
+	return snprintf(buf, PAGE_SIZE, "%llu",
+			((fbdev[0] != 0) ?
+			ktime_to_ns(fbdev[0]->vsync_info.timestamp) : 0));
 }
 
-static DEVICE_ATTR(vsync_time, S_IRUGO, s3c_fb_vsync_time, NULL);
+static DEVICE_ATTR(vsync_time, 0444, vsync_time_show, NULL);
 #endif
 
 #if 0 /* def CONFIG_FB_S5P_MIPI_DSIM */
