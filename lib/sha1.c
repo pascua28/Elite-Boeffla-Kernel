@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <linux/cryptohash.h>
 #include <asm/unaligned.h>
 
 /*
