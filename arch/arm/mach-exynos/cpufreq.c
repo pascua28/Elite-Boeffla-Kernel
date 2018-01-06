@@ -21,7 +21,7 @@
 #include <linux/suspend.h>
 #include <linux/reboot.h>
 #include <linux/pm_qos_params.h>
-
+#include <linux/sysfs_helpers.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-mem.h>
@@ -873,46 +873,45 @@ ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf) {
   return len;
 }
 
-ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
-                                      const char *buf, size_t count) {
+ssize_t store_UV_mV_table(struct cpufreq_policy *policy, 
+				 const char *buf, size_t count) {
 
-	unsigned int ret = -EINVAL;
-   int i = 0;
-   int j = 0;
-	int u[20];
-   ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5], &u[6],
-															&u[7], &u[8], &u[9], &u[10], &u[11], &u[12], &u[13], &u[14], &u[15], &u[16], &u[17], &u[18], &u[19]);
-	if(ret != 20) {
-		ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5], &u[6],
-															&u[7], &u[8], &u[9], &u[10], &u[11], &u[12], &u[13], &u[14], &u[15], &u[16], &u[17], &u[18]);
-		if(ret != 19) {
-			ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5], &u[6],
-															&u[7], &u[8], &u[9], &u[10], &u[11], &u[12], &u[13], &u[14], &u[15], &u[16], &u[17]);
-			if( ret != 17)
-				return -EINVAL;
-		}
+	int i, tokens, top_offset, invalid_offset;
+	int t[CPUFREQ_LEVEL_END];
+
+	top_offset = 0;
+	invalid_offset = 0;
+
+	if((tokens = read_into((int*)&t, CPUFREQ_LEVEL_END, buf, count)) < 0)
+		return -EINVAL;
+
+	if(tokens != CPUFREQ_LEVEL_END) {
+		top_offset = CPUFREQ_LEVEL_END - tokens;
 	}
+	
+	for (i = 0 + top_offset; i < CPUFREQ_LEVEL_END; i++) {
+		int rest = 0;
 
-	for( i = 0; i < 20; i++ )
-	{
-		u[i] *= 1000;
-		// round down voltages - thx to AndreiLux
-		if(u[i] % 12500)
-			u[i] = (u[i] / 12500) * 12500;
+		t[i] *= 1000;
 
-		if (u[i] > CPU_UV_MV_MAX) {
-			u[i] = CPU_UV_MV_MAX;
+		if((rest = t[i] % 12500) != 0){
+			if(rest > 6250)
+				t[i] += rest;
+			else
+				t[i] -= rest;
 		}
-		else if (u[i] < CPU_UV_MV_MIN) {
-			u[i] = CPU_UV_MV_MIN;
-		}
-	}
+		
+		if (t[i] > CPU_UV_MV_MAX) 
+			t[i] = CPU_UV_MV_MAX;
+		else if (t[i] < CPU_UV_MV_MIN) 
+			t[i] = CPU_UV_MV_MIN;
 
-	for( i = 0; i < 20; i++ ) {
-		while(exynos_info->freq_table[i+j].frequency==CPUFREQ_ENTRY_INVALID)
-			j++;
-		exynos_info->volt_table[i+j] = u[i];
+		while(exynos_info->freq_table[i+invalid_offset].frequency==CPUFREQ_ENTRY_INVALID)
+			++invalid_offset;
+		
+		exynos_info->volt_table[i+invalid_offset] = t[i];
 	}
+	
 	return count;
 }
 
