@@ -14,7 +14,7 @@
  * This should be same with cpufreq_frequency_table
 */
 
-#define CPUFREQ_LEVEL_END	(L19 + 1)
+#define CPUFREQ_LEVEL_END	(L17 + 1)
 
 enum cpufreq_level_index {
 	L0, L1, L2, L3, L4,
