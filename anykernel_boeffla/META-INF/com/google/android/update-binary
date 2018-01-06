@@ -166,6 +166,11 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.cleanup)" == 1 ]; then
 	rm -rf /tmp/anykernel;
 fi;
 
+# Reset Boeffla-Kernel Settings
+ui_print "Resetting Boeffla kernel settings";
+delete_recursive("/data/.boeffla");
+delete("/system/addon.d/97-boeffla-kernel.sh");
+
 umount /system;
 umount /data;
 ui_print "* Finished, please reboot.";
