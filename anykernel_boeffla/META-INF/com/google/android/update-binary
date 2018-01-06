@@ -73,9 +73,9 @@ fi;
 chmod -R 755 /tmp/anykernel/tools /tmp/anykernel/bin;
 bb=/tmp/anykernel/tools/busybox;
 
-ui_print "###kernelname###";
+ui_print "Flashing Optimized-Elite-Boeffla-Kernel 6.0.0.3-LineageOS14.1-i9300";
 ui_print " ";
-ui_print "###copyright###";
+ui_print "(c) Lord Boeffla (aka andip71), Oebbler and pascua28, 2018.01.06-20:39:54";
 ui_print " ";
 
 umount /system;
@@ -167,9 +167,9 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.cleanup)" == 1 ]; then
 fi;
 
 # Reset Boeffla-Kernel Settings
-ui_print "Resetting Boeffla kernel settings";
-delete_recursive("/data/.boeffla");
-delete("/system/addon.d/97-boeffla-kernel.sh");
+ui_print "* Resetting kernel settings";
+rm -rf /data/.boeffla;
+rm /system/addon.d/97-boeffla-kernel.sh;
 
 umount /system;
 umount /data;
