@@ -48,7 +48,7 @@ static unsigned int exynos4x12_volt_table[CPUFREQ_LEVEL_END];
 #ifdef CONFIG_MACH_T0
 static struct cpufreq_frequency_table exynos4x12_freq_table[] = {
 	{L0, 2000*1000},
-	{L1, 1920*1000},
+	{L1, 1902*1000},
 	{L2, 1800*1000},
 	{L3, 1704*1000},
 	{L4, 1600*1000},
@@ -169,13 +169,13 @@ static unsigned int clkdiv_cpu0_4412[CPUFREQ_LEVEL_END][8] = {
 	/* ARM L0: 2000Mhz */
 	{ 0, 4, 7, 0, 7, 1, 7, 0 },
 
-	/* ARM L1: 1920Mhz */
-	{ 0, 4, 7, 0, 6, 1, 7, 0 },
+	/* ARM L1: 1902Mhz */
+	{ 0, 4, 7, 0, 7, 1, 7, 0 },
 
 	/* ARM L2: 1800Mhz */
 	{ 0, 4, 7, 0, 7, 1, 7, 0 },
 
-	/* ARM L3: 1704Mhz */
+	/* ARM L3: 1700Mhz */
 	{ 0, 4, 7, 0, 7, 1, 7, 0 },
 
 	/* ARM L4: 1600Mhz */
@@ -361,7 +361,7 @@ static unsigned int clkdiv_cpu1_4412[CPUFREQ_LEVEL_END][3] = {
 	/* ARM L0: 2000MHz */
 	{ 7, 0, 7 },
 
-	/* ARM L1: 1920MHz */
+	/* ARM L1: 1902MHz */
 	{ 7, 0, 7 },
 
 	/* ARM L2: 1800MHz */
@@ -484,13 +484,13 @@ static unsigned int clkdiv_cpu1_4412[CPUFREQ_LEVEL_END][3] = {
 #ifdef CONFIG_MACH_T0
 
 static unsigned int exynos4x12_apll_pms_table[CPUFREQ_LEVEL_END] = {
-   /* APLL FOUT L0: 2000MHz */
+	/* APLL FOUT L0: 2000MHz */
 	((250<<16)|(3<<8)|(0x0)),
 
-   /* APLL FOUT L1: 1920MHz */
-	((240<<16)|(3<<8)|(0x0)),
+ 	/* APLL FOUT L1: 1902MHz */
+	((317<<16)|(4<<8)|(0x0)),
 
-   /* APLL FOUT L2: 1800MHz */
+    /* APLL FOUT L2: 1800MHz */
     ((300<<16)|(4<<8)|(0x0)),
 
 	/* APLL FOUT L3: 1704MHz */
@@ -641,8 +641,8 @@ static const unsigned int asv_voltage_s[CPUFREQ_LEVEL_END] = {
 #ifdef CONFIG_MACH_T0
 static const unsigned int asv_voltage_step_12_5[CPUFREQ_LEVEL_END][12] = {
 	/*   ASV0,    ASV1,    ASV2,    ASV3,	 ASV4,	  ASV5,	   ASV6,    ASV7,    ASV8,    ASV9,   ASV10,   ASV11 */
-	{ 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000 }, /* 2000MHz */
-	{ 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000 }, /* 1920MHz */
+	{ 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000 }, /* 2000MHz */
+	{ 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000, 1475000 }, /* 1902MHz */
     { 1475000, 1475000, 1475000, 1475000, 1475000, 1450000, 1450000, 1450000, 1450000, 1437500, 1425000, 1412500 }, /* 1800MHz */
     { 1425000, 1425000, 1425000, 1425000, 1425000, 1400000, 1400000, 1400000, 1400000, 1387500, 1375000, 1362500 }, /* 1704MHz */
     { 1425000, 1425000, 1425000, 1425000, 1425000, 1400000, 1400000, 1400000, 1400000, 1387500, 1375000, 1362500 }, /* 1600MHz */
