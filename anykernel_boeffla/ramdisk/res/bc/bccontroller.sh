@@ -20,7 +20,7 @@ KERNEL_SPECS="i9300;lineage;lineage14.1;https://77.119.236.213/cm-i9300/boeffla-
 # (5=enable-default-zram-control,6=enable-selinux-switch, 7=enable-selinux-control)
 # (8=no-hotplugging,9=enable-doze-control)
 # default by Boeffla
-KERNEL_FEATURES="-3-6-7-9-"
+KERNEL_FEATURES="-3-7-9-"
 
 # path to kernel libraries
 LIBPATH="/system/lib/modules"
