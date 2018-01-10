@@ -55,7 +55,7 @@ ROOT_PATH=$PWD
 ROOT_DIR_NAME=`basename "$PWD"`
 cd $SOURCE_PATH
 
-WDIR="/home/sammy/Desktop"
+WDIR="/home/pascua14/Desktop"
 BUILD_PATH="$WDIR/build"
 REPACK_PATH="$WDIR/repack"
 
