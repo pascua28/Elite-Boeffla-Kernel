@@ -104,6 +104,7 @@ int initialize_mcu(struct ssp_data *data)
 {
 	int iRet = 0;
 
+	data->bSspShutdown = false;
 	iRet = get_chipid(data);
 	pr_info("[SSP] MCU device ID = %d, reading ID = %d\n", DEVICE_ID, iRet);
 	if (iRet != DEVICE_ID) {
@@ -115,29 +116,31 @@ int initialize_mcu(struct ssp_data *data)
 				__func__);
 			iRet = -ENODEV;
 		}
-		return iRet;
+		goto out;
 	}
 
 	iRet = set_sensor_position(data);
 	if (iRet < 0) {
 		pr_err("[SSP]: %s - set_sensor_position failed\n", __func__);
-		return iRet;
-	}
-
-	iRet = get_fuserom_data(data);
-	if (iRet < 0) {
-		pr_err("[SSP]: %s - get_fuserom_data failed\n", __func__);
-		return FAIL;
+		goto out;
 	}
 
 	data->uSensorState = get_sensor_scanning_info(data);
 	if (data->uSensorState == 0) {
 		pr_err("[SSP]: %s - get_sensor_scanning_info failed\n",
 			__func__);
-		return FAIL;
+		iRet = ERROR;
+		goto out;
 	}
 
-	return SUCCESS;
+	iRet = get_fuserom_data(data);
+	if (iRet < 0)
+		pr_err("[SSP]: %s - get_fuserom_data failed\n", __func__);
+
+	iRet = SUCCESS;
+out:
+	data->bSspShutdown = true;
+	return iRet;
 }
 
 static int initialize_irq(struct ssp_data *data)
@@ -154,7 +157,7 @@ static int initialize_irq(struct ssp_data *data)
 	iRet = gpio_direction_input(data->client->irq);
 	if (iRet < 0) {
 		pr_err("[SSP]: %s - failed to set gpio %d as input (%d)\n",
-		       __func__, data->client->irq, iRet);
+			__func__, data->client->irq, iRet);
 		goto err_irq_direction_input;
 	}
 
@@ -165,7 +168,7 @@ static int initialize_irq(struct ssp_data *data)
 				    IRQF_TRIGGER_FALLING, "SSP_Int", data);
 	if (iRet < 0) {
 		pr_err("[SSP]: %s - request_irq(%d) failed for gpio %d (%d)\n",
-		       __func__, iIrq, iIrq, iRet);
+			__func__, iIrq, iIrq, iRet);
 		goto err_request_irq;
 	}
 
@@ -178,6 +181,25 @@ err_request_irq:
 err_irq_direction_input:
 	gpio_free(data->client->irq);
 	return iRet;
+}
+
+static void work_function_firmware_update(struct work_struct *work)
+{
+	struct ssp_data *data = container_of((struct delayed_work *)work,
+	struct ssp_data, work_firmware);
+	int iRet = 0;
+
+	pr_info("[SSP] : %s\n", __func__);
+
+	iRet = forced_to_download_binary(data, KERNEL_BINARY);
+	if (iRet < 0) {
+		ssp_dbg("[SSP]: %s - forced_to_download_binary failed!\n",
+			__func__);
+		return;
+	}
+
+	data->uCurFirmRev = get_firmware_rev(data);
+	pr_info("[SSP] MCU Firm Rev : New = %8u\n", data->uCurFirmRev);
 }
 
 static int ssp_probe(struct i2c_client *client,
@@ -201,6 +223,7 @@ static int ssp_probe(struct i2c_client *client,
 		goto exit;
 	}
 
+	data->fw_dl_state = FW_DL_STATE_NONE;
 	data->client = client;
 	i2c_set_clientdata(client, data);
 
@@ -221,16 +244,24 @@ static int ssp_probe(struct i2c_client *client,
 	}
 
 	pr_info("\n#####################################################\n");
+	INIT_DELAYED_WORK(&data->work_firmware, work_function_firmware_update);
 
 	/* check boot loader binary */
-	check_fwbl(data);
+	data->fw_dl_state = check_fwbl(data);
 
 	initialize_variable(data);
 
-	iRet = initialize_mcu(data);
-	if (iRet < 0) {
-		pr_err("[SSP]: %s - initialize_mcu failed\n", __func__);
-		goto err_read_reg;
+	if (data->fw_dl_state == FW_DL_STATE_NONE) {
+		iRet = initialize_mcu(data);
+		if (iRet == ERROR) {
+			data->uResetCnt++;
+			toggle_mcu_reset(data);
+			msleep(SSP_SW_RESET_TIME);
+			initialize_mcu(data);
+		} else if (iRet < ERROR) {
+			pr_err("[SSP]: %s - initialize_mcu failed\n", __func__);
+			goto err_read_reg;
+		}
 	}
 
 	wake_lock_init(&data->ssp_wake_lock,
@@ -280,13 +311,14 @@ static int ssp_probe(struct i2c_client *client,
 
 #ifdef CONFIG_SENSORS_SSP_SENSORHUB
 	/* init sensorhub device */
-	iRet = ssp_initialize_sensorhub(data);
+	iRet = ssp_sensorhub_initialize(data);
 	if (iRet < 0) {
-		pr_err("%s: ssp_initialize_sensorhub err(%d)", __func__, iRet);
-		ssp_remove_sensorhub(data);
+		pr_err("%s: ssp_sensorhub_initialize err(%d)", __func__, iRet);
+		ssp_sensorhub_remove(data);
 	}
 #endif
 
+	data->bSspShutdown = false;
 	enable_irq(data->iIrq);
 	enable_irq_wake(data->iIrq);
 	pr_info("[SSP]: %s - probe success!\n", __func__);
@@ -294,6 +326,15 @@ static int ssp_probe(struct i2c_client *client,
 	enable_debug_timer(data);
 
 	iRet = 0;
+
+	if (data->fw_dl_state == FW_DL_STATE_NEED_TO_SCHEDULE) {
+		pr_info("[SSP]: Firmware update is scheduled\n");
+		schedule_delayed_work(&data->work_firmware,
+				msecs_to_jiffies(3000));
+		data->fw_dl_state = FW_DL_STATE_SCHEDULED;
+	} else if (data->fw_dl_state == FW_DL_STATE_FAIL)
+		data->bSspShutdown = true;
+
 	goto exit;
 
 err_symlink_create:
@@ -323,16 +364,25 @@ static void ssp_shutdown(struct i2c_client *client)
 	struct ssp_data *data = i2c_get_clientdata(client);
 
 	func_dbg();
-	data->bSspShutdown = true;
+
+	if (data->fw_dl_state >= FW_DL_STATE_SCHEDULED &&
+		data->fw_dl_state < FW_DL_STATE_DONE) {
+		pr_err("%s, cancel_delayed_work_sync state = %d\n",
+			__func__, data->fw_dl_state);
+		cancel_delayed_work_sync(&data->work_firmware);
+	}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&data->early_suspend);
 #endif
 
 	disable_debug_timer(data);
+	if (data->bSspShutdown == false) {
+		data->bSspShutdown = true;
+		disable_irq_wake(data->iIrq);
+		disable_irq(data->iIrq);
+	}
 
-	disable_irq_wake(data->iIrq);
-	disable_irq(data->iIrq);
 	free_irq(data->iIrq, data);
 	gpio_free(data->client->irq);
 
@@ -341,7 +391,7 @@ static void ssp_shutdown(struct i2c_client *client)
 	remove_input_dev(data);
 
 #ifdef CONFIG_SENSORS_SSP_SENSORHUB
-	ssp_remove_sensorhub(data);
+	ssp_sensorhub_remove(data);
 #endif
 
 	misc_deregister(&data->akmd_device);
@@ -365,14 +415,9 @@ static void ssp_early_suspend(struct early_suspend *handler)
 	func_dbg();
 	disable_debug_timer(data);
 
-#ifdef CONFIG_SENSORS_SSP_SENSORHUB
 	/* give notice to user that AP goes to sleep */
-	ssp_report_sensorhub_notice(data, MSG2SSP_AP_STATUS_SLEEP);
-	ssp_sleep_mode(data);
-#else
-	if (atomic_read(&data->aSensorEnable) > 0)
-		ssp_sleep_mode(data);
-#endif
+	ssp_sensorhub_report_notice(data, MSG2SSP_AP_STATUS_SLEEP);
+	ssp_send_status_cmd(data, MSG2SSP_AP_STATUS_SLEEP);
 
 	data->bCheckSuspend = true;
 }
@@ -387,17 +432,12 @@ static void ssp_late_resume(struct early_suspend *handler)
 
 	data->bCheckSuspend = false;
 
-#ifdef CONFIG_SENSORS_SSP_SENSORHUB
 	/* give notice to user that AP goes to sleep */
-	ssp_report_sensorhub_notice(data, MSG2SSP_AP_STATUS_WAKEUP);
-	ssp_resume_mode(data);
-#else
-	if (atomic_read(&data->aSensorEnable) > 0)
-		ssp_resume_mode(data);
-#endif
+	ssp_sensorhub_report_notice(data, MSG2SSP_AP_STATUS_WAKEUP);
+	ssp_send_status_cmd(data, MSG2SSP_AP_STATUS_WAKEUP);
 }
 
-#else /* CONFIG_HAS_EARLYSUSPEND */
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
 static int ssp_suspend(struct device *dev)
 {
@@ -405,12 +445,9 @@ static int ssp_suspend(struct device *dev)
 	struct ssp_data *data = i2c_get_clientdata(client);
 
 	func_dbg();
-	disable_debug_timer(data);
 
-	if (atomic_read(&data->aSensorEnable) > 0)
-		ssp_sleep_mode(data);
+	ssp_send_status_cmd(data, MSG2SSP_AP_STATUS_SUSPEND);
 
-	data->bCheckSuspend = true;
 	return 0;
 }
 
@@ -420,12 +457,8 @@ static int ssp_resume(struct device *dev)
 	struct ssp_data *data = i2c_get_clientdata(client);
 
 	func_dbg();
-	enable_debug_timer(data);
 
-	data->bCheckSuspend = false;
-
-	if (atomic_read(&data->aSensorEnable) > 0)
-		ssp_resume_mode(data);
+	ssp_send_status_cmd(data, MSG2SSP_AP_STATUS_RESUME);
 
 	return 0;
 }
@@ -434,8 +467,6 @@ static const struct dev_pm_ops ssp_pm_ops = {
 	.suspend = ssp_suspend,
 	.resume = ssp_resume
 };
-
-#endif /* CONFIG_HAS_EARLYSUSPEND */
 
 static const struct i2c_device_id ssp_id[] = {
 	{"ssp", 0},
@@ -449,9 +480,7 @@ static struct i2c_driver ssp_driver = {
 	.shutdown = ssp_shutdown,
 	.id_table = ssp_id,
 	.driver = {
-#ifndef CONFIG_HAS_EARLYSUSPEND
 		   .pm = &ssp_pm_ops,
-#endif
 		   .owner = THIS_MODULE,
 		   .name = "ssp"
 		},

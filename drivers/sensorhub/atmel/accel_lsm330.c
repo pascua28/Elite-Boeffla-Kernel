@@ -179,7 +179,7 @@ static ssize_t accel_calibration_show(struct device *dev,
 
 	iRet = accel_open_calibration(data);
 	if (iRet < 0)
-		pr_err("[SSP]: %s - calibration open failed\n", __func__);
+		pr_err("[SSP]: %s - calibration open failed(%d)\n", __func__, iRet);
 
 	ssp_dbg("[SSP] Cal data : %d %d %d - %d\n",
 		data->accelcal.x, data->accelcal.y, data->accelcal.z, iRet);
@@ -196,7 +196,7 @@ static ssize_t accel_calibration_store(struct device *dev,
 	int64_t dEnable;
 	struct ssp_data *data = dev_get_drvdata(dev);
 
-	iRet = strict_strtoll(buf, 10, &dEnable);
+	iRet = kstrtoll(buf, 10, &dEnable);
 	if (iRet < 0)
 		return iRet;
 

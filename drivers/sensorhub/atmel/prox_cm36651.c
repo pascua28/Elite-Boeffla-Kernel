@@ -68,7 +68,7 @@ static ssize_t proximity_avg_store(struct device *dev,
 	int64_t dEnable;
 	struct ssp_data *data = dev_get_drvdata(dev);
 
-	iRet = strict_strtoll(buf, 10, &dEnable);
+	iRet = kstrtoll(buf, 10, &dEnable);
 	if (iRet < 0)
 		return iRet;
 
@@ -228,7 +228,7 @@ static int proximity_store_cancelation(struct ssp_data *data, int iCalCMD)
 	set_fs(KERNEL_DS);
 
 	cancel_filp = filp_open(CANCELATION_FILE_PATH,
-			O_CREAT | O_TRUNC | O_WRONLY, 0666);
+			O_CREAT | O_TRUNC | O_WRONLY | O_SYNC, 0666);
 	if (IS_ERR(cancel_filp)) {
 		pr_err("%s: Can't open cancelation file\n", __func__);
 		set_fs(old_fs);
@@ -331,7 +331,7 @@ static ssize_t barcode_emul_enable_store(struct device *dev,
 	int64_t dEnable;
 	struct ssp_data *data = dev_get_drvdata(dev);
 
-	iRet = strict_strtoll(buf, 10, &dEnable);
+	iRet = kstrtoll(buf, 10, &dEnable);
 	if (iRet < 0)
 		return iRet;
 
@@ -346,6 +346,7 @@ static ssize_t barcode_emul_enable_store(struct device *dev,
 static DEVICE_ATTR(vendor, S_IRUGO, prox_vendor_show, NULL);
 static DEVICE_ATTR(name, S_IRUGO, prox_name_show, NULL);
 static DEVICE_ATTR(state, S_IRUGO, proximity_state_show, NULL);
+static DEVICE_ATTR(raw_data, S_IRUGO, proximity_state_show, NULL);
 static DEVICE_ATTR(barcode_emul_en, S_IRUGO | S_IWUSR | S_IWGRP,
 	barcode_emul_enable_show, barcode_emul_enable_store);
 static DEVICE_ATTR(prox_avg, S_IRUGO | S_IWUSR | S_IWGRP,
@@ -359,6 +360,7 @@ static struct device_attribute *prox_attrs[] = {
 	&dev_attr_vendor,
 	&dev_attr_name,
 	&dev_attr_state,
+	&dev_attr_raw_data,
 	&dev_attr_prox_avg,
 	&dev_attr_prox_cal,
 	&dev_attr_prox_thresh,
