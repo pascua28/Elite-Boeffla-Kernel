@@ -1874,11 +1874,8 @@ static int fimc_init_global(struct platform_device *pdev)
 	/* Registering external camera modules. re-arrange order to be sure */
 	for (i = 0; i < FIMC_MAXCAMS; i++) {
 		cam = pdata->camera[i];
-		if (!cam) {
-			fimc_dev->camera[i] == NULL;
-			fimc_dev->camera_isvalid[i] = 0;
+		if (!cam)
 			break;
-		}
 		/* WriteBack doesn't need clock setting */
 		if ((cam->id == CAMERA_WB) || (cam->id == CAMERA_WB_B)) {
 			fimc_dev->camera[i] = cam;
