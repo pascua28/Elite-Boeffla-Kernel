@@ -44,7 +44,9 @@
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/gpio.h>
 
+#ifdef CONFIG_INTELLI_PLUG
 #include <mach/cpufreq.h>
+#endif
 
 #include "wm8994.h"
 
@@ -108,6 +110,7 @@ static unsigned int regcache[REGDUMP_BANKS * REGDUMP_REGISTERS + 1];	// register
 
 static int mic_level;			// internal mic level
 
+#ifdef CONFIG_INTELLI_PLUG
 // define variables for incall hook
 static void wm8994_incall_hook(void);
 static void incall_boost(struct work_struct *work);
@@ -121,6 +124,7 @@ static bool bootdone = false;
 extern unsigned int intelli_plug_active;
 
 #define INCALL_BOOST_FREQ 1000000
+#endif
 
 /*****************************************/
 // Internal function declarations
@@ -164,7 +168,7 @@ static unsigned int get_mic_level(int reg_index, unsigned int val);
 
 static void reset_boeffla_sound(void);
 
-
+#ifdef CONFIG_INTELLI_PLUG
 // incall hook by arter97
 static void wm8994_incall_hook(void)
 {
@@ -191,6 +195,7 @@ static void incall_boost(struct work_struct *work)
 		exynos_cpufreq_lock_free(DVFS_LOCK_ID_INCALL);
 	}
 }
+#endif
 
 /*****************************************/
 // Boeffla sound hook functions for
@@ -230,8 +235,10 @@ unsigned int Boeffla_sound_hook_wm8994_write(unsigned int reg, unsigned int val)
 	bool current_is_headphone;
 	bool current_is_fmradio;
 
+#ifdef CONFIG_INTELLI_PLUG
 	// call incall hook no-matter-what boeffla sound is enabled or not
 	wm8994_incall_hook();
+#endif
 
 	// Terminate instantly if boeffla sound is not enabled and return
 	// original value back
@@ -1471,7 +1478,9 @@ static ssize_t boeffla_sound_store(struct device *dev, struct device_attribute *
 	unsigned int ret = -EINVAL;
 	int val;
 
+#ifdef CONFIG_INTELLI_PLUG
 	bootdone = true;
+#endif
 
 	// read values from input buffer
 	ret = sscanf(buf, "%d", &val);
@@ -2466,8 +2475,10 @@ static int boeffla_sound_init(void)
 	// Initialize delayed work for Eq reapplication
 	INIT_DELAYED_WORK_DEFERRABLE(&apply_settings_work, apply_settings);
 
+#ifdef CONFIG_INTELLI_PLUG
 	// Add incall hook by arter97
 	incall_boost_queue = create_singlethread_workqueue("incall_boost_work");
+#endif
 
 	// Print debug info
 	printk("Boeffla-sound: engine version %s started\n", BOEFFLA_SOUND_VERSION);
