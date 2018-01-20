@@ -12,7 +12,7 @@
 
 BOEFFLA_VERSION="6.0.0.3-LineageOS14.1-i9300"
 
-TOOLCHAIN="/home/pascua14/toolchain/bin/arm-eabi-"
+TOOLCHAIN="/home/pascua14/toolchain/bin/arm-linux-gnueabihf-"
 ARCHITECTURE=arm
 COMPILER_FLAGS_KERNEL="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
