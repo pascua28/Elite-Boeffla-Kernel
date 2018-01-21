@@ -149,5 +149,10 @@ quiet_cmd_bc  = BC      $@
       cmd_bc  = bc -q $(filter-out FORCE,$^) > $@
 
 targets += timeconst.h
+ifneq ($(CONFIG_HZ_432),y)
 $(obj)/timeconst.h: $(obj)/hz.bc $(src)/timeconst.bc FORCE
 	$(call if_changed,bc)
+else
+$(obj)/timeconst.h: 
+	cp kernel/timeconst432.h kernel/timeconst.h
+endif
