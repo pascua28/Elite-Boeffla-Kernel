@@ -638,7 +638,7 @@ void battery_event_control(struct battery_info *info)
 			next = ktime_add(info->last_poll, interval);
 			slack = ktime_set(20, 0);
 
-			alarm_start_range(&info->event_alarm, next,
+			android_alarm_start_range(&info->event_alarm, next,
 						ktime_add(next, slack));
 
 			info->event_state = EVENT_STATE_IN_TIMER;
@@ -732,7 +732,7 @@ static void battery_monitor_interval(struct battery_info *info)
 	next = ktime_add(info->last_poll, interval);
 	slack = ktime_set(20, 0);
 
-	alarm_start_range(&info->monitor_alarm, next, ktime_add(next, slack));
+	android_alarm_start_range(&info->monitor_alarm, next, ktime_add(next, slack));
 
 	local_irq_restore(flags);
 }
