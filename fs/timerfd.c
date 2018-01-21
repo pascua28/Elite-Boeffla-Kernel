@@ -71,7 +71,7 @@ static enum hrtimer_restart timerfd_tmrproc(struct hrtimer *htmr)
 	struct timerfd_ctx *ctx = container_of(htmr, struct timerfd_ctx,
 					       t.tmr);
 	timerfd_triggered(ctx);
-	return HRTIMER_NORESTART;
+ 	return HRTIMER_NORESTART;
 }
 
 static enum alarmtimer_restart timerfd_alarmproc(struct alarm *alarm,
@@ -147,7 +147,6 @@ static void timerfd_setup_cancel(struct timerfd_ctx *ctx, int flags)
 static ktime_t timerfd_get_remaining(struct timerfd_ctx *ctx)
 {
 	ktime_t remaining;
-
 	if (isalarm(ctx))
 		remaining = alarm_expires_remaining(&ctx->t.alarm);
 	else
@@ -377,15 +376,13 @@ SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
 	 */
 	for (;;) {
 		spin_lock_irq(&ctx->wqh.lock);
-
 		if (isalarm(ctx)) {
 			if (alarm_try_to_cancel(&ctx->t.alarm) >= 0)
 				break;
 		} else {
 			if (hrtimer_try_to_cancel(&ctx->t.tmr) >= 0)
 				break;
-		}
-		spin_unlock_irq(&ctx->wqh.lock);
+		}		spin_unlock_irq(&ctx->wqh.lock);
 		cpu_relax();
 	}
 
@@ -432,8 +429,6 @@ SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
 
 	spin_lock_irq(&ctx->wqh.lock);
 	if (ctx->expired && ctx->tintv.tv64) {
-		ctx->expired = 0;
-
 		if (isalarm(ctx)) {
 			ctx->ticks +=
 				alarm_forward_now(

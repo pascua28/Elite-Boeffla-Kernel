@@ -26,7 +26,7 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 
-#define ALARM_DELTA 300
+#define ALARM_DELTA 120
 
 /**
  * struct alarm_base - Alarm timer bases
@@ -56,31 +56,6 @@ static struct rtc_device	*rtcdev;
 static DEFINE_SPINLOCK(rtcdev_lock);
 static unsigned long power_on_alarm;
 static struct mutex power_on_alarm_lock;
-
-
-void power_on_alarm_init(void)
-{
-	struct rtc_wkalrm rtc_alarm;
-	struct rtc_time rt;
-	unsigned long alarm_time;
-	struct rtc_device *rtc;
-
-	rtc = alarmtimer_get_rtcdev();
-
-	/* If we have no rtcdev, just return */
-	if (!rtc)
-		return;
-
-	rtc_read_alarm(rtc, &rtc_alarm);
-	rt = rtc_alarm.time;
-
-	rtc_tm_to_time(&rt, &alarm_time);
-
-	if (alarm_time)
-		power_on_alarm = alarm_time + ALARM_DELTA;
-	else
-		power_on_alarm = 0;
-}
 
 void set_power_on_alarm(long secs, bool enable)
 {
@@ -150,27 +125,6 @@ static struct rtc_task alarmtimer_rtc_task = {
 	.func = alarmtimer_triggered_func
 };
 /**
- * has_wakealarm - check rtc device has wakealarm ability
- * @dev: current device
- * @name_ptr: name to be returned
- *
- * This helper function checks to see if the rtc device can wake
- * from suspend.
- */
-static int has_wakealarm(struct device *dev, void *name_ptr)
-{
-	struct rtc_device *candidate = to_rtc_device(dev);
-
-	if (!candidate->ops->set_alarm)
-		return 0;
-	if (!device_may_wakeup(candidate->dev.parent))
-		return 0;
-
-	*(const char **)name_ptr = dev_name(dev);
-	return 1;
-}
-
-/**
  * alarmtimer_get_rtcdev - Return selected rtcdevice
  *
  * This function returns the rtc device to use for wakealarms.
@@ -179,26 +133,10 @@ static int has_wakealarm(struct device *dev, void *name_ptr)
  */
 struct rtc_device *alarmtimer_get_rtcdev(void)
 {
-	struct device *dev;
-	char *str;
 	unsigned long flags;
 	struct rtc_device *ret = NULL;
 
 	spin_lock_irqsave(&rtcdev_lock, flags);
-	if (!rtcdev) {
-		/* Find an rtc device and init the rtc_timer */
-		dev = class_find_device(rtc_class, NULL, &str, has_wakealarm);
-		/* If we have a device then str is valid. See has_wakealarm() */
-		if (dev) {
-			rtcdev = rtc_class_open(str);
-			/*
-			 * Drop the reference we got in class_find_device,
-			 * rtc_open takes its own.
-			 */
-			put_device(dev);
-			rtc_timer_init(&rtctimer, NULL, NULL);
-		}
-	}
 	ret = rtcdev;
 	spin_unlock_irqrestore(&rtcdev_lock, flags);
 
@@ -378,7 +316,7 @@ static int alarmtimer_suspend(struct device *dev)
 	freezer_delta = ktime_set(0, 0);
 	spin_unlock_irqrestore(&freezer_delta_lock, flags);
 
-	rtc = rtcdev;
+	rtc = alarmtimer_get_rtcdev();
 	/* If we have no rtcdev, just return */
 	if (!rtc)
 		return 0;

@@ -611,7 +611,7 @@ void battery_event_control(struct battery_info *info)
 		} else if (info->event_state == EVENT_STATE_IN_TIMER) {
 			pr_info("%s: cancel event timer\n", __func__);
 
-			alarm_cancel(&info->event_alarm);
+			android_alarm_cancel(&info->event_alarm);
 
 			info->event_state = EVENT_STATE_SET;
 
@@ -632,7 +632,7 @@ void battery_event_control(struct battery_info *info)
 
 		if (info->event_state == EVENT_STATE_SET) {
 			pr_info("%s: start event timer\n", __func__);
-			info->last_poll = alarm_get_elapsed_realtime();
+			info->last_poll = android_alarm_get_elapsed_realtime();
 
 			interval = ktime_set(info->pdata->event_time, 0);
 			next = ktime_add(info->last_poll, interval);
@@ -686,7 +686,7 @@ static void battery_monitor_interval(struct battery_info *info)
 
 	local_irq_save(flags);
 
-	info->last_poll = alarm_get_elapsed_realtime();
+	info->last_poll = android_alarm_get_elapsed_realtime();
 
 	switch (info->monitor_mode) {
 	case MONITOR_CHNG:
@@ -761,12 +761,13 @@ static bool battery_recharge_cond(struct battery_info *info)
 static bool battery_abstimer_cond(struct battery_info *info)
 {
 	unsigned int abstimer_duration;
+	ktime_t ktime;
 	struct timespec current_time;
 	pr_debug("%s\n", __func__);
 
 	/* always update time for info data */
-	get_monotonic_boottime(&current_time);
-	info->current_time = current_time;
+	ktime = android_alarm_get_elapsed_realtime();
+	info->current_time = current_time = ktime_to_timespec(ktime);
 
 	if ((info->cable_type == POWER_SUPPLY_TYPE_USB) ||
 		(info->full_charged_state != STATUS_NOT_FULL) ||
@@ -1074,12 +1075,14 @@ static void battery_charge_control(struct battery_info *info,
 				unsigned int chg_curr, unsigned int in_curr)
 {
 	int charge_state;
+	ktime_t ktime;
 	struct timespec current_time;
 	pr_debug("%s, chg(%d), in(%d)\n", __func__, chg_curr, in_curr);
 
 	mutex_lock(&info->ops_lock);
 
-	get_monotonic_boottime(&current_time);
+	ktime = android_alarm_get_elapsed_realtime();
+	current_time = ktime_to_timespec(ktime);
 
 	if ((info->cable_type != POWER_SUPPLY_TYPE_BATTERY) &&
 		(chg_curr > 0) && (info->siop_state == true)) {
@@ -2378,13 +2381,13 @@ static __devinit int samsung_battery_probe(struct platform_device *pdev)
 gpio_bat_det_finish:
 
 	/* Using android alarm for gauging instead of workqueue */
-	info->last_poll = alarm_get_elapsed_realtime();
-	alarm_init(&info->monitor_alarm,
+	info->last_poll = android_alarm_get_elapsed_realtime();
+	android_alarm_init(&info->monitor_alarm,
 			ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
 			battery_monitor_alarm);
 
 	if (info->pdata->ctia_spec == true)
-		alarm_init(&info->event_alarm,
+		android_alarm_init(&info->event_alarm,
 				ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
 				battery_event_alarm);
 
@@ -2442,9 +2445,9 @@ static int __devexit samsung_battery_remove(struct platform_device *pdev)
 
 	remove_proc_entry("battery_info_proc", NULL);
 
-	alarm_cancel(&info->monitor_alarm);
+	android_alarm_cancel(&info->monitor_alarm);
 	if (info->pdata->ctia_spec == true)
-		alarm_cancel(&info->event_alarm);
+		android_alarm_cancel(&info->event_alarm);
 
 	cancel_work_sync(&info->error_work);
 	cancel_work_sync(&info->monitor_work);
