@@ -31,6 +31,7 @@ config ARM
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
 	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_BPF_JIT
 	select GENERIC_IRQ_SHOW
 	select HAVE_BPF_JIT
 	select CPU_PM if (SUSPEND || CPU_IDLE)
