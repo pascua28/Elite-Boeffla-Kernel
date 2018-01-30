@@ -41,8 +41,11 @@
 #include <linux/ratelimit.h>
 #include <linux/seccomp.h>
 
-/* No hurry in this branch */
-static void *__load_pointer(const struct sk_buff *skb, int k, unsigned int size)
+/* No hurry in this branch
+ *
+ * Exported for the bpf jit load helper.
+ */
+void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, unsigned int size)
 {
 	u8 *ptr = NULL;
 
@@ -61,7 +64,7 @@ static inline void *load_pointer(const struct sk_buff *skb, int k,
 {
 	if (k >= 0)
 		return skb_header_pointer(skb, k, size, buffer);
-	return __load_pointer(skb, k, size);
+	return bpf_internal_load_pointer_neg_helper(skb, k, size);
 }
 
 /**
