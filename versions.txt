@@ -1,4 +1,6 @@
-6.0-beta1:		06.12.2016
-6.0-beta2:		13.12.2016
-6.0-beta3:		19.12.2016
+Update1
+Update2
+Update3
+Update4
 Update5
+Update6
