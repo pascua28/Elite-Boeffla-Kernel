@@ -1,0 +1,42 @@
+cat << CTAG
+
+{
+
+sections:[
+
+	{
+			name:MIF/INT,
+			elements:[
+				{ SPane:{
+					title:"INT Voltages"
+				}},
+$(cat /sys/devices/system/cpu/busfreq/int_volt_table | while read FREQ VOLT; do
+	cat << EOF1
+				{ SSeekBar:{
+					title:"$FREQ MHz",
+					max:1300000, min:600000, unit:" uV", step:12500,
+					default:$VOLT,
+					action:"int -v /sys/devices/system/cpu/busfreq/int_volt_table $FREQ"
+				}},
+EOF1
+done)
+
+				{ SPane:{
+					title:"MIF Voltages"
+				}},
+$(cat /sys/devices/system/cpu/busfreq/int_volt_table | while read FREQ VOLT; do
+	cat << EOF2
+				{ SSeekBar:{
+					title:"$FREQ MHz",
+					max:1300000, min:600000, unit:" uV", step:50000,
+					default:$VOLT,
+					action:"mif -v /sys/devices/system/cpu/busfreq/mif_volt_table $FREQ"
+				}},
+EOF2
+done)
+				]
+	}
+	]
+}
+
+CTAG

@@ -1,0 +1,18 @@
+#!/system/bin/sh
+
+INPUT=/res/synapse/config.json.generate
+OUTPUT=/res/synapse/config.json
+ACTIONS=/res/synapse/actions
+
+mountrw() { mount -t rootfs -o rw,remount rootfs; }
+mountro() { mount -t rootfs -o ro,remount rootfs; }
+
+if [ ! -f $OUTPUT ]; then
+	mountrw; chmod -R 755 $ACTIONS; source $INPUT > $OUTPUT; mountro; fi
+
+case "$1" in
+	config) cat $OUTPUT;;
+	configpath) echo $OUTPUT;;
+	actionpath) echo $ACTIONS;;
+	reset) mountrw; rm -f $OUTPUT; mountro;;
+esac
