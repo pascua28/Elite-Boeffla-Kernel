@@ -27,7 +27,7 @@ OUTPUT_FOLDER=""
 DEFCONFIG="boeffla_defconfig"
 DEFCONFIG_VARIANT=""
 
-KERNEL_NAME="Hybrid Boeffla-Kernel"
+KERNEL_NAME="Hybrid-Boeffla-Kernel"
 
 FINISH_MAIL_TO=""
 
