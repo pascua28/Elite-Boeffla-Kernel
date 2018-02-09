@@ -10,7 +10,7 @@
 # Parameters to be configured manually
 #######################################
 
-BOEFFLA_VERSION="6.0.0.3-LineageOS14.1-i9300"
+BOEFFLA_VERSION="Android7.x-smdk4x12"
 
 TOOLCHAIN="/home/pascua14/toolchain/bin/arm-eabi-"
 ARCHITECTURE=arm
@@ -27,7 +27,7 @@ OUTPUT_FOLDER=""
 DEFCONFIG="boeffla_defconfig"
 DEFCONFIG_VARIANT=""
 
-KERNEL_NAME="Optimized-Elite-Boeffla-Kernel"
+KERNEL_NAME="Hybrid Boeffla-Kernel"
 
 FINISH_MAIL_TO=""
 
