@@ -44,7 +44,6 @@ enum {
 	Opt_disable_roll_forward,
 	Opt_norecovery,
 	Opt_discard,
-	Opt_nodiscard,
 	Opt_noheap,
 	Opt_user_xattr,
 	Opt_nouser_xattr,
@@ -68,7 +67,6 @@ static match_table_t f2fs_tokens = {
 	{Opt_disable_roll_forward, "disable_roll_forward"},
 	{Opt_norecovery, "norecovery"},
 	{Opt_discard, "discard"},
-	{Opt_nodiscard, "nodiscard"},
 	{Opt_noheap, "no_heap"},
 	{Opt_user_xattr, "user_xattr"},
 	{Opt_nouser_xattr, "nouser_xattr"},
@@ -314,9 +312,6 @@ static int parse_options(struct super_block *sb, char *options)
 					"the device does not support discard");
 			}
 			break;
-		case Opt_nodiscard:
-			clear_opt(sbi, DISCARD);
-			break;
 		case Opt_noheap:
 			set_opt(sbi, NOHEAP);
 			break;
@@ -452,10 +447,13 @@ static int f2fs_drop_inode(struct inode *inode)
 			if (f2fs_is_atomic_file(inode))
 				commit_inmem_pages(inode, true);
 
+			sb_start_intwrite(inode->i_sb);
 			i_size_write(inode, 0);
 
 			if (F2FS_HAS_BLOCKS(inode))
 				f2fs_truncate(inode);
+
+			sb_end_intwrite(inode->i_sb);
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 			if (F2FS_I(inode)->i_crypt_info)
@@ -605,9 +603,9 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int f2fs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(vfs->mnt_sb);
+	struct f2fs_sb_info *sbi = F2FS_SB(root->d_sb);
 
 	if (!f2fs_readonly(sbi->sb) && test_opt(sbi, BG_GC))
 		seq_printf(seq, ",background_gc=%s", "on");
@@ -683,7 +681,7 @@ static int segment_info_seq_show(struct seq_file *seq, void *offset)
 
 static int segment_info_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, segment_info_seq_show, PDE(inode)->data);
+	return single_open(file, segment_info_seq_show, PDE_DATA(inode));
 }
 
 static const struct file_operations f2fs_seq_segment_info_fops = {
@@ -1117,6 +1115,7 @@ try_onemore:
 		goto free_options;
 
 	sb->s_maxbytes = max_file_size(le32_to_cpu(raw_super->log_blocksize));
+	sb->s_max_links = F2FS_LINK_MAX;
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 
 	sb->s_op = &f2fs_sops;
@@ -1229,7 +1228,7 @@ try_onemore:
 		goto free_node_inode;
 	}
 
-	sb->s_root = d_alloc_root(root); /* allocate root dentry */
+	sb->s_root = d_make_root(root); /* allocate root dentry */
 	if (!sb->s_root) {
 		err = -ENOMEM;
 		goto free_root_inode;
@@ -1306,7 +1305,8 @@ free_proc:
 	}
 	f2fs_destroy_stats(sbi);
 free_root_inode:
-	iput(root);
+	dput(sb->s_root);
+	sb->s_root = NULL;
 free_node_inode:
 	iput(sbi->node_inode);
 free_nm:
