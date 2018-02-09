@@ -18,6 +18,11 @@ $(cat /sys/devices/system/cpu/busfreq/int_volt_table | while read FREQ VOLT; do
 					default:$VOLT,
 					action:"int -v /sys/devices/system/cpu/busfreq/int_volt_table $FREQ"
 				}},
+
+	{ SSpacer:{
+		height:1
+	}},
+
 EOF1
 done)
 
@@ -31,11 +36,170 @@ $(cat /sys/devices/system/cpu/busfreq/int_volt_table | while read FREQ VOLT; do
 					max:1300000, min:600000, unit:" uV", step:50000,
 					default:$VOLT,
 					action:"mif -v /sys/devices/system/cpu/busfreq/mif_volt_table $FREQ"
-				}},
+				}}
 EOF2
 done)
-				]
+	]
+
+	},
+
+
+	{
+			name:ABB,
+			elements:[
+
+				{ SPane:{
+					title:"ARM Slice Voltages"
+				}},
+
+	{ SSeekBar:{
+		title:"Slice 1 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:25,
+		default:$(cat /sys/devices/system/abb/arm/arm_slice_1_volt),
+		action:"generic /sys/devices/system/abb/arm/arm_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:25,
+		default:$(cat /sys/devices/system/abb/arm/arm_slice_2_volt),
+		action:"generic /sys/devices/system/abb/arm/arm_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:25,
+		default:$(cat /sys/devices/system/abb/arm/arm_slice_3_volt),
+		action:"generic /sys/devices/system/abb/arm/arm_slice_3_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 4 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:25,
+		default:$(cat /sys/devices/system/abb/arm/arm_slice_4_volt),
+		action:"generic /sys/devices/system/abb/arm/arm_slice_4_volt"
+	}},
+
+	{ SSpacer:{
+		height:1
+	}},
+
+				{ SPane:{
+					title:"G3D/GPU Slice Voltages"
+				}},
+
+	{ SSeekBar:{
+		title:"Slice 1 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:25,
+		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_1_volt),
+		action:"generic /sys/devices/system/abb/g3d/g3d_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:25,
+		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_2_volt),
+		action:"generic /sys/devices/system/abb/g3d/g3d_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:25,
+		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_3_volt),
+		action:"generic /sys/devices/system/abb/g3d/g3d_slice_3_volt"
+	}},
+
+	{ SSpacer:{
+		height:1
+	}},
+
+				{ SPane:{
+					title:"INT Slice Voltages"
+				}},
+
+	{ SSeekBar:{
+		title:"Slice 1 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/int/int_slice_1_volt),
+		action:"generic /sys/devices/system/abb/int/int_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/int/int_slice_2_volt),
+		action:"generic /sys/devices/system/abb/int/int_slice_2_volt"
+	}},
+
+	{ SSpacer:{
+		height:1
+	}},
+
+				{ SPane:{
+					title:"MIF Slice Voltages"
+				}},
+
+	{ SSeekBar:{
+		title:"Slice 1 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/mif/mif_slice_1_volt),
+		action:"generic /sys/devices/system/abb/mif/mif_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:" ",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/mif/mif_slice_2_volt),
+		action:"generic /sys/devices/system/abb/mif/mif_slice_2_volt"
+	}}
+
+		]
 	}
+
 	]
 }
 
