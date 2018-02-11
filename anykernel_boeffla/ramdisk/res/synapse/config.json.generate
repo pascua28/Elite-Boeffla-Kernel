@@ -58,7 +58,7 @@ done)
 		max:1500,
 		min:600,
 		unit:" mV",
-		step:25,
+		step:50,
 		default:$(cat /sys/devices/system/abb/arm/arm_slice_1_volt),
 		action:"generic /sys/devices/system/abb/arm/arm_slice_1_volt"
 	}},
@@ -69,7 +69,7 @@ done)
 		max:1500,
 		min:600,
 		unit:" mV",
-		step:25,
+		step:50,
 		default:$(cat /sys/devices/system/abb/arm/arm_slice_2_volt),
 		action:"generic /sys/devices/system/abb/arm/arm_slice_2_volt"
 	}},
@@ -80,7 +80,7 @@ done)
 		max:1500,
 		min:600,
 		unit:" mV",
-		step:25,
+		step:50,
 		default:$(cat /sys/devices/system/abb/arm/arm_slice_3_volt),
 		action:"generic /sys/devices/system/abb/arm/arm_slice_3_volt"
 	}},
@@ -91,7 +91,7 @@ done)
 		max:1500,
 		min:600,
 		unit:" mV",
-		step:25,
+		step:50,
 		default:$(cat /sys/devices/system/abb/arm/arm_slice_4_volt),
 		action:"generic /sys/devices/system/abb/arm/arm_slice_4_volt"
 	}},
@@ -110,7 +110,7 @@ done)
 		max:1500,
 		min:600,
 		unit:" mV",
-		step:25,
+		step:50,
 		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_1_volt),
 		action:"generic /sys/devices/system/abb/g3d/g3d_slice_1_volt"
 	}},
@@ -121,7 +121,7 @@ done)
 		max:1500,
 		min:600,
 		unit:" mV",
-		step:25,
+		step:50,
 		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_2_volt),
 		action:"generic /sys/devices/system/abb/g3d/g3d_slice_2_volt"
 	}},
@@ -132,7 +132,7 @@ done)
 		max:1500,
 		min:600,
 		unit:" mV",
-		step:25,
+		step:50,
 		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_3_volt),
 		action:"generic /sys/devices/system/abb/g3d/g3d_slice_3_volt"
 	}},
