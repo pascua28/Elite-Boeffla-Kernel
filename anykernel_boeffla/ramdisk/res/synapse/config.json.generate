@@ -106,6 +106,7 @@ WARNING!!!! This is a very advanced setting"
 		action:"generic /sys/devices/system/abb/arm/arm_slice_3_volt"
 	}},
 
+
 	{ SSpacer:{
 		height:1
 	}},
@@ -121,7 +122,7 @@ WARNING!!!! This is a very advanced setting"
 
 	{ SSeekBar:{
 		title:"Slice 1 Body Voltage",
-		description:"For frequencies below 533MHz",
+		description:"For frequencies 54MHz to 300MHz",
 		max:1500,
 		min:600,
 		unit:" mV",
@@ -132,13 +133,24 @@ WARNING!!!! This is a very advanced setting"
 
 	{ SSeekBar:{
 		title:"Slice 2 Body Voltage",
-		description:"For frequencies 533MHz and above",
+		description:"For frequencies 333MHz to 533MHz",
 		max:1500,
 		min:600,
 		unit:" mV",
 		step:50,
 		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_2_volt),
 		action:"generic /sys/devices/system/abb/g3d/g3d_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:"For frequencies 600MHz to 700MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_3_volt),
+		action:"generic /sys/devices/system/abb/g3d/g3d_slice_3_volt"
 	}},
 
 	{ SSpacer:{
@@ -155,13 +167,35 @@ WARNING!!!! This is a very advanced setting"
 
 	{ SSeekBar:{
 		title:"Slice 1 Body Voltage",
-		description:"For all frequencies",
+		description:"For frequencies 100MHz to 160MHz",
 		max:1500,
 		min:600,
 		unit:" mV",
 		step:50,
 		default:$(cat /sys/devices/system/abb/int/int_slice_1_volt),
 		action:"generic /sys/devices/system/abb/int/int_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:"For frequencies 266MHz to 400.2MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/int/int_slice_2_volt),
+		action:"generic /sys/devices/system/abb/int/int_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:"For 400.266MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/int/int_slice_3_volt),
+		action:"generic /sys/devices/system/abb/int/int_slice_3_volt"
 	}},
 
 	{ SSpacer:{
@@ -174,13 +208,35 @@ WARNING!!!! This is a very advanced setting"
 
 	{ SSeekBar:{
 		title:"Slice 1 Body Voltage",
-		description:"For all frequencies",
+		description:"For frequencies 100MHz to 160MHz",
 		max:1500,
 		min:600,
 		unit:" mV",
 		step:50,
 		default:$(cat /sys/devices/system/abb/mif/mif_slice_1_volt),
 		action:"generic /sys/devices/system/abb/mif/mif_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:"For frequencies 260MHz to 400.2MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/mif/mif_slice_2_volt),
+		action:"generic /sys/devices/system/abb/mif/mif_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:"For 400.266MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/mif/mif_slice_3_volt),
+		action:"generic /sys/devices/system/abb/mif/mif_slice_3_volt"
 	}}
 
 		]
