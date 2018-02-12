@@ -29,9 +29,9 @@
 #define SLICE_TYPE_NR		4
 
 #define ARM_FREQ_SLICE_NR	4
-#define G3D_FREQ_SLICE_NR	3
-#define MIF_FREQ_SLICE_NR	2
-#define INT_FREQ_SLICE_NR	2
+#define G3D_FREQ_SLICE_NR	4
+#define MIF_FREQ_SLICE_NR	3
+#define INT_FREQ_SLICE_NR	3
 
 #define FREQ_ALL		0
 #define FREQ_MAX		9999999
@@ -95,19 +95,22 @@ static ssize_t store_abb_property(struct device *dev,
 /* Frequecy thresholds are inclusive : ..<..slice]..<..slice]..<..slice]..<.. */
 
 static struct abb_slice int_abb_slices[INT_FREQ_SLICE_NR] = {
-	_abb_slice(int_slice_1,	110110	, ABB_MODE_100V),
-	_abb_slice(int_slice_2,	FREQ_MAX, ABB_MODE_100V),
+	_abb_slice(int_slice_1,	100100	, ABB_MODE_100V),
+	_abb_slice(int_slice_2,	267160	, ABB_MODE_100V),
+	_abb_slice(int_slice_3,	400266	, ABB_MODE_100V),
 };
 
 static struct abb_slice mif_abb_slices[MIF_FREQ_SLICE_NR] = {
-	_abb_slice(mif_slice_1,	110110	, ABB_MODE_100V),
-	_abb_slice(mif_slice_2,	FREQ_MAX, ABB_MODE_100V),
+	_abb_slice(mif_slice_1,	100100	, ABB_MODE_100V),
+	_abb_slice(mif_slice_2,	267160	, ABB_MODE_100V),
+	_abb_slice(mif_slice_3,	400266	, ABB_MODE_100V),
 };
 
 static struct abb_slice g3d_abb_slices[G3D_FREQ_SLICE_NR] = {
-	_abb_slice(g3d_slice_1,	160000	, ABB_MODE_100V),
-	_abb_slice(g3d_slice_2,	533000	, ABB_MODE_100V),
-	_abb_slice(g3d_slice_3,	FREQ_MAX, ABB_MODE_075V),
+	_abb_slice(g3d_slice_1,	 54000	, ABB_MODE_100V),
+	_abb_slice(g3d_slice_2,	300000	, ABB_MODE_100V),
+	_abb_slice(g3d_slice_3,	533000	, ABB_MODE_075V),
+	_abb_slice(g3d_slice_4,	FREQ_MAX, ABB_MODE_075V),
 };
 
 static struct abb_slice arm_abb_slices[ARM_FREQ_SLICE_NR] = {
@@ -286,7 +289,7 @@ void abb_control_init()
 				break;
 			case 3:
 				set_slice_voltage(ABB_ARM, FREQ_ALL, 1300);
-				set_slice_voltage(ABB_ARM, 200000, 1000);
+				set_slice_voltage(ABB_ARM, 100000, 1000);
 				set_slice_voltage(ABB_G3D, FREQ_ALL, 1000);
 				set_slice_voltage(ABB_INT, FREQ_ALL, 1000);
 				set_slice_voltage(ABB_MIF, FREQ_ALL, 1400);
@@ -328,11 +331,11 @@ void abb_control_init()
 			case 6:
 			case 7:
 				set_slice_voltage(ABB_MIF, FREQ_ALL, 1300);
-				set_slice_voltage(ABB_MIF, 110110, 1000);
+				set_slice_voltage(ABB_MIF, 100100, 1000);
 				set_slice_voltage(ABB_INT, FREQ_ALL, 1300);
-				set_slice_voltage(ABB_INT, 110110, 1000);
+				set_slice_voltage(ABB_INT, 100100, 1000);
 				set_slice_voltage(ABB_ARM, FREQ_ALL, 1300);
-				set_slice_voltage(ABB_ARM, 200000, 1000);
+				set_slice_voltage(ABB_ARM, 100000, 1000);
 				break;
 			default:
 				set_slice_voltage(ABB_ARM, FREQ_ALL, 1300);
