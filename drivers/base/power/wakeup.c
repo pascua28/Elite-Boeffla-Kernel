@@ -373,6 +373,10 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
  */
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
+	
+	if (!strcmp(ws->name, "l2_hsic")) 
+		return;
+	
 	ws->active = true;
 	ws->active_count++;
 	ws->timer_expires = jiffies;
