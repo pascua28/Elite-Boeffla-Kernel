@@ -342,7 +342,7 @@ void abb_control_init()
 		}
 
 		set_slice_voltage(ABB_G3D, FREQ_ALL, 1300);
-		set_slice_voltage(ABB_G3D, 160000, 1000);
+		set_slice_voltage(ABB_G3D, 54000, 1050);
 	}
 
 	sysdev_class_register(&abb_sysclass);
