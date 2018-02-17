@@ -31,7 +31,6 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/kernel_stat.h>
-#include <linux/earlysuspend.h>
 #include <asm/cputime.h>
 #include <linux/input.h>
 
@@ -58,9 +57,6 @@ struct cpufreq_interactive_cpuinfo {
 };
 
 static DEFINE_PER_CPU(struct cpufreq_interactive_cpuinfo, cpuinfo);
-
-/* boolean for determining screen on/off state */
-static bool suspended = false;
 
 /* realtime thread handles frequency scaling */
 static struct task_struct *speedchange_task;
@@ -443,23 +439,21 @@ static void cpufreq_interactive_timer(unsigned long data)
 	}
 
 	if (cpu_load >= go_hispeed_load || boosted) {
-		if (pcpu->policy->cpu == 0 && !suspended) {
-			if (pcpu->target_freq < hispeed_freq) {
-				nr_cpus = num_online_cpus();
+		if (pcpu->target_freq < hispeed_freq) {
+			nr_cpus = num_online_cpus();
 
-				pcpu->two_phase_freq = two_phase_freq_array[nr_cpus-1];
-				if (pcpu->two_phase_freq < pcpu->policy->cur)
-					phase = 1;
-				if (pcpu->two_phase_freq != 0 && phase == 0) {
-					new_freq = pcpu->two_phase_freq;
-				} else
-					new_freq = hispeed_freq;
-			} else {
-				new_freq = choose_freq(pcpu, loadadjfreq);
+			pcpu->two_phase_freq = two_phase_freq_array[nr_cpus-1];
+			if (pcpu->two_phase_freq < pcpu->policy->cur)
+				phase = 1;
+			if (pcpu->two_phase_freq != 0 && phase == 0) {
+				new_freq = pcpu->two_phase_freq;
+			} else
+				new_freq = hispeed_freq;
+		} else {
+			new_freq = choose_freq(pcpu, loadadjfreq);
 
-				if (new_freq < hispeed_freq)
-					new_freq = hispeed_freq;
-			}
+			if (new_freq < hispeed_freq)
+				new_freq = hispeed_freq;
 		}
 	} else {
 		new_freq = choose_freq(pcpu, loadadjfreq);
@@ -1358,35 +1352,6 @@ static int cpufreq_interactive_idle_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-extern bool is_incall;
-static void cpu_up_work(struct work_struct *work)
-{
-	int cpu;
-
-	for_each_cpu_not(cpu, cpu_online_mask) {
-		if (cpu == 0)
-			continue;
-		cpu_up(cpu);
-	}
-}
-
-static void cpu_down_work(struct work_struct *work)
-{
-	int cpu;
-
-	if (is_incall)
-		return;
-
-	for_each_online_cpu(cpu) {
-		if (cpu == 0)
-			continue;
-		cpu_down(cpu);
-	}
-}
-
-static DECLARE_WORK(interactive_up_work, cpu_up_work);
-static DECLARE_WORK(interactive_down_work, cpu_down_work);
-
 static struct notifier_block cpufreq_interactive_idle_nb = {
 	.notifier_call = cpufreq_interactive_idle_notifier,
 };
@@ -1447,8 +1412,6 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 			return rc;
 		}
 
-		schedule_work_on(0, &interactive_up_work);
-
 		idle_notifier_register(&cpufreq_interactive_idle_nb);
 		cpufreq_register_notifier(
 			&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
@@ -1472,8 +1435,6 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 			mutex_unlock(&gov_lock);
 			return 0;
 		}
-
-		schedule_work_on(0, &interactive_down_work);
 
 		cpufreq_unregister_notifier(
 			&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
@@ -1527,25 +1488,6 @@ static void cpufreq_interactive_nop_timer(unsigned long data)
 {
 }
 
-static void interactive_early_suspend(struct early_suspend *handler)
-{
-	suspended = true;
-	schedule_work_on(0, &interactive_down_work);
-	return;
-}
-
-static void interactive_late_resume(struct early_suspend *handler)
-{
-	suspended = false;
-	schedule_work_on(0, &interactive_up_work);
-	return;
-}
-
-static struct early_suspend interactive_suspend = {
-	.suspend = interactive_early_suspend,
-	.resume = interactive_late_resume,
-};
-
 static int __init cpufreq_intelliactive_init(void)
 {
 	unsigned int i;
@@ -1563,8 +1505,6 @@ static int __init cpufreq_intelliactive_init(void)
 		spin_lock_init(&pcpu->load_lock);
 		init_rwsem(&pcpu->enable_sem);
 	}
-
-	register_early_suspend(&interactive_suspend);
 
 	spin_lock_init(&target_loads_lock);
 	spin_lock_init(&speedchange_cpumask_lock);
@@ -1593,7 +1533,6 @@ module_init(cpufreq_intelliactive_init);
 
 static void __exit cpufreq_interactive_exit(void)
 {
-	unregister_early_suspend(&interactive_suspend);
 	cpufreq_unregister_governor(&cpufreq_gov_intelliactive);
 	kthread_stop(speedchange_task);
 	put_task_struct(speedchange_task);
