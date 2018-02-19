@@ -12,7 +12,7 @@
 
 BOEFFLA_VERSION="Android7.x-smdk4x12"
 
-TOOLCHAIN="/home/pascua14/toolchain/bin/arm-linux-gnueabihf-"
+TOOLCHAIN="/home/$(whoami)/toolchain/bin/arm-eabi-"
 ARCHITECTURE=arm
 COMPILER_FLAGS_KERNEL="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
@@ -55,7 +55,7 @@ ROOT_PATH=$PWD
 ROOT_DIR_NAME=`basename "$PWD"`
 cd $SOURCE_PATH
 
-WDIR="/home/pascua14/Desktop"
+WDIR="/home/$(whoami)/Desktop"
 BUILD_PATH="$WDIR/build"
 REPACK_PATH="$WDIR/repack"
 
@@ -108,6 +108,23 @@ step1_make_clean()
 	# jump to build path and make clean
 	cd $BUILD_PATH
 	make clean
+	rm scripts/basic/fixdep
+	rm scripts/genksyms/genksyms
+	rm scripts/genksyms/genksyms.o
+	rm scripts/genksyms/lex.o
+	rm scripts/genksyms/parse.o
+	rm scripts/mod/empty.o
+	rm scripts/mod/file2alias.o
+	rm scripts/mod/mk_elfconfig
+	rm scripts/mod/modpost
+	rm scripts/mod/modpost.o
+	rm scripts/mod/sumversion.o
+	rm scripts/selinux/genheaders/genheaders
+	rm scripts/selinux/mdp/mdp
+	rm scripts/bin2c
+	rm scripts/conmakehash
+	rm scripts/kallsyms
+
 }
 
 step2_make_config()
