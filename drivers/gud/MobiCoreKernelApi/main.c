@@ -132,6 +132,9 @@ static void mcapi_callback(
 //------------------------------------------------------------------------------
 static int __init mcapi_init(void)
 {
+
+	return -ENODEV;
+	
 	printk(KERN_INFO "Mobicore API module initialized!\n");
 
 	modCtx = kzalloc(sizeof(struct mcKernelApiCtx), GFP_KERNEL);
@@ -152,6 +155,9 @@ static int __init mcapi_init(void)
 
 static void __exit mcapi_exit(void)
 {
+
+	return;
+
 	printk(KERN_INFO "Unloading Mobicore API module.\n");
 
 	if (modCtx->sk != NULL)
