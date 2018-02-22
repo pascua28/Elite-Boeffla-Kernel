@@ -539,7 +539,7 @@ CONFIG_EXYNOS4_MSHC_DDR=y
 #
 # Miscellaneous drivers
 #
-CONFIG_WAKEUP_ASSIST=y
+# CONFIG_WAKEUP_ASSIST is not set
 # CONFIG_S3C64XX_DEV_SPI0 is not set
 
 #
