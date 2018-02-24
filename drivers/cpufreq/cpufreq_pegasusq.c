@@ -165,7 +165,6 @@ static unsigned int get_nr_run_avg(void)
 #define DEF_START_DELAY				(0)
 
 #define DEF_UP_THRESHOLD_AT_MIN_FREQ		(40)
-#define DEF_FREQ_FOR_RESPONSIVENESS		(500000)
 
 #define HOTPLUG_DOWN_INDEX			(0)
 #define HOTPLUG_UP_INDEX			(1)
@@ -274,7 +273,6 @@ static struct dbs_tuners {
 	unsigned int sampling_rate;
 	unsigned int up_threshold;
 	unsigned int up_threshold_at_min_freq;
-	unsigned int freq_for_responsiveness;
 	unsigned int down_differential;
 	unsigned int ignore_nice;
 	unsigned int sampling_down_factor;
@@ -302,7 +300,6 @@ static struct dbs_tuners {
 } dbs_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.up_threshold_at_min_freq = DEF_UP_THRESHOLD_AT_MIN_FREQ,
-	.freq_for_responsiveness = DEF_FREQ_FOR_RESPONSIVENESS,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
 	.down_differential = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
 	.ignore_nice = 0,
@@ -510,7 +507,6 @@ show_one(sampling_rate, sampling_rate);
 show_one(io_is_busy, io_is_busy);
 show_one(up_threshold, up_threshold);
 show_one(up_threshold_at_min_freq, up_threshold_at_min_freq);
-show_one(freq_for_responsiveness, freq_for_responsiveness);
 show_one(sampling_down_factor, sampling_down_factor);
 show_one(ignore_nice_load, ignore_nice);
 show_one(down_differential, down_differential);
@@ -692,19 +688,6 @@ static ssize_t store_up_threshold_at_min_freq(struct kobject *a, struct attribut
 		return -EINVAL;
 
 	dbs_tuners_ins.up_threshold_at_min_freq = input;
-	return count;
-}
-
-static ssize_t store_freq_for_responsiveness(struct kobject *a, struct attribute *b,
-				  const char *buf, size_t count)
-{
-	unsigned int input;
-	int ret;
-	ret = sscanf(buf, "%u", &input);
-	if (ret != 1)
-		return -EINVAL;
-
-	dbs_tuners_ins.freq_for_responsiveness = input;
 	return count;
 }
 
@@ -985,7 +968,6 @@ define_one_global_rw(sampling_rate);
 define_one_global_rw(io_is_busy);
 define_one_global_rw(up_threshold);
 define_one_global_rw(up_threshold_at_min_freq);
-define_one_global_rw(freq_for_responsiveness);
 define_one_global_rw(sampling_down_factor);
 define_one_global_rw(ignore_nice_load);
 define_one_global_rw(down_differential);
@@ -1011,7 +993,6 @@ static struct attribute *dbs_attributes[] = {
 	&sampling_rate.attr,
 	&up_threshold.attr,
 	&up_threshold_at_min_freq.attr,
-	&freq_for_responsiveness.attr,
 	&sampling_down_factor.attr,
 	&ignore_nice_load.attr,
 	&io_is_busy.attr,
@@ -1292,7 +1273,6 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 				   dbs_tuners_ins.cpu_down_rate);
 	int up_threshold = dbs_tuners_ins.up_threshold;
 	int up_threshold_at_min_freq = dbs_tuners_ins.up_threshold_at_min_freq;
-	int freq_for_responsiveness = dbs_tuners_ins.freq_for_responsiveness;
 
 	policy = this_dbs_info->cur_policy;
 
@@ -1377,11 +1357,6 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	if (hotplug_history->num_hist  == max_hotplug_rate)
 		hotplug_history->num_hist = 0;
 
-	/* Check for frequency increase */
-	if (policy->cur < freq_for_responsiveness) {
-		up_threshold = up_threshold_at_min_freq;
-	}
-
 #ifdef CONFIG_CPU_FREQ_GOV_PEGASUSQ_BOOST
 	if (is_boosting && policy->cur < dbs_tuners_ins.boost_freq) {
 		/* disallow boosting beyond max freq */
@@ -1445,10 +1420,6 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 		down_thres = up_threshold_at_min_freq
 			- dbs_tuners_ins.down_differential;
-
-		if (freq_next < freq_for_responsiveness
-			&& (max_load_freq / freq_next) > down_thres)
-			freq_next = freq_for_responsiveness;
 
 #ifdef CONFIG_CPU_FREQ_GOV_PEGASUSQ_BOOST
 		if (is_boosting)
