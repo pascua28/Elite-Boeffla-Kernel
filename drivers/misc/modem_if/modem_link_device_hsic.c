@@ -585,14 +585,6 @@ static int link_pm_runtime_get_active(struct link_pm_data *pm_data)
 	if (!usb_ld->if_usb_connected || usb_ld->ld.com_state == COM_NONE)
 		return -ENODEV;
 
-	if (pm_data->dpm_suspending) {
-		mif_err("Kernel in suspending try get_active later\n");
-		/* during dpm_suspending..
-		 * if AP get tx data, wake up. */
-		//wake_lock(&pm_data->l2_wake);
-		return 0;
-	}
-
 	if (dev->power.runtime_status == RPM_ACTIVE) {
 		pm_data->resume_retry_cnt = 0;
 		return 0;
