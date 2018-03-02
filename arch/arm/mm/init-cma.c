@@ -342,7 +342,6 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 	sort(&meminfo.bank, meminfo.nr_banks, sizeof(meminfo.bank[0]),
 		meminfo_cmp, NULL);
 
-	memblock_init();
 	for (i = 0; i < mi->nr_banks; i++)
 		memblock_add(mi->bank[i].start, mi->bank[i].size);
 
@@ -387,7 +386,7 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 	 */
 	dma_contiguous_reserve(min(arm_dma_limit, arm_lowmem_limit));
 
-	memblock_analyze();
+	memblock_allow_resize();
 	memblock_dump_all();
 }
 
@@ -439,6 +438,8 @@ static inline int free_area(unsigned long pfn, unsigned long end, char *s)
 
 	for (; pfn < end; pfn++) {
 		struct page *page = pfn_to_page(pfn);
+		if (is_pfn_hole(pfn))
+			continue;
 		ClearPageReserved(page);
 		init_page_count(page);
 		__free_page(page);

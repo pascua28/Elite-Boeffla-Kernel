@@ -64,6 +64,9 @@ static DECLARE_COMPLETION(cpu_running);
 int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	pgd_t *pgd;
+#if defined(CONFIG_MACH_Q1_BD)
+	static pgd_t *s_pgd[CONFIG_NR_CPUS];
+#endif
 	int ret;
 
 	/*
@@ -72,7 +75,12 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 * of our "standard" page tables, with the addition of
 	 * a 1:1 mapping for the physical address of the kernel.
 	 */
+#if defined(CONFIG_MACH_Q1_BD)
+	s_pgd[cpu] = s_pgd[cpu] ?: pgd_alloc(&init_mm);
+	pgd = s_pgd[cpu];
+#else
 	pgd = pgd_alloc(&init_mm);
+#endif
 	if (!pgd)
 		return -ENOMEM;
 
@@ -125,7 +133,9 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 		identity_mapping_del(pgd, __pa(_sdata), __pa(_edata));
 	}
 
+#if !defined(CONFIG_MACH_Q1_BD)
 	pgd_free(&init_mm, pgd);
+#endif
 
 	return ret;
 }
