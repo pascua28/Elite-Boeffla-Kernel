@@ -682,7 +682,6 @@ static ssize_t lsm330dlc_accel_reactive_alert_store(struct device *dev,
 		}
 		enable_irq(data->client->irq);
 		if (device_may_wakeup(&data->client->dev))
-			enable_irq_wake(data->client->irq);
 		/* Get x, y, z data to set threshold1, threshold2. */
 		err = lsm330dlc_accel_read_xyz(data, &raw_data);
 		accel_dbgmsg("raw x = %d, y = %d, z = %d\n",
@@ -753,7 +752,6 @@ static ssize_t lsm330dlc_accel_reactive_alert_store(struct device *dev,
 			goto err_i2c_write;
 		}
 		if (device_may_wakeup(&data->client->dev))
-			disable_irq_wake(data->client->irq);
 		disable_irq_nosync(data->client->irq);
 		/* return the power state */
 		err = i2c_smbus_write_byte_data(data->client, CTRL_REG1,
