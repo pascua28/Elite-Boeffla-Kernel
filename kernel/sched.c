@@ -253,6 +253,7 @@ static LIST_HEAD(task_groups);
 struct task_group {
 	struct cgroup_subsys_state css;
 
+    bool notify_on_migrate;
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* schedulable entities of this group on each cpu */
 	struct sched_entity **se;
@@ -1595,8 +1596,6 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 
 	return rq->avg_load_per_task;
 }
-
-	bool notify_on_migrate;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
