@@ -371,7 +371,6 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-delete-null-pointer-checks \
 		   -mtune=cortex-a9 \
 		   -mlong-calls
-KBUILD_CFLAGS   += -mfloat-abi=softfp -mfpu=vfpv3
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
