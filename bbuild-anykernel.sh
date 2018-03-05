@@ -110,15 +110,8 @@ step1_make_clean()
 	make clean
 	rm scripts/basic/fixdep
 	rm scripts/genksyms/genksyms
-	rm scripts/genksyms/genksyms.o
-	rm scripts/genksyms/lex.o
-	rm scripts/genksyms/parse.o
-	rm scripts/mod/empty.o
-	rm scripts/mod/file2alias.o
 	rm scripts/mod/mk_elfconfig
 	rm scripts/mod/modpost
-	rm scripts/mod/modpost.o
-	rm scripts/mod/sumversion.o
 	rm scripts/selinux/genheaders/genheaders
 	rm scripts/selinux/mdp/mdp
 	rm scripts/bin2c
