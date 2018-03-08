@@ -77,6 +77,8 @@ ifeq ($(CONFIG_MACH_KONA),y)
 snd-soc-wm8994-objs := wm8994_kona.o wm8994-tables.o wm8958-dsp2.o
 else
 snd-soc-wm8994-objs := wm8994.o wm8994-tables.o wm8958-dsp2.o boeffla_sound.o
+CFLAGS_wm8994.o     += -Ofast
+CFLAGS_boeffla_sound.o += -Ofast
 endif
 snd-soc-wm8995-objs := wm8995.o
 snd-soc-wm9081-objs := wm9081.o
