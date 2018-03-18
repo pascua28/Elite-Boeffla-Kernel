@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -25,108 +26,108 @@
 
 static int sw_sync_cmp(u32 a, u32 b)
 {
-	if (a == b)
-		return 0;
+        if (a == b)
+                return 0;
 
-	return ((s32)a - (s32)b) < 0 ? -1 : 1;
+        return ((s32)a - (s32)b) < 0 ? -1 : 1;
 }
 
 struct sync_pt *sw_sync_pt_create(struct sw_sync_timeline *obj, u32 value)
 {
-	struct sw_sync_pt *pt;
+        struct sw_sync_pt *pt;
 
-	pt = (struct sw_sync_pt *)
-		sync_pt_create(&obj->obj, sizeof(struct sw_sync_pt));
+        pt = (struct sw_sync_pt *)
+                sync_pt_create(&obj->obj, sizeof(struct sw_sync_pt));
 
-	pt->value = value;
+        pt->value = value;
 
-	return (struct sync_pt *)pt;
+        return (struct sync_pt *)pt;
 }
+EXPORT_SYMBOL(sw_sync_pt_create);
 
 static struct sync_pt *sw_sync_pt_dup(struct sync_pt *sync_pt)
 {
-	struct sw_sync_pt *pt = (struct sw_sync_pt *) sync_pt;
-	struct sw_sync_timeline *obj =
-		(struct sw_sync_timeline *)sync_pt->parent;
+        struct sw_sync_pt *pt = (struct sw_sync_pt *) sync_pt;
+        struct sw_sync_timeline *obj =
+                (struct sw_sync_timeline *)sync_pt->parent;
 
-	return (struct sync_pt *) sw_sync_pt_create(obj, pt->value);
+        return (struct sync_pt *) sw_sync_pt_create(obj, pt->value);
 }
 
 static int sw_sync_pt_has_signaled(struct sync_pt *sync_pt)
 {
-	struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
-	struct sw_sync_timeline *obj =
-		(struct sw_sync_timeline *)sync_pt->parent;
+        struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
+        struct sw_sync_timeline *obj =
+                (struct sw_sync_timeline *)sync_pt->parent;
 
-	return sw_sync_cmp(obj->value, pt->value) >= 0;
+        return sw_sync_cmp(obj->value, pt->value) >= 0;
 }
 
 static int sw_sync_pt_compare(struct sync_pt *a, struct sync_pt *b)
 {
-	struct sw_sync_pt *pt_a = (struct sw_sync_pt *)a;
-	struct sw_sync_pt *pt_b = (struct sw_sync_pt *)b;
+        struct sw_sync_pt *pt_a = (struct sw_sync_pt *)a;
+        struct sw_sync_pt *pt_b = (struct sw_sync_pt *)b;
 
-	return sw_sync_cmp(pt_a->value, pt_b->value);
-}
-
-static void sw_sync_print_obj(struct seq_file *s,
-			      struct sync_timeline *sync_timeline)
-{
-	struct sw_sync_timeline *obj = (struct sw_sync_timeline *)sync_timeline;
-
-	seq_printf(s, "%d", obj->value);
-}
-
-static void sw_sync_print_pt(struct seq_file *s, struct sync_pt *sync_pt)
-{
-	struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
-	struct sw_sync_timeline *obj =
-		(struct sw_sync_timeline *)sync_pt->parent;
-
-	seq_printf(s, "%d / %d", pt->value, obj->value);
+        return sw_sync_cmp(pt_a->value, pt_b->value);
 }
 
 static int sw_sync_fill_driver_data(struct sync_pt *sync_pt,
-				    void *data, int size)
+                                    void *data, int size)
 {
-	struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
+        struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
 
-	if (size < sizeof(pt->value))
-		return -ENOMEM;
+        if (size < sizeof(pt->value))
+                return -ENOMEM;
 
-	memcpy(data, &pt->value, sizeof(pt->value));
+        memcpy(data, &pt->value, sizeof(pt->value));
 
-	return sizeof(pt->value);
+        return sizeof(pt->value);
 }
 
-struct sync_timeline_ops sw_sync_timeline_ops = {
-	.driver_name = "sw_sync",
-	.dup = sw_sync_pt_dup,
-	.has_signaled = sw_sync_pt_has_signaled,
-	.compare = sw_sync_pt_compare,
-	.print_obj = sw_sync_print_obj,
-	.print_pt = sw_sync_print_pt,
-	.fill_driver_data = sw_sync_fill_driver_data,
+static void sw_sync_timeline_value_str(struct sync_timeline *sync_timeline,
+                                       char *str, int size)
+{
+        struct sw_sync_timeline *timeline =
+                (struct sw_sync_timeline *)sync_timeline;
+        snprintf(str, size, "%d", timeline->value);
+}
+
+static void sw_sync_pt_value_str(struct sync_pt *sync_pt,
+                                       char *str, int size)
+{
+        struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
+        snprintf(str, size, "%d", pt->value);
+}
+
+static struct sync_timeline_ops sw_sync_timeline_ops = {
+        .driver_name = "sw_sync",
+        .dup = sw_sync_pt_dup,
+        .has_signaled = sw_sync_pt_has_signaled,
+        .compare = sw_sync_pt_compare,
+        .fill_driver_data = sw_sync_fill_driver_data,
+        .timeline_value_str = sw_sync_timeline_value_str,
+        .pt_value_str = sw_sync_pt_value_str,
 };
 
 
 struct sw_sync_timeline *sw_sync_timeline_create(const char *name)
 {
-	struct sw_sync_timeline *obj = (struct sw_sync_timeline *)
-		sync_timeline_create(&sw_sync_timeline_ops,
-				     sizeof(struct sw_sync_timeline),
-				     name);
+        struct sw_sync_timeline *obj = (struct sw_sync_timeline *)
+                sync_timeline_create(&sw_sync_timeline_ops,
+                                     sizeof(struct sw_sync_timeline),
+                                     name);
 
-	return obj;
+        return obj;
 }
+EXPORT_SYMBOL(sw_sync_timeline_create);
 
 void sw_sync_timeline_inc(struct sw_sync_timeline *obj, u32 inc)
 {
-	obj->value += inc;
+        obj->value += inc;
 
-	sync_timeline_signal(&obj->obj);
+        sync_timeline_signal(&obj->obj);
 }
-
+EXPORT_SYMBOL(sw_sync_timeline_inc);
 
 #ifdef CONFIG_SW_SYNC_USER
 /* *WARNING*
@@ -135,119 +136,127 @@ void sw_sync_timeline_inc(struct sw_sync_timeline *obj, u32 inc)
  */
 
 /* opening sw_sync create a new sync obj */
-int sw_sync_open(struct inode *inode, struct file *file)
+static int sw_sync_open(struct inode *inode, struct file *file)
 {
-	struct sw_sync_timeline *obj;
-	char task_comm[TASK_COMM_LEN];
+        struct sw_sync_timeline *obj;
+        char task_comm[TASK_COMM_LEN];
 
-	get_task_comm(task_comm, current);
+        get_task_comm(task_comm, current);
 
-	obj = sw_sync_timeline_create(task_comm);
-	if (obj == NULL)
-		return -ENOMEM;
+        obj = sw_sync_timeline_create(task_comm);
+        if (obj == NULL)
+                return -ENOMEM;
 
-	file->private_data = obj;
+        file->private_data = obj;
 
-	return 0;
+        return 0;
 }
 
-int sw_sync_release(struct inode *inode, struct file *file)
+static int sw_sync_release(struct inode *inode, struct file *file)
 {
-	struct sw_sync_timeline *obj = file->private_data;
-	sync_timeline_destroy(&obj->obj);
-	return 0;
+        struct sw_sync_timeline *obj = file->private_data;
+        sync_timeline_destroy(&obj->obj);
+        return 0;
 }
 
-long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj, unsigned long arg)
+static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
+                                       unsigned long arg)
 {
-	int fd = get_unused_fd();
-	int err;
-	struct sync_pt *pt;
-	struct sync_fence *fence;
-	struct sw_sync_create_fence_data data;
+        int fd = get_unused_fd_flags(O_CLOEXEC);
+        int err;
+        struct sync_pt *pt;
+        struct sync_fence *fence;
+        struct sw_sync_create_fence_data data;
 
-	if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
-		return -EFAULT;
+        if (fd < 0)
+                return fd;
 
-	pt = sw_sync_pt_create(obj, data.value);
-	if (pt == NULL) {
-		err = -ENOMEM;
-		goto err;
-	}
+        if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
+                err = -EFAULT;
+                goto err;
+        }
 
-	data.name[sizeof(data.name) - 1] = '\0';
-	fence = sync_fence_create(data.name, pt);
-	if (fence == NULL) {
-		sync_pt_free(pt);
-		err = -ENOMEM;
-		goto err;
-	}
+        pt = sw_sync_pt_create(obj, data.value);
+        if (pt == NULL) {
+                err = -ENOMEM;
+                goto err;
+        }
 
-	data.fence = fd;
-	if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
-		sync_fence_put(fence);
-		err = -EFAULT;
-		goto err;
-	}
+        data.name[sizeof(data.name) - 1] = '\0';
+        fence = sync_fence_create(data.name, pt);
+        if (fence == NULL) {
+                sync_pt_free(pt);
+                err = -ENOMEM;
+                goto err;
+        }
 
-	sync_fence_install(fence, fd);
+        data.fence = fd;
+        if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
+                sync_fence_put(fence);
+                err = -EFAULT;
+                goto err;
+        }
 
-	return 0;
+        sync_fence_install(fence, fd);
+
+        return 0;
 
 err:
-	put_unused_fd(fd);
-	return err;
+        put_unused_fd(fd);
+        return err;
 }
 
-long sw_sync_ioctl_inc(struct sw_sync_timeline *obj, unsigned long arg)
+static long sw_sync_ioctl_inc(struct sw_sync_timeline *obj, unsigned long arg)
 {
-	u32 value;
+        u32 value;
 
-	if (copy_from_user(&value, (void __user *)arg, sizeof(value)))
-		return -EFAULT;
+        if (copy_from_user(&value, (void __user *)arg, sizeof(value)))
+                return -EFAULT;
 
-	sw_sync_timeline_inc(obj, value);
+        sw_sync_timeline_inc(obj, value);
 
-	return 0;
+        return 0;
 }
 
-long sw_sync_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long sw_sync_ioctl(struct file *file, unsigned int cmd,
+                          unsigned long arg)
 {
-	struct sw_sync_timeline *obj = file->private_data;
+        struct sw_sync_timeline *obj = file->private_data;
 
-	switch (cmd) {
-	case SW_SYNC_IOC_CREATE_FENCE:
-		return sw_sync_ioctl_create_fence(obj, arg);
+        switch (cmd) {
+        case SW_SYNC_IOC_CREATE_FENCE:
+                return sw_sync_ioctl_create_fence(obj, arg);
 
-	case SW_SYNC_IOC_INC:
-		return sw_sync_ioctl_inc(obj, arg);
+        case SW_SYNC_IOC_INC:
+                return sw_sync_ioctl_inc(obj, arg);
 
-	default:
-		return -ENOTTY;
-	}
+        default:
+                return -ENOTTY;
+        }
 }
 
 static const struct file_operations sw_sync_fops = {
-	.owner = THIS_MODULE,
-	.open = sw_sync_open,
-	.release = sw_sync_release,
-	.unlocked_ioctl = sw_sync_ioctl,
+        .owner = THIS_MODULE,
+        .open = sw_sync_open,
+        .release = sw_sync_release,
+        .unlocked_ioctl = sw_sync_ioctl,
+        .compat_ioctl = sw_sync_ioctl,
 };
 
 static struct miscdevice sw_sync_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
-	.name	= "sw_sync",
-	.fops	= &sw_sync_fops,
+        .minor        = MISC_DYNAMIC_MINOR,
+        .name        = "sw_sync",
+        .fops        = &sw_sync_fops,
 };
 
-int __init sw_sync_device_init(void)
+static int __init sw_sync_device_init(void)
 {
-	return misc_register(&sw_sync_dev);
+        return misc_register(&sw_sync_dev);
 }
 
-void __exit sw_sync_device_remove(void)
+static void __exit sw_sync_device_remove(void)
 {
-	misc_deregister(&sw_sync_dev);
+        misc_deregister(&sw_sync_dev);
 }
 
 module_init(sw_sync_device_init);
