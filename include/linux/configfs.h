@@ -42,7 +42,7 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 #define CONFIGFS_ITEM_NAME_LEN	20
 

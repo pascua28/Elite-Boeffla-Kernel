@@ -7,7 +7,7 @@
 #include <linux/nfs_xdr.h>
 #include <linux/sunrpc/xprt.h>
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 struct nfs4_session;
 struct nfs_iostats;

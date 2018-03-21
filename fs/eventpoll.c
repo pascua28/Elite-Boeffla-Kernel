@@ -37,7 +37,7 @@
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/mman.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 /*
  * LOCKING:

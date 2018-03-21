@@ -24,7 +24,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 #define W1_FAMILY_DEFAULT	0
 #define W1_FAMILY_SMEM_01	0x01

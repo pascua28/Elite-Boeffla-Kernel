@@ -11,7 +11,7 @@
 #include <linux/rwsem.h>
 
 #include <asm/system.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 /*
  * lock for reading

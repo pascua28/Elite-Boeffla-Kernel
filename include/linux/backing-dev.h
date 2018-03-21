@@ -16,7 +16,7 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/writeback.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 struct page;
 struct device;

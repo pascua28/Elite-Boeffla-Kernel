@@ -18,7 +18,7 @@
  */
 #include <linux/types.h>
 #include <asm/irq.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 #define HAVE_ARCH_DEVTREE_FIXUPS
 

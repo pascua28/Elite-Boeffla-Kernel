@@ -3,7 +3,7 @@
 
 #include <linux/list.h>
 #include <linux/list_nulls.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 struct ctl_table_header;
 struct nf_conntrack_ecache;
