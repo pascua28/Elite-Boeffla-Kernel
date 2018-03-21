@@ -455,3 +455,7 @@ config DEBUG_VMALLOC
 	  are the PID and the name of the task requesting vmalloc.
 
 	  Disabling these can result in savings in code size.
+
+config FADV_NOACTIVE
+	bool "fadvise noactive option support"
+ 	default n
