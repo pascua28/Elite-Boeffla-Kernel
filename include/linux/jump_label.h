@@ -54,7 +54,7 @@ extern void jump_label_apply_nops(struct module *mod);
 
 #else
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 #define JUMP_LABEL_INIT {ATOMIC_INIT(0)}
 

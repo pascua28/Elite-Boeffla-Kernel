@@ -18,7 +18,7 @@
 #ifndef _ASM_POWERPC_EMULATED_OPS_H
 #define _ASM_POWERPC_EMULATED_OPS_H
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <linux/perf_event.h>
 
 

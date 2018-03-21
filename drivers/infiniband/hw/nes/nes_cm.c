@@ -34,7 +34,7 @@
 
 #define TCPOPT_TIMESTAMP 8
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>

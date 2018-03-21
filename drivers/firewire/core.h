@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 struct device;
 struct fw_card;

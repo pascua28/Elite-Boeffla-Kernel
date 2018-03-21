@@ -14,7 +14,7 @@
 #include <linux/radix-tree.h>
 
 #include <asm/types.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 
 /* Define a way to iterate across irqs. */

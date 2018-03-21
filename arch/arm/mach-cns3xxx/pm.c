@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <mach/system.h>
 #include <mach/cns3xxx.h>
 #include <mach/pm.h>

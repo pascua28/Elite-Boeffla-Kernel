@@ -11,7 +11,7 @@
 #include <linux/uio.h>
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 struct vhost_device;
 

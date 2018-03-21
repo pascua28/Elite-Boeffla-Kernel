@@ -59,7 +59,7 @@
 #include <linux/poll.h>
 #include <linux/flex_array.h> /* used in cgroup_attach_proc */
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 static DEFINE_MUTEX(cgroup_mutex);
 

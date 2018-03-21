@@ -16,7 +16,7 @@
  *		- Add neighbour cache statistics like rtstat
  */
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/rcupdate.h>

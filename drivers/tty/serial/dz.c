@@ -48,7 +48,7 @@
 #include <linux/sysrq.h>
 #include <linux/tty.h>
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/system.h>

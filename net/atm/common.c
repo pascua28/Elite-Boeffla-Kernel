@@ -23,7 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/poll.h>
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 #include "resources.h"		/* atm_find_dev */
 #include "common.h"		/* prototypes */

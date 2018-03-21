@@ -28,8 +28,7 @@
 #include <linux/init.h>
 #include <linux/connector.h>
 #include <linux/gfp.h>
-#include <linux/atomic.h>
-
+#include <asm/atomic.h>
 #include <asm/unaligned.h>
 
 #include <linux/cn_proc.h>

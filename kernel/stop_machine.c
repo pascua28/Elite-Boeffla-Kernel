@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/kallsyms.h>
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 /*
  * Structure to determine completion condition and record errors.  May
