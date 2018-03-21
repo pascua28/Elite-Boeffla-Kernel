@@ -5,7 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/debugfs.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 /*
  * For explanation of the elements of this struct, see

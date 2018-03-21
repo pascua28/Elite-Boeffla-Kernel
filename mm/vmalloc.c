@@ -26,7 +26,7 @@
 #include <linux/rcupdate.h>
 #include <linux/pfn.h>
 #include <linux/kmemleak.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <linux/llist.h>
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>

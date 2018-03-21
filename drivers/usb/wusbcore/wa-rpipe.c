@@ -58,7 +58,7 @@
  *  destination address.
  */
 #include <linux/init.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
 

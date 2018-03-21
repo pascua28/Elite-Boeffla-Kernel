@@ -7,7 +7,7 @@
  * Based on asm-parisc/atomic.h Copyright (C) 2000 Philipp Rumpf
  */
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 
