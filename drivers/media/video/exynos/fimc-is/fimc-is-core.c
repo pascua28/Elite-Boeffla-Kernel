@@ -47,7 +47,9 @@
 #include "fimc-is-err.h"
 
 extern struct class *camera_class;
-struct device *s5k6a3_dev; /*sys/class/camera/front*/
+struct device *front_dev; /*sys/class/camera/front*/
+struct device *rear_dev;  /*sys/class/camera/rear*/
+struct exynos4_platform_fimc_is	*sysfs_pdata;
 
 struct fimc_is_dev *to_fimc_is_dev(struct v4l2_subdev *sdev)
 {
@@ -247,7 +249,8 @@ static irqreturn_t fimc_is_irq_handler1(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static ssize_t s5k6a3_camera_front_camtype_show(struct device *dev,
+#ifdef CONFIG_VIDEO_S5K6A3
+static ssize_t s5k6a3_camera_camtype_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	char type[] = "SLSI_S5K6A3_FIMC_IS";
@@ -255,7 +258,7 @@ static ssize_t s5k6a3_camera_front_camtype_show(struct device *dev,
 	return sprintf(buf, "%s\n", type);
 }
 
-static ssize_t s5k6a3_camera_front_camfw_show(struct device *dev,
+static ssize_t s5k6a3_camera_camfw_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	char type[] = "S5K6A3";
@@ -263,9 +266,83 @@ static ssize_t s5k6a3_camera_front_camfw_show(struct device *dev,
 
 }
 
+#ifdef CONFIG_MACH_WATCH
+static DEVICE_ATTR(rear_camtype, S_IRUGO,
+		s5k6a3_camera_camtype_show, NULL);
+static DEVICE_ATTR(rear_camfw, S_IRUGO, s5k6a3_camera_camfw_show, NULL);
+#else
 static DEVICE_ATTR(front_camtype, S_IRUGO,
-		s5k6a3_camera_front_camtype_show, NULL);
-static DEVICE_ATTR(front_camfw, S_IRUGO, s5k6a3_camera_front_camfw_show, NULL);
+		s5k6a3_camera_camtype_show, NULL);
+static DEVICE_ATTR(front_camfw, S_IRUGO, s5k6a3_camera_camfw_show, NULL);
+#endif
+#endif
+
+#ifdef CONFIG_VIDEO_S5K6B2
+static ssize_t s5k6b2_camera_camtype_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	char type[] = "SLSI_S5K6B2_FIMC_IS";
+
+	return sprintf(buf, "%s\n", type);
+}
+
+static ssize_t s5k6b2_camera_camfw_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	char type[] = "S5K6B2";
+	return sprintf(buf, "%s %s\n", type, type);
+
+}
+
+#ifdef CONFIG_MACH_IPCAM
+static int filter_status = 0;
+static ssize_t s5k6b2_camera_irfilter_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n",filter_status);
+}
+
+ssize_t s5k6b2_camera_irfilter_restore(struct device *dev,
+			struct device_attribute *attr, const char *buf,
+			size_t count)
+{
+	int value = 0;
+	int cnt = 0;
+
+	if (buf == NULL)
+		return -1;
+
+	while (buf[cnt] && buf[cnt] >= '0' && buf[cnt] <= '9') {
+		value = value * 10 + buf[cnt] - '0';
+		++cnt;
+	}
+
+	if (value) {
+		if (sysfs_pdata->filter_on)
+			sysfs_pdata->filter_on();
+		filter_status = 1;
+	} else {
+		if (sysfs_pdata->filter_off)
+			sysfs_pdata->filter_off();
+		filter_status = 0;
+	}
+	printk(KERN_ERR "ir_filter = %d\n", value);
+	return count;
+}
+#endif
+
+#ifdef CONFIG_MACH_IPCAM
+static DEVICE_ATTR(rear_camtype, S_IRUGO,
+		s5k6b2_camera_camtype_show, NULL);
+static DEVICE_ATTR(rear_camfw, S_IRUGO, s5k6b2_camera_camfw_show, NULL);
+static DEVICE_ATTR(rear_irfilter, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH,
+		s5k6b2_camera_irfilter_show, s5k6b2_camera_irfilter_restore);
+#else
+static DEVICE_ATTR(front_camtype, S_IRUGO,
+		s5k6b2_camera_camtype_show, NULL);
+static DEVICE_ATTR(front_camfw, S_IRUGO, s5k6b2_camera_camfw_show, NULL);
+#endif
+#endif
 
 static int fimc_is_probe(struct platform_device *pdev)
 {
@@ -300,6 +377,8 @@ static int fimc_is_probe(struct platform_device *pdev)
 		goto p_err_info;
 	}
 	dev->pdata = pdata;
+	sysfs_pdata = pdata;
+
 	/*
 	 * I/O remap
 	*/
@@ -449,20 +528,59 @@ static int fimc_is_probe(struct platform_device *pdev)
 	dev->fw.state = 0;
 	dev->setfile.state = 0;
 
-	s5k6a3_dev = device_create(camera_class, NULL, 0, NULL, "front");
-	if (IS_ERR(s5k6a3_dev)) {
+#if defined(CONFIG_VIDEO_S5K6A3) || defined(CONFIG_VIDEO_S5K6B2)
+#ifdef CONFIG_MACH_IPCAM
+	rear_dev = device_create(camera_class, NULL, 0, NULL, "rear");
+	if (IS_ERR(rear_dev)) {
 		printk(KERN_ERR "failed to create device!\n");
 	} else {
-		if (device_create_file(s5k6a3_dev, &dev_attr_front_camtype)
+		if (device_create_file(rear_dev, &dev_attr_rear_camtype)
+				< 0) {
+			printk(KERN_ERR "failed to create device file, %s\n",
+				dev_attr_rear_camtype.attr.name);
+		}
+		if (device_create_file(rear_dev, &dev_attr_rear_camfw) < 0) {
+			printk(KERN_ERR "failed to create device file, %s\n",
+				dev_attr_rear_camfw.attr.name);
+		}
+		if (device_create_file(rear_dev, &dev_attr_rear_irfilter) < 0) {
+			printk(KERN_ERR "failed to create device file, %s\n",
+				dev_attr_rear_camfw.attr.name);
+		}
+	}
+#elif defined(CONFIG_MACH_WATCH)
+	rear_dev = device_create(camera_class, NULL, 0, NULL, "rear");
+	if (IS_ERR(rear_dev)) {
+		printk(KERN_ERR "failed to create device!\n");
+	} else {
+		if (device_create_file(rear_dev, &dev_attr_rear_camtype)
+				< 0) {
+			printk(KERN_ERR "failed to create device file, %s\n",
+				dev_attr_rear_camtype.attr.name);
+		}
+		if (device_create_file(rear_dev, &dev_attr_rear_camfw) < 0) {
+			printk(KERN_ERR "failed to create device file, %s\n",
+				dev_attr_rear_camfw.attr.name);
+		}
+	}
+#else
+	front_dev = device_create(camera_class, NULL, 0, NULL, "front");
+	if (IS_ERR(front_dev)) {
+		printk(KERN_ERR "failed to create device!\n");
+	} else {
+		if (device_create_file(front_dev, &dev_attr_front_camtype)
 				< 0) {
 			printk(KERN_ERR "failed to create device file, %s\n",
 				dev_attr_front_camtype.attr.name);
 		}
-		if (device_create_file(s5k6a3_dev, &dev_attr_front_camfw) < 0) {
+		if (device_create_file(front_dev, &dev_attr_front_camfw) < 0) {
 			printk(KERN_ERR "failed to create device file, %s\n",
 				dev_attr_front_camfw.attr.name);
 		}
 	}
+#endif /* CONFIG_MACH_IPCAM */
+#endif
+
 	printk(KERN_INFO "FIMC-IS probe completed\n");
 	return 0;
 
