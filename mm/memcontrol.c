@@ -74,7 +74,6 @@ static int really_do_swap_account __initdata = 0;
 #define do_swap_account		(0)
 #endif
 
-
 /*
  * Statistics for memory cgroup.
  */
@@ -1239,8 +1238,8 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 
 	*scanned = scan;
 
-	trace_mm_vmscan_memcg_isolate(0, nr_to_scan, scan, nr_taken,
-				      0, 0, 0, mode);
+	/*trace_mm_vmscan_memcg_isolate(0, nr_to_scan, scan, nr_taken,
+				      0, 0, 0, mode);*/
 
 	return nr_taken;
 }
@@ -4995,7 +4994,9 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	if (parent)
 		mem->swappiness = mem_cgroup_swappiness(parent);
 	atomic_set(&mem->refcnt, 1);
+
 	mem->move_charge_at_immigrate = 0;
+
 	mutex_init(&mem->thresholds_lock);
 	return &mem->css;
 free_out:
