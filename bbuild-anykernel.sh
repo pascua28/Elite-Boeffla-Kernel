@@ -12,7 +12,7 @@
 
 BOEFFLA_VERSION="Android7.x-smdk4x12"
 
-TOOLCHAIN="/home/$(whoami)/toolchain/bin/arm-linux-gnueabihf-"
+TOOLCHAIN="/home/$(whoami)/toolchain/bin/arm-eabi-"
 ARCHITECTURE=arm
 COMPILER_FLAGS_KERNEL="-mtune=cortex-a9 -fno-diagnostics-show-caret"
 COMPILER_FLAGS_MODULE="-mtune=cortex-a9 -fno-diagnostics-show-caret"
