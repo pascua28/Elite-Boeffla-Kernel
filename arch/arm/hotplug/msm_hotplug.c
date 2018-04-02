@@ -551,7 +551,7 @@ static void __ref msm_hotplug_suspend(void)
 		cpu_up(2);
 
 		if (debug >= 2)
-			dprintk("%s: suspended.\n", MSM_HOTPLUG);
+			printk("%s: suspended.\n", MSM_HOTPLUG);
 	}
 }
 
@@ -570,7 +570,7 @@ static void __ref msm_hotplug_resume(void)
 		required_reschedule = 1;
 		INIT_DELAYED_WORK(&hotplug_work, msm_hotplug_work);
 		if (debug >= 2)
-			dprintk("%s: resumed.\n", MSM_HOTPLUG);
+			printk("%s: resumed.\n", MSM_HOTPLUG);
 	}
 
 	if (required_wakeup) {
