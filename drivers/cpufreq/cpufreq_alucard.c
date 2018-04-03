@@ -87,11 +87,7 @@ static struct alucard_tuners {
 	.inc_cpu_load = ATOMIC_INIT(70),
 	.dec_cpu_load_at_min_freq = ATOMIC_INIT(40),
 	.dec_cpu_load = ATOMIC_INIT(50),
-#ifdef CONFIG_CPU_EXYNOS4210
-	.freq_responsiveness = ATOMIC_INIT(800000),
-#else
 	.freq_responsiveness = ATOMIC_INIT(918000),
-#endif
 	.pump_inc_step = ATOMIC_INIT(1),
 	.pump_dec_step = ATOMIC_INIT(1),
 };
@@ -162,11 +158,7 @@ static void update_sampling_rate(unsigned int new_rate)
 			cancel_delayed_work_sync(&alucard_cpuinfo->work);
 			mutex_lock(&alucard_cpuinfo->timer_mutex);
 
-			#ifdef CONFIG_CPU_EXYNOS4210
-				mod_delayed_work_on(alucard_cpuinfo->cpu, system_wq, &alucard_cpuinfo->work, usecs_to_jiffies(new_rate));
-			#else
-				queue_delayed_work_on(alucard_cpuinfo->cpu, system_wq, &alucard_cpuinfo->work, usecs_to_jiffies(new_rate));
-			#endif
+			queue_delayed_work_on(alucard_cpuinfo->cpu, system_wq, &alucard_cpuinfo->work, usecs_to_jiffies(new_rate));
 		}
 		mutex_unlock(&alucard_cpuinfo->timer_mutex);
 	}
@@ -381,10 +373,8 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 	int pump_dec_step;
 	cputime64_t cur_wall_time, cur_idle_time;
 	unsigned int wall_time, idle_time;
-#ifndef CONFIG_CPU_EXYNOS4210
-	unsigned int index = 0;
-	unsigned int tmp_freq = 0;
-#endif
+    unsigned int index = 0;
+    unsigned int tmp_freq = 0;
 	unsigned int next_freq = 0;
 	int cur_load = -1;
 	unsigned int cpu;
@@ -428,15 +418,6 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 			dec_cpu_load = atomic_read(&alucard_tuners_ins.dec_cpu_load);
 		}		
 		/* Check for frequency increase or for frequency decrease */
-#ifdef CONFIG_CPU_EXYNOS4210
-		if (cur_load >= inc_cpu_load && cpu_policy->cur < max_freq) {
-			next_freq = min(cpu_policy->cur + (pump_inc_step * 100000), max_freq);
-		} else if (cur_load < dec_cpu_load && cpu_policy->cur > min_freq) {
-			next_freq = max(cpu_policy->cur - (pump_dec_step * 100000), min_freq);
-		} else {
-			next_freq = cpu_policy->cur;
-		}
-#else
 		if (cur_load >= inc_cpu_load && cpu_policy->cur < max_freq) {
 			tmp_freq = min(cpu_policy->cur + (pump_inc_step * 108000), max_freq);
 		} else if (cur_load < dec_cpu_load && cpu_policy->cur > min_freq) {
@@ -445,13 +426,9 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 			tmp_freq = cpu_policy->cur;
 		}
 		cpufreq_frequency_table_target(cpu_policy, this_alucard_cpuinfo->freq_table, tmp_freq,
-			CPUFREQ_RELATION_H, &index);
-		if (this_alucard_cpuinfo->freq_table[index].frequency != cpu_policy->cur) {
-			cpufreq_frequency_table_target(cpu_policy, this_alucard_cpuinfo->freq_table, tmp_freq,
-				CPUFREQ_RELATION_L, &index);
-		}
+			CPUFREQ_RELATION_L, &index);
 	 	next_freq = this_alucard_cpuinfo->freq_table[index].frequency;
-#endif
+
 		/*printk(KERN_ERR "FREQ CALC.: CPU[%u], load[%d], target freq[%u], cur freq[%u], min freq[%u], max_freq[%u]\n",cpu, cur_load, next_freq, cpu_policy->cur, cpu_policy->min, max_freq);*/
 		if (next_freq != cpu_policy->cur && cpu_online(cpu)) {
 			__cpufreq_driver_target(cpu_policy, next_freq, CPUFREQ_RELATION_L);
@@ -479,11 +456,7 @@ static void do_alucard_timer(struct work_struct *work)
 		delay -= jiffies % delay;
 	}
 
-#ifdef CONFIG_CPU_EXYNOS4210
-	mod_delayed_work_on(cpu, system_wq, &alucard_cpuinfo->work, delay);
-#else
 	queue_delayed_work_on(cpu, system_wq, &alucard_cpuinfo->work, delay);
-#endif
 	mutex_unlock(&alucard_cpuinfo->timer_mutex);
 }
 
@@ -536,13 +509,8 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 		}
 
 		this_alucard_cpuinfo->enable = 1;
-#ifdef CONFIG_CPU_EXYNOS4210
-		INIT_DEFERRABLE_WORK(&this_alucard_cpuinfo->work, do_alucard_timer);
-		mod_delayed_work_on(this_alucard_cpuinfo->cpu, system_wq, &this_alucard_cpuinfo->work, delay);
-#else
 		INIT_DELAYED_WORK_DEFERRABLE(&this_alucard_cpuinfo->work, do_alucard_timer);
 		queue_delayed_work_on(this_alucard_cpuinfo->cpu, system_wq, &this_alucard_cpuinfo->work, delay);
-#endif
 
 		break;
 
