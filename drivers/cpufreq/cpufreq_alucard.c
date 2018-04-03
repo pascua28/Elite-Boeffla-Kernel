@@ -74,34 +74,41 @@ static DEFINE_MUTEX(alucard_mutex);
 /* alucard tuners */
 static struct alucard_tuners {
 	atomic_t sampling_rate;
-	atomic_t inc_cpu_load_at_min_freq;
-	atomic_t inc_cpu_load;
-	atomic_t dec_cpu_load_at_min_freq;
-	atomic_t dec_cpu_load;
-	atomic_t freq_responsiveness;
-	atomic_t pump_inc_step;
-	atomic_t pump_dec_step;
+	int inc_cpu_load_at_min_freq;
+	int inc_cpu_load;
+	int dec_cpu_load_at_min_freq;
+	int dec_cpu_load;
+	int freq_responsiveness;
+	int pump_inc_step;
+	int pump_dec_step;
 } alucard_tuners_ins = {
 	.sampling_rate = ATOMIC_INIT(60000),
-	.inc_cpu_load_at_min_freq = ATOMIC_INIT(60),
-	.inc_cpu_load = ATOMIC_INIT(70),
-	.dec_cpu_load_at_min_freq = ATOMIC_INIT(40),
-	.dec_cpu_load = ATOMIC_INIT(50),
-	.freq_responsiveness = ATOMIC_INIT(918000),
-	.pump_inc_step = ATOMIC_INIT(1),
-	.pump_dec_step = ATOMIC_INIT(1),
+	.inc_cpu_load_at_min_freq = 60,
+	.inc_cpu_load = 70,
+	.dec_cpu_load_at_min_freq = 40,
+	.dec_cpu_load = 50,
+	.freq_responsiveness = 918000,
+	.pump_inc_step = 1,
+	.pump_dec_step = 1,
 };
 
 /************************** sysfs interface ************************/
 
 /* cpufreq_alucard Governor Tunables */
-#define show_one(file_name, object)					\
+#define show_atomic(file_name, object)					\
 static ssize_t show_##file_name						\
 (struct kobject *kobj, struct attribute *attr, char *buf)		\
 {									\
 	return sprintf(buf, "%d\n", atomic_read(&alucard_tuners_ins.object));		\
 }
-show_one(sampling_rate, sampling_rate);
+show_atomic(sampling_rate, sampling_rate);
+
+#define show_one(file_name, object)					\
+static ssize_t show_##file_name						\
+(struct kobject *kobj, struct attribute *attr, char *buf)		\
+{									\
+	return sprintf(buf, "%d\n", alucard_tuners_ins.object);		\
+}
 show_one(inc_cpu_load_at_min_freq, inc_cpu_load_at_min_freq);
 show_one(inc_cpu_load, inc_cpu_load);
 show_one(dec_cpu_load_at_min_freq, dec_cpu_load_at_min_freq);
@@ -198,12 +205,12 @@ static ssize_t store_inc_cpu_load_at_min_freq(struct kobject *a, struct attribut
 		return -EINVAL;
 	}
 
-	input = min(input,atomic_read(&alucard_tuners_ins.inc_cpu_load));
+	input = min(input,alucard_tuners_ins.inc_cpu_load);
 
-	if (input == atomic_read(&alucard_tuners_ins.inc_cpu_load_at_min_freq))
+	if (input == alucard_tuners_ins.inc_cpu_load_at_min_freq)
 		return count;
 
-	atomic_set(&alucard_tuners_ins.inc_cpu_load_at_min_freq,input);
+	alucard_tuners_ins.inc_cpu_load_at_min_freq = input;
 
 	return count;
 }
@@ -221,10 +228,10 @@ static ssize_t store_inc_cpu_load(struct kobject *a, struct attribute *b,
 
 	input = max(min(input,100),0);
 
-	if (input == atomic_read(&alucard_tuners_ins.inc_cpu_load))
+	if (input == alucard_tuners_ins.inc_cpu_load)
 		return count;
 
-	atomic_set(&alucard_tuners_ins.inc_cpu_load,input);
+	alucard_tuners_ins.inc_cpu_load = input;
 
 	return count;
 }
@@ -241,12 +248,12 @@ static ssize_t store_dec_cpu_load_at_min_freq(struct kobject *a, struct attribut
 		return -EINVAL;
 	}
 
-	input = min(input,atomic_read(&alucard_tuners_ins.dec_cpu_load));
+	input = min(input,alucard_tuners_ins.dec_cpu_load);
 
-	if (input == atomic_read(&alucard_tuners_ins.dec_cpu_load_at_min_freq))
+	if (input == alucard_tuners_ins.dec_cpu_load_at_min_freq)
 		return count;
 
-	atomic_set(&alucard_tuners_ins.dec_cpu_load_at_min_freq,input);
+	alucard_tuners_ins.dec_cpu_load_at_min_freq = input;
 
 	return count;
 }
@@ -264,10 +271,10 @@ static ssize_t store_dec_cpu_load(struct kobject *a, struct attribute *b,
 
 	input = max(min(input,95),5);
 
-	if (input == atomic_read(&alucard_tuners_ins.dec_cpu_load))
+	if (input == alucard_tuners_ins.dec_cpu_load)
 		return count;
 
-	atomic_set(&alucard_tuners_ins.dec_cpu_load,input);
+	alucard_tuners_ins.dec_cpu_load = input;
 
 	return count;
 }
@@ -283,10 +290,10 @@ static ssize_t store_freq_responsiveness(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (input == atomic_read(&alucard_tuners_ins.freq_responsiveness))
+	if (input == alucard_tuners_ins.freq_responsiveness)
 		return count;
 
-	atomic_set(&alucard_tuners_ins.freq_responsiveness,input);
+	alucard_tuners_ins.freq_responsiveness = input;
 
 	return count;
 }
@@ -304,10 +311,10 @@ static ssize_t store_pump_inc_step(struct kobject *a, struct attribute *b,
 
 	input = max(min(input,3),1);
 
-	if (input == atomic_read(&alucard_tuners_ins.pump_inc_step))
+	if (input == alucard_tuners_ins.pump_inc_step)
 		return count;
 
-	atomic_set(&alucard_tuners_ins.pump_inc_step,input);
+	alucard_tuners_ins.pump_inc_step = input;
 
 	return count;
 }
@@ -325,10 +332,10 @@ static ssize_t store_pump_dec_step(struct kobject *a, struct attribute *b,
 
 	input = max(min(input,3),1);
 
-	if (input == atomic_read(&alucard_tuners_ins.pump_dec_step))
+	if (input == alucard_tuners_ins.pump_dec_step)
 		return count;
 
-	atomic_set(&alucard_tuners_ins.pump_dec_step,input);
+	alucard_tuners_ins.pump_dec_step = input;
 
 	return count;
 }
@@ -366,11 +373,11 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 	struct cpufreq_policy *cpu_policy;
 	unsigned int min_freq;
 	unsigned int max_freq;
-	unsigned int freq_responsiveness;
-	int dec_cpu_load;
-	int inc_cpu_load;
-	int pump_inc_step;
-	int pump_dec_step;
+	unsigned int freq_responsiveness = alucard_tuners_ins.freq_responsiveness;
+	int dec_cpu_load = alucard_tuners_ins.dec_cpu_load;
+	int inc_cpu_load = alucard_tuners_ins.inc_cpu_load;
+	int pump_inc_step = alucard_tuners_ins.pump_inc_step;
+	int pump_dec_step = alucard_tuners_ins.pump_dec_step;
 	cputime64_t cur_wall_time, cur_idle_time;
 	unsigned int wall_time, idle_time;
     unsigned int index = 0;
@@ -404,18 +411,10 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 		min_freq = cpu_policy->min;
 		max_freq = cpu_policy->max;
 
-		freq_responsiveness = atomic_read(&alucard_tuners_ins.freq_responsiveness);
-	
-		pump_inc_step = atomic_read(&alucard_tuners_ins.pump_inc_step);
-		pump_dec_step = atomic_read(&alucard_tuners_ins.pump_dec_step);
-
 		/* CPUs Online Scale Frequency*/
 		if (cpu_policy->cur < freq_responsiveness) {
-			inc_cpu_load = atomic_read(&alucard_tuners_ins.inc_cpu_load_at_min_freq);
-			dec_cpu_load = atomic_read(&alucard_tuners_ins.dec_cpu_load_at_min_freq);
-		} else {
-			inc_cpu_load = atomic_read(&alucard_tuners_ins.inc_cpu_load);
-			dec_cpu_load = atomic_read(&alucard_tuners_ins.dec_cpu_load);
+			inc_cpu_load = alucard_tuners_ins.inc_cpu_load_at_min_freq;
+			dec_cpu_load = alucard_tuners_ins.dec_cpu_load_at_min_freq;
 		}		
 		/* Check for frequency increase or for frequency decrease */
 		if (cur_load >= inc_cpu_load && cpu_policy->cur < max_freq) {
@@ -423,7 +422,7 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 		} else if (cur_load < dec_cpu_load && cpu_policy->cur > min_freq) {
 			tmp_freq = max(cpu_policy->cur - (pump_dec_step * 108000), min_freq);
 		} else {
-			tmp_freq = cpu_policy->cur;
+			return;
 		}
 		cpufreq_frequency_table_target(cpu_policy, this_alucard_cpuinfo->freq_table, tmp_freq,
 			CPUFREQ_RELATION_L, &index);
