@@ -158,7 +158,7 @@ static void update_sampling_rate(unsigned int new_rate)
 			cancel_delayed_work_sync(&alucard_cpuinfo->work);
 			mutex_lock(&alucard_cpuinfo->timer_mutex);
 
-			queue_delayed_work_on(alucard_cpuinfo->cpu, system_wq, &alucard_cpuinfo->work, usecs_to_jiffies(new_rate));
+			queue_delayed_work_on(alucard_cpuinfo->cpu, system_power_efficient_wq, &alucard_cpuinfo->work, usecs_to_jiffies(new_rate));
 		}
 		mutex_unlock(&alucard_cpuinfo->timer_mutex);
 	}
@@ -456,7 +456,7 @@ static void do_alucard_timer(struct work_struct *work)
 		delay -= jiffies % delay;
 	}
 
-	queue_delayed_work_on(cpu, system_wq, &alucard_cpuinfo->work, delay);
+	queue_delayed_work_on(cpu, system_power_efficient_wq, &alucard_cpuinfo->work, delay);
 	mutex_unlock(&alucard_cpuinfo->timer_mutex);
 }
 
@@ -510,7 +510,7 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 
 		this_alucard_cpuinfo->enable = 1;
 		INIT_DELAYED_WORK_DEFERRABLE(&this_alucard_cpuinfo->work, do_alucard_timer);
-		queue_delayed_work_on(this_alucard_cpuinfo->cpu, system_wq, &this_alucard_cpuinfo->work, delay);
+		queue_delayed_work_on(this_alucard_cpuinfo->cpu, system_power_efficient_wq, &this_alucard_cpuinfo->work, delay);
 
 		break;
 
