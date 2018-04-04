@@ -673,7 +673,7 @@ static struct notifier_block exynos_cpufreq_notifier = {
 };
 
 #if defined (CONFIG_MSM_HOTPLUG)
-extern unsigned int msm_enabled;
+extern bool msm_enabled;
 #endif
 
 static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
