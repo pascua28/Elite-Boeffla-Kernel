@@ -713,7 +713,7 @@ static int __ref msm_hotplug_start(void)
 	struct down_lock *dl;
 
 	hotplug_wq =
-	    alloc_workqueue("msm_hotplug_wq", WQ_HIGHPRI | WQ_FREEZABLE, 0);
+	    alloc_workqueue("msm_hotplug_wq", WQ_HIGHPRI | WQ_FREEZABLE | WQ_POWER_EFFICIENT, 0);
 	if (!hotplug_wq) {
 		pr_err("%s: Failed to allocate hotplug workqueue\n",
 		       MSM_HOTPLUG);
