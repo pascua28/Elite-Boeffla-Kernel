@@ -16,8 +16,7 @@
 #ifdef __KERNEL__
 #include <linux/mutex.h>
 #include <linux/fb.h>
-#ifdef CONFIG_HAS_WAKELOCK
-#include <linux/wakelock.h>
+#ifdef CONFIG_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 #include <plat/fb-s5p.h>
@@ -237,9 +236,8 @@ struct s3cfb_global {
 	struct sw_sync_timeline *timeline;
 	int			timeline_max;
 	unsigned int		support_fence;
-#ifdef CONFIG_HAS_WAKELOCK
+#ifdef CONFIG_EARLYSUSPEND
 	struct early_suspend	early_suspend;
-	struct wake_lock	idle_lock;
 #endif
 #ifdef FEATURE_BUSFREQ_LOCK
 	atomic_t		busfreq_lock_cnt;	/* Bus frequency Lock count */

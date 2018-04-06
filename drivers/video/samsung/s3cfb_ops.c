@@ -29,7 +29,6 @@
 #endif
 
 #ifdef CONFIG_HAS_WAKELOCK
-#include <linux/wakelock.h>
 #include <linux/earlysuspend.h>
 #include <linux/suspend.h>
 #endif
