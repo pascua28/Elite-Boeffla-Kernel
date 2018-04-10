@@ -1,57 +1,5 @@
 cat << CTAG
 
-{
-
-sections:[
-
-	{
-			name:MIF/INT,
-			elements:[
-				{ SDescription:{
-					description:"MIF or Memory Interface is the direct voltage and frequency used on the C2C bus to the memory chip. INT or internal voltage and frequency are the internal bus and all components connected to it other than the CPU and GPU cores. This encompasses blocks like the camera interfaces, the ISP, the I/O controllers and the MFC (Hardware decoder).
-
-WARNING!!!! Too much undervolting may cause instabilities!"
-				}},
-				{ SSpacer:{
-					height:1
-				}},
-				{ SPane:{
-					title:"INT Voltages"
-				}},
-$(cat /sys/devices/system/cpu/busfreq/int_volt_table | while read FREQ VOLT; do
-	cat << EOF1
-				{ SSeekBar:{
-					title:"$FREQ KHz",
-					max:1300000, min:600000, unit:" uV", step:12500,
-					default:$VOLT,
-					action:"int -v /sys/devices/system/cpu/busfreq/int_volt_table $FREQ"
-				}},
-
-	{ SSpacer:{
-		height:1
-	}},
-
-EOF1
-done)
-
-				{ SPane:{
-					title:"MIF Voltages"
-				}},
-$(cat /sys/devices/system/cpu/busfreq/int_volt_table | while read FREQ VOLT; do
-	cat << EOF2
-				{ SSeekBar:{
-					title:"$FREQ KHz",
-					max:1300000, min:600000, unit:" uV", step:50000,
-					default:$VOLT,
-					action:"mif -v /sys/devices/system/cpu/busfreq/mif_volt_table $FREQ"
-				}}
-EOF2
-done)
-	]
-
-	},
-
-
 	{
 			name:ABB,
 			elements:[
@@ -241,8 +189,5 @@ WARNING!!!! This is a very advanced setting"
 
 		]
 	}
-
-	]
-}
 
 CTAG
