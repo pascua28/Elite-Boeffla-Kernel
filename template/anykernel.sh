@@ -11,9 +11,9 @@ do.devicecheck=1
 do.initd=1
 do.modules=1
 do.cleanup=1
-device.name1=m0
-device.name2=i9300
-device.name3=GT-I9300
+device.name1=###CODENAME###
+device.name2=###DEVICE###
+device.name3=
 device.name4=
 device.name5=
 device.name6=
@@ -28,7 +28,7 @@ device.name14=
 device.name15=
 
 # shell variables
-block=/dev/block/mmcblk0p5;
+block=###BOOT###;
 add_seandroidenforce=0
 supersu_exclusions=""
 is_slot_device=0;

@@ -66,7 +66,6 @@ dump_boot()
 	fi;
 
 	if [ -f $ramdisk/boeffla-anykernel ]; then
-			ui_print "  Installing over existing Boeffla Anykernel...";
 			ui_print " ";
 	fi
 

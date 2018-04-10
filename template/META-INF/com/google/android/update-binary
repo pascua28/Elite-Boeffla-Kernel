@@ -73,9 +73,9 @@ fi;
 chmod -R 755 /tmp/anykernel/tools /tmp/anykernel/bin;
 bb=/tmp/anykernel/tools/busybox;
 
-ui_print "Flashing Optimized Boeffla Kernel";
+ui_print "Hybrid AGNi Kernel";
 ui_print " ";
-ui_print "(c) Lord Boeffla (aka andip71), Oebbler and pascua28";
+ui_print "(c) psndna88, Lord Boeffla (aka andip71) and pascua28";
 ui_print " ";
 
 umount /system;
