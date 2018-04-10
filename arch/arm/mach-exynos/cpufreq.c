@@ -11,6 +11,7 @@
 */
 
 #include <linux/types.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -671,6 +672,10 @@ static struct notifier_block exynos_cpufreq_notifier = {
 	.notifier_call = exynos_cpufreq_notifier_event,
 };
 
+#if defined (CONFIG_MSM_HOTPLUG)
+extern unsigned int msm_enabled;
+#endif
+
 static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
 				unsigned long code, void *data)
 {
@@ -678,9 +683,38 @@ static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
 
 	switch (code) {
 	case CPUFREQ_ADJUST:
-		if ((!strnicmp(policy->governor->name, "powersave", CPUFREQ_NAME_LEN))
-		|| (!strnicmp(policy->governor->name, "performance", CPUFREQ_NAME_LEN))
-		|| (!strnicmp(policy->governor->name, "userspace", CPUFREQ_NAME_LEN))) {
+		/*
+		 * arter97: add intelli_plug hook here;
+		 * if the selected governor has its own hotplugging implemented, disable intelli_plug,
+		 * if not, enable intelli_plug.
+		 */
+		if ((!strnicmp(policy->governor->name, "lulzactiveq",	CPUFREQ_NAME_LEN))
+		 || (!strnicmp(policy->governor->name, "pegasusq",	CPUFREQ_NAME_LEN))
+		 || (!strnicmp(policy->governor->name, "pegasusqplus",	CPUFREQ_NAME_LEN))
+		 || (!strnicmp(policy->governor->name, "performance",	CPUFREQ_NAME_LEN)) /* add performance	governor as an exception */
+		 || (!strnicmp(policy->governor->name, "powersave",	CPUFREQ_NAME_LEN)) /* add powersave	governor as an exception */
+		 || (!strnicmp(policy->governor->name, "userspace",	CPUFREQ_NAME_LEN)) /* add userspace	governor as an exception */
+		 || (!strnicmp(policy->governor->name, "yankasusq",	CPUFREQ_NAME_LEN))
+		 || (!strnicmp(policy->governor->name, "zzmoove",	CPUFREQ_NAME_LEN))
+ 		 || (!strnicmp(policy->governor->name, "pegasusqpluso",	CPUFREQ_NAME_LEN))) {
+
+#if defined (CONFIG_MSM_HOTPLUG)
+			if (msm_enabled) {
+				printk(KERN_DEBUG "disabling msm_hotplug for governor: %s\n",
+								policy->governor->name);
+				msm_enabled = 0;
+			}
+		} else {
+			if (!msm_enabled) {
+				printk(KERN_DEBUG "enabling msm_hotplug for governor: %s\n",
+								policy->governor->name);
+				msm_enabled = 1;
+			}
+		} /* hotplug */
+#endif
+		if ((!strnicmp(policy->governor->name, "powersave",	CPUFREQ_NAME_LEN))
+		 || (!strnicmp(policy->governor->name, "performance",	CPUFREQ_NAME_LEN))
+		 || (!strnicmp(policy->governor->name, "userspace",	CPUFREQ_NAME_LEN))) {
 			printk(KERN_DEBUG "cpufreq governor is changed to %s\n",
 							policy->governor->name);
 			exynos_cpufreq_lock_disable = true;
