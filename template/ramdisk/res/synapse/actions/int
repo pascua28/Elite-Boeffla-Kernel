@@ -1,0 +1,24 @@
+case "$1" in
+	-v) # cpu -v [file] [freq] [value]
+		FILE="$2"
+		TARGET="$3"
+		VALUE="$4"
+
+		if [[ ! -z "$VALUE" ]]; then
+			OUTPUT="$(cat "$FILE" | (while read FREQ VOLT; do
+				if [[ "$FREQ" -eq "$TARGET" ]]; then
+					OUTPUT+=" $VALUE"
+				else
+					OUTPUT+=" $VOLT"
+				fi
+			done
+			echo "$OUTPUT"))"
+			echo "$OUTPUT" > "$FILE"
+		fi
+		cat "$FILE" | while read FREQ VOLT; do
+			if [[ $FREQ -eq "$TARGET" ]]; then
+				echo "$VOLT"
+			fi
+		done
+	;;
+esac
