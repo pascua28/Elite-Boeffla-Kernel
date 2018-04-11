@@ -28,7 +28,9 @@
 #include <mach/regs-mem.h>
 #include <mach/cpufreq.h>
 #include <mach/asv.h>
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
 #include <plat/clock.h>
 #include <plat/pm.h>
 #include <plat/cpu.h>
@@ -820,11 +822,75 @@ static struct cpufreq_driver exynos_driver = {
 #endif
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+struct cpu_freq_info {
+	unsigned int max_freq;
+	unsigned int max_freq2;
+};
+
+static DEFINE_PER_CPU(struct cpu_freq_info, asd);
+
+static unsigned int screenoff_max = UINT_MAX;
+module_param(screenoff_max, uint, 0664);
+
+static void screenoff_freq(bool screenoff)
+{
+	struct cpufreq_policy *policy;
+	struct cpu_freq_info *freq_info;
+	unsigned int cpu;
+
+	if (screenoff_max == UINT_MAX)
+		return;
+
+    if (screenoff) {
+	freq_info = &per_cpu(asd, 0);
+	policy = cpufreq_cpu_get(0);
+	freq_info->max_freq = policy->cpuinfo.max_freq;
+	freq_info->max_freq2 = policy->max;
+        }
+    
+	for_each_present_cpu(cpu) {
+		freq_info = &per_cpu(asd, cpu);
+		policy = cpufreq_cpu_get(0);
+
+		if (screenoff) {
+			policy->max = screenoff_max;
+			policy->cpuinfo.max_freq = screenoff_max;
+		} else {
+			if (cpu > 0) {
+				freq_info = &per_cpu(asd, 0);
+			}
+			policy->cpuinfo.max_freq = freq_info->max_freq;
+			policy->max = freq_info->max_freq2;
+		}
+		cpufreq_update_policy(cpu);
+	}
+}
+
+static void cpu_freq_suspend(struct early_suspend *handler)
+{
+    screenoff_freq(true);
+}
+
+static void cpu_freq_resume(struct early_suspend *handler)
+{
+    screenoff_freq(false);
+}
+
+static struct early_suspend cpu_freq_early_suspend_handler = {
+        .level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 10,
+        .suspend = cpu_freq_suspend,
+        .resume = cpu_freq_resume,
+};
+#endif
+
 static int __init exynos_cpufreq_init(void)
 {
 	int ret = -EINVAL;
 	int i;
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	register_early_suspend(&cpu_freq_early_suspend_handler);
+#endif
 	exynos_info = kzalloc(sizeof(struct exynos_dvfs_info), GFP_KERNEL);
 	if (!exynos_info)
 		return -ENOMEM;
