@@ -849,7 +849,7 @@ static void screenoff_freq(bool screenoff)
 	freq_info->max_freq2 = policy->max;
         }
     
-	for_each_present_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		freq_info = &per_cpu(asd, cpu);
 		policy = cpufreq_cpu_get(0);
 
