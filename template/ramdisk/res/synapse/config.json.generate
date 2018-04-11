@@ -240,7 +240,32 @@ WARNING!!!! This is a very advanced setting"
 	}}
 
 		]
-	}
+	},
+
+	{
+			name:CPU,
+			elements:[
+
+    { SOptionList:{
+        title:"Screen off maximum frequency",
+        default:4294967295,
+        action:"generic /sys/module/cpufreq/parameters/screenoff_max",
+        values: {
+            4294967295:Disabled,
+            1200000:1200MHz,
+            1100000:1100MHz,
+            1000000:1000MHz,        
+            900000:900MHz,
+            800000:800MHz,
+            700000:700MHz,
+            600000:600MHz,
+            500000:500MHz,
+            400000:400MHz,
+                }
+    }}
+
+        ]
+    }
 
 	]
 }
