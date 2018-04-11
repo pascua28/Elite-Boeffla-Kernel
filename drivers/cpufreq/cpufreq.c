@@ -32,6 +32,10 @@
 
 #include <trace/events/power.h>
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_ARCH_EXYNOS4)
 #define CONFIG_DVFS_LIMIT
 #endif
@@ -76,6 +80,18 @@ static DEFINE_SPINLOCK(cpufreq_driver_lock);
  */
 static DEFINE_PER_CPU(int, cpufreq_policy_cpu);
 static DEFINE_PER_CPU(struct rw_semaphore, cpu_policy_rwsem);
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+struct cpu_freq_info {
+	unsigned int max_freq;
+	unsigned int max_freq2;
+};
+
+static DEFINE_PER_CPU(struct cpu_freq_info, asd);
+
+static unsigned int screenoff_max = UINT_MAX;
+module_param(screenoff_max, uint, 0664);
+#endif
 
 #define lock_policy_rwsem(mode, cpu)					\
 static int lock_policy_rwsem_##mode					\
@@ -1862,6 +1878,58 @@ static struct notifier_block __refdata cpufreq_cpu_notifier = {
     .notifier_call = cpufreq_cpu_callback,
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void screenoff_freq(bool screenoff)
+{
+	struct cpufreq_policy *policy;
+	struct cpu_freq_info *freq_info;
+	unsigned int cpu;
+
+	if (screenoff_max == UINT_MAX)
+		return;
+
+    if (screenoff) {
+	freq_info = &per_cpu(asd, 0);
+	policy = cpufreq_cpu_get(0);
+	freq_info->max_freq = policy->cpuinfo.max_freq;
+	freq_info->max_freq2 = policy->max;
+        }
+    
+	for_each_possible_cpu(cpu) {
+		freq_info = &per_cpu(asd, cpu);
+		policy = cpufreq_cpu_get(0);
+
+		if (screenoff) {
+			policy->max = screenoff_max;
+			policy->cpuinfo.max_freq = screenoff_max;
+		} else {
+			if (cpu > 0) {
+				freq_info = &per_cpu(asd, 0);
+			}
+			policy->cpuinfo.max_freq = freq_info->max_freq;
+			policy->max = freq_info->max_freq2;
+		}
+		cpufreq_update_policy(cpu);
+	}
+}
+
+static void cpu_freq_suspend(struct early_suspend *handler)
+{
+    screenoff_freq(true);
+}
+
+static void cpu_freq_resume(struct early_suspend *handler)
+{
+    screenoff_freq(false);
+}
+
+static struct early_suspend cpu_freq_early_suspend_handler = {
+        .level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 10,
+        .suspend = cpu_freq_suspend,
+        .resume = cpu_freq_resume,
+};
+#endif
+
 /*********************************************************************
  *               REGISTER / UNREGISTER CPUFREQ DRIVER                *
  *********************************************************************/
@@ -1880,7 +1948,9 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 {
 	unsigned long flags;
 	int ret;
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	register_early_suspend(&cpu_freq_early_suspend_handler);
+#endif
 	if (!driver_data || !driver_data->verify || !driver_data->init ||
 	    ((!driver_data->setpolicy) && (!driver_data->target)))
 		return -EINVAL;
@@ -1949,7 +2019,9 @@ EXPORT_SYMBOL_GPL(cpufreq_register_driver);
 int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 {
 	unsigned long flags;
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&cpu_freq_early_suspend_handler);
+#endif
 	if (!cpufreq_driver || (driver != cpufreq_driver))
 		return -EINVAL;
 
