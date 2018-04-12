@@ -46,7 +46,6 @@ config DISCONTIGMEM_MANUAL
 
 config SPARSEMEM_MANUAL
 	bool "Sparse Memory"
-	depends on ARCH_SPARSEMEM_ENABLE
 	help
 	  This will be the only option for some systems, including
 	  memory hotplug systems.  This is normal.
