@@ -33,7 +33,7 @@
 #include <linux/delay.h>
 #include <linux/wakelock.h>
 
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 #include <mach/c2c.h>
 #include "modem_prj.h"
 #include "modem_variation.h"
