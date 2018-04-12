@@ -21,7 +21,7 @@
 #include <linux/earlysuspend.h>
 #include <linux/kmod.h>
 
-static bool doze_hlp = true;
+static bool doze_hlp = false;
 static bool restrict_sensors = true;
 
 static char * envp[] = { "HOME=/", NULL };
