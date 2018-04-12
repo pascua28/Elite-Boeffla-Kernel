@@ -88,7 +88,7 @@ static struct alucard_tuners {
 	.dec_cpu_load_at_min_freq = 40,
 	.dec_cpu_load = 50,
 	.freq_responsiveness = 918000,
-	.pump_inc_step = 1,
+	.pump_inc_step = 2,
 	.pump_dec_step = 1,
 };
 
