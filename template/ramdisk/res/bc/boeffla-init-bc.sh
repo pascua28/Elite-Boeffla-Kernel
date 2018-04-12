@@ -201,8 +201,6 @@
 		echo $(date) "SELinux: enforcing" >> $BOEFFLA_LOGFILE
 	fi
 
-    echo "alucard" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-
 # Finished
 	echo $(date) Boeffla-Kernel initialisation completed >> $BOEFFLA_LOGFILE
 	echo $(date) "Loaded startconfig was:" >> $BOEFFLA_LOGFILE
