@@ -15,7 +15,7 @@
 #ifndef __MODEM_VARIATION_H__
 #define __MODEM_VARIATION_H__
 
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 
 #define DECLARE_MODEM_INIT(type)	\
 	int type ## _init_modemctl_device(struct modem_ctl *mc,	\

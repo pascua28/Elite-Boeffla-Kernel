@@ -19,14 +19,12 @@ obj-$(CONFIG_CDMA_MODEM_QSC6085) += modem_modemctl_device_qsc6085.o
 obj-$(CONFIG_TDSCDMA_MODEM_SPRD8803) += modem_modemctl_device_sprd8803.o
 
 obj-$(CONFIG_LINK_DEVICE_MIPI) += modem_link_device_mipi.o
-obj-$(CONFIG_LINK_DEVICE_USB) += modem_link_device_usb.o modem_link_pm_usb.o
-obj-$(CONFIG_LINK_DEVICE_HSIC) += modem_link_device_hsic.o
 obj-$(CONFIG_LINK_DEVICE_DPRAM) += modem_link_device_dpram.o modem_link_device_dpram_ext_op.o
 obj-$(CONFIG_LINK_DEVICE_PLD) += modem_link_device_pld.o modem_link_device_pld_ext_op.o
+obj-$(CONFIG_LINK_DEVICE_USB) += modem_link_device_usb.o modem_link_pm_usb.o
+obj-$(CONFIG_LINK_DEVICE_HSIC) += modem_link_device_hsic.o
 obj-$(CONFIG_LINK_DEVICE_C2C) += modem_link_device_c2c.o
 obj-$(CONFIG_LINK_DEVICE_SPI) += modem_link_device_spi.o
-
-obj-$(CONFIG_BOOT_DEVICE_SPI) += modem_boot_device_spi.o
 
 obj-$(CONFIG_SIM_SLOT_SWITCH)  += modem_sim_slot_switch.o
 

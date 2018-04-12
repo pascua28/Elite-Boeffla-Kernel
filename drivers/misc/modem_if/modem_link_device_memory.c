@@ -29,13 +29,21 @@
 #include <plat/gpio-cfg.h>
 #include <mach/gpio.h>
 
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_link_device_memory.h"
 #ifdef CONFIG_LINK_DEVICE_DPRAM
 #include "modem_link_device_dpram.h"
 #endif
+
+void msq_reset(struct mem_status_queue *msq)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&msq->lock, flags);
+	msq->out = msq->in;
+	spin_unlock_irqrestore(&msq->lock, flags);
+}
 
 /**
  * msq_get_free_slot
@@ -369,12 +377,12 @@ void print_circ_status(struct link_device *ld, int dev, struct mem_status *mst)
 		return;
 
 	ts2utc(&mst->ts, &utc);
-	pr_info("%s: %s: [%02d:%02d:%02d.%06d] "
-		"[%s] %s | TXQ{in:%u out:%u} RXQ{in:%u out:%u}\n",
+	pr_info("%s: %s: [%02d:%02d:%02d.%06d] [%s] %s | "
+		"TXQ{in:%u out:%u} RXQ{in:%u out:%u} | INTR{0x%02X}\n",
 		MIF_TAG, ld->name, utc.hour, utc.min, utc.sec, us,
 		get_dir_str(mst->dir), get_dev_name(dev),
 		mst->head[dev][TX], mst->tail[dev][TX],
-		mst->head[dev][RX], mst->tail[dev][RX]);
+		mst->head[dev][RX], mst->tail[dev][RX], mst->int2ap);
 }
 
 /**

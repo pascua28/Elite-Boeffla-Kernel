@@ -29,7 +29,7 @@
 #include <plat/gpio-cfg.h>
 #include <mach/gpio.h>
 
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_link_device_dpram.h"
