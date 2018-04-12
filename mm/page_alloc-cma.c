@@ -1156,7 +1156,7 @@ static struct page *__rmqueue_cma(struct zone *zone, unsigned int order,
 
 	if (migratetype == MIGRATE_MOVABLE && !zone->cma_alloc)
 		page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
-	if (!page)
+	else
 retry_reserve :
 		page = __rmqueue_smallest(zone, order, migratetype);
 
@@ -5335,7 +5335,6 @@ static int page_alloc_cpu_notify(struct notifier_block *self,
 	int cpu = (unsigned long)hcpu;
 
 	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
-		lru_add_drain_cpu(cpu);
 		drain_pages(cpu);
 
 		/*
@@ -6198,6 +6197,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 		goto done;
 	}
 
+	drain_all_pages();
 	zone->cma_alloc = 1;
 
 migrate:
@@ -6226,23 +6226,22 @@ migrate:
 	 * isolated thus they won't get removed from buddy.
 	 */
 
-	lru_add_drain_all();
-	drain_all_pages();
-
-	order = 0;
 	outer_start = start;
-	while (!PageBuddy(pfn_to_page(outer_start))) {
-		if (++order >= MAX_ORDER) {
-			ret = -EBUSY;
-			goto done;
+	for (order = 0; order < MAX_ORDER; ++order) {
+		unsigned long pfn = start & (~0UL << order);
+		struct page *page = pfn_to_page(pfn);
+
+		if (PageBuddy(page)) {
+			if (page_order(page) >= order)
+				outer_start = pfn;
+			break;
 		}
-		outer_start &= ~0UL << order;
 	}
 
 	/* Make sure the range is really isolated. */
 	if (test_pages_isolated(outer_start, end)) {
-		pr_warn("alloc_contig_range test_pages_isolated(%lx, %lx) failed\n",
-			outer_start, end);
+		printk(KERN_ERR "%s: test_pages_isolated(%lx, %lx) failed\n",
+					__func__, outer_start, end);
 		ret = -EBUSY;
 		goto done;
 	}
@@ -6257,6 +6256,8 @@ migrate:
 	outer_end = isolate_freepages_range(outer_start, end, true);
 	if (!outer_end) {
 		ret = -EBUSY;
+		printk(KERN_ERR "%s : isolate_freepages_range failed %lu\n",
+				 __func__, outer_end);
 		goto done;
 	}
 
@@ -6267,7 +6268,7 @@ migrate:
 		free_contig_range(end, outer_end - end);
 
 done:
-	if ((ret == -EBUSY || ret == -EAGAIN) && retry++ < 10) {
+	if ((ret == -EBUSY || ret == -EAGAIN) && retry++ < 5) {
 		unsigned long count, cf;
 		/* FIXME kmpark: temporaily drop the cma free pages */
 		count = zone_page_state(zone, NR_FREE_CMA_PAGES);
