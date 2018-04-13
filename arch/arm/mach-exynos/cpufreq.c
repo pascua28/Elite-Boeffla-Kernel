@@ -247,6 +247,33 @@ int exynos_cpufreq_get_level(unsigned int freq, unsigned int *level)
 }
 EXPORT_SYMBOL_GPL(exynos_cpufreq_get_level);
 
+int exynos_cpufreq_get_level_ret(unsigned int freq)
+{
+	struct cpufreq_frequency_table *table;
+	unsigned int i;
+
+	if (!exynos_cpufreq_init_done)
+		return -EINVAL;
+
+	table = cpufreq_frequency_get_table(0);
+	if (!table) {
+		pr_err("%s: Failed to get the cpufreq table\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i = exynos_info->max_support_idx;
+		(table[i].frequency != CPUFREQ_TABLE_END); i++) {
+		if (table[i].frequency == freq) {
+			return i;
+		}
+	}
+
+	pr_err("%s: %u KHz is an unsupported cpufreq\n", __func__, freq);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(exynos_cpufreq_get_level_ret);
+
 atomic_t exynos_cpufreq_lock_count;
 
 int exynos_cpufreq_lock(unsigned int nId,
@@ -672,6 +699,10 @@ static struct notifier_block exynos_cpufreq_notifier = {
 	.notifier_call = exynos_cpufreq_notifier_event,
 };
 
+#if defined (CONFIG_INTELLI_PLUG)
+extern unsigned int intelli_plug_active;
+#endif
+
 #if defined (CONFIG_MSM_HOTPLUG)
 extern bool msm_enabled;
 #endif
@@ -697,6 +728,20 @@ static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
 		 || (!strnicmp(policy->governor->name, "yankasusq",	CPUFREQ_NAME_LEN))
 		 || (!strnicmp(policy->governor->name, "zzmoove",	CPUFREQ_NAME_LEN))
  		 || (!strnicmp(policy->governor->name, "pegasusqpluso",	CPUFREQ_NAME_LEN))) {
+#if defined (CONFIG_INTELLI_PLUG)
+			if (intelli_plug_active) {
+				printk(KERN_DEBUG "disabling intelli_plug for governor: %s\n",
+								policy->governor->name);
+				intelli_plug_active = 0;
+			}
+		} else {
+			if (!intelli_plug_active) {
+				printk(KERN_DEBUG "enabling intelli_plug for governor: %s\n",
+								policy->governor->name);
+				intelli_plug_active = 1;
+			}
+		} /* intelli_plug */
+#endif
 
 #if defined (CONFIG_MSM_HOTPLUG)
 			if (msm_enabled) {
