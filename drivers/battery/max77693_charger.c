@@ -490,14 +490,18 @@ void max77693_set_input_current(struct max77693_charger_data *chg_data,
 
 	/* Set input current limit */
 	if (chg_data->soft_reg_state) {
+#ifdef CONFIG_CHARGE_LEVEL
 		charge_info_level = chg_data->soft_reg_current;
+#endif
 		pr_info("%s: now in soft regulation loop: %d\n", __func__,
 						chg_data->soft_reg_current);
 		in_curr = max77693_get_input_current(chg_data);
 		if (in_curr == chg_data->soft_reg_current) {
 			pr_debug("%s: same input current: %dmA\n",
 						__func__, in_curr);
-			charge_info_level = chg_data->soft_reg_current;			
+#ifdef CONFIG_CHARGE_LEVEL
+			charge_info_level = chg_data->soft_reg_current;
+#endif
 			mutex_unlock(&chg_data->ops_lock);
 			return;
 		}
@@ -993,7 +997,7 @@ static int max77693_get_online_type(struct max77693_charger_data *chg_data)
 {
 	int m_typ;
 	int state = 0;
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	m_typ = max77693_get_cable_type(chg_data);
 
@@ -1001,7 +1005,7 @@ static int max77693_get_online_type(struct max77693_charger_data *chg_data)
 		(chg_data->cable_sub_type << ONLINE_TYPE_SUB_SHIFT) |
 		(chg_data->cable_pwr_type << ONLINE_TYPE_PWR_SHIFT));
 
-	pr_info("%s: online(0x%08x)\n", __func__, state);
+	pr_debug("%s: online(0x%08x)\n", __func__, state);
 
 	return state;
 }
@@ -1200,14 +1204,18 @@ static void max77693_reduce_input(struct max77693_charger_data *chg_data,
 	if (chg_data->soft_reg_current < curr) {
 		pr_err("%s: recude curr(%d) is under now curr(%d)\n", __func__,
 					curr, chg_data->soft_reg_current);
-		charge_info_level = chg_data->soft_reg_current;			
+#ifdef CONFIG_CHARGE_LEVEL
+		charge_info_level = chg_data->soft_reg_current;
+#endif
 		return;
 	}
 
 	chg_data->soft_reg_current -= curr;
 	chg_data->soft_reg_current = max(chg_data->soft_reg_current,
 						SW_REG_CURR_MIN_MA);
+#ifdef CONFIG_CHARGE_LEVEL
 	charge_info_level = chg_data->soft_reg_current;
+#endif
 	pr_info("%s: %dmA to %dmA\n", __func__,
 			reg_data * 20, chg_data->soft_reg_current);
 
@@ -1257,7 +1265,9 @@ static void max77693_update_work(struct work_struct *work)
 		vbus_state = max77693_get_vbus_state(chg_data);
 		if (vbus_state == POWER_SUPPLY_VBUS_WEAK) {
 			pr_info("%s: vbus weak\n", __func__);
+//#ifndef CONFIG_BATTERY_MAX77693_CHARGER_SKIP_WAKELOCKS
 			wake_lock(&chg_data->softreg_wake_lock);
+//#endif
 			schedule_delayed_work(&chg_data->softreg_work,
 					msecs_to_jiffies(SW_REG_START_DELAY));
 		} else
@@ -1348,7 +1358,9 @@ static void max77693_softreg_work(struct work_struct *work)
 		cancel_delayed_work(&chg_data->update_work);
 
 		/* schedule softreg wq */
+#ifndef CONFIG_BATTERY_MAX77693_CHARGER_SKIP_WAKELOCKS
 		wake_lock(&chg_data->softreg_wake_lock);
+#endif
 		schedule_delayed_work(&chg_data->softreg_work,
 				msecs_to_jiffies(SW_REG_STEP_DELAY));
 	} else {
@@ -1533,7 +1545,9 @@ static irqreturn_t max77693_bypass_irq(int irq, void *data)
 		pr_err("%s: chgin regulation loop is active\n", __func__);
 		if (chg_data->cable_type != POWER_SUPPLY_TYPE_WIRELESS) {
 			/* software regulation */
+#ifndef CONFIG_BATTERY_MAX77693_CHARGER_SKIP_WAKELOCKS
 			wake_lock(&chg_data->softreg_wake_lock);
+#endif
 			schedule_delayed_work(&chg_data->softreg_work,
 					msecs_to_jiffies(SW_REG_START_DELAY));
 		} else
@@ -1638,7 +1652,9 @@ static irqreturn_t max77693_charger_irq(int irq, void *data)
 		max77693_reduce_input(chg_data, SW_REG_CURR_STEP_MA);
 
 		/* software regulation */
+#ifndef CONFIG_BATTERY_MAX77693_CHARGER_SKIP_WAKELOCKS
 		wake_lock(&chg_data->softreg_wake_lock);
+#endif
 		schedule_delayed_work(&chg_data->softreg_work,
 				msecs_to_jiffies(SW_REG_STEP_DELAY));
 	}
