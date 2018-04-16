@@ -65,7 +65,6 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"CZ", "CZ", 1},
 	{"DE", "DE", 3},
 	{"DK", "DK", 1},
-	{"DZ", "GB", 1},
 	{"EE", "EE", 1},
 	{"ES", "ES", 1},
 	{"FI", "FI", 1},
