@@ -20,7 +20,9 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 #include <linux/mutex.h>
 #include <linux/input.h>
 #include <linux/math64.h>
@@ -591,7 +593,7 @@ static void __ref msm_hotplug_resume(void)
 
 
 // Call early suspend to suspend and resume msm hotplug. pascua28
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
 static void msm_hotplug_early_suspend(struct early_suspend *h)
 {
 	if (msm_enabled) 
@@ -616,6 +618,7 @@ static struct early_suspend msm_hotplug_early_suspend_handler =
 	.suspend = msm_hotplug_early_suspend,
 	.resume = msm_hotplug_late_resume,
 };
+#endif
 
 static void hotplug_input_event(struct input_handle *handle, unsigned int type,
 				unsigned int code, int value)
@@ -1287,7 +1290,9 @@ static int __init msm_hotplug_init(void)
 {
 	int ret;
     
+#ifdef CONFIG_HAS_EARLYSUSPEND
     register_early_suspend(&msm_hotplug_early_suspend_handler);
+#endif
 
 	ret = platform_driver_register(&msm_hotplug_driver);
 	if (ret) {
@@ -1310,7 +1315,10 @@ static void __exit msm_hotplug_exit(void)
 {
 	platform_device_unregister(&msm_hotplug_device);
 	platform_driver_unregister(&msm_hotplug_driver);
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
     unregister_early_suspend(&msm_hotplug_early_suspend_handler);
+#endif
 }
 
 late_initcall(msm_hotplug_init);
