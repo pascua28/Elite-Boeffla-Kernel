@@ -52,7 +52,11 @@ cp -rf template/* ../$DEVICE
 mv ../$DEVICE/$DEVICE/bccontroller.sh ../$DEVICE/ramdisk/res/bc
 
 sed -i "s;###CODENAME###;${CODENAME};" ../$DEVICE/anykernel.sh;
+if [ $DEVICE = "i9300" ]; then
 sed -i "s;###DEVICE###;${DEVICE};" ../$DEVICE/anykernel.sh;
+else
+sed -i "s;###DEVICE###; ;" ../$DEVICE/anykernel.sh;
+fi
 sed -i "s;###BOOT###;${BOOT_DEVICE};" ../$DEVICE/anykernel.sh;
 
 sed -i "s;###SYSTEM###;${SYSTEM_DEVICE};" ../$DEVICE/ramdisk/res/bc/boeffla-init-bc.sh;
