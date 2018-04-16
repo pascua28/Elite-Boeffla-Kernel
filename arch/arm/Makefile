@@ -257,12 +257,7 @@ core-y				+= arch/arm/net/
 core-y				+= $(machdirs) $(platdirs)
 core-y				+= arch/arm/crypto/
 
-ifeq ($(CONFIG_INTELLI_PLUG),y)
-core-$(CONFIG_INTELLI_PLUG)	+= arch/arm/hotplug/
-endif
-ifeq ($(CONFIG_MSM_HOTPLUG),y)
-core-$(CONFIG_MSM_HOTPLUG)	+= arch/arm/hotplug/
-endif
+core-y          	+= arch/arm/hotplug/
 
 drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
 
