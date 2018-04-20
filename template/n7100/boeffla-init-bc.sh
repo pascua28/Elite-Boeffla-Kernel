@@ -13,9 +13,9 @@
 	SD_PATH="/data/media/0"
 
 	# block devices
-	SYSTEM_DEVICE="###SYSTEM###"
-	CACHE_DEVICE="###CACHE###"
-	DATA_DEVICE="###DATA###"
+	SYSTEM_DEVICE="/dev/block/mmcblk0p13"
+	CACHE_DEVICE="/dev/block/mmcblk0p12"
+	DATA_DEVICE="/dev/block/mmcblk0p16"
 
 # define file paths
 	BOEFFLA_DATA_PATH="$SD_PATH/boeffla-kernel-data"
@@ -187,9 +187,6 @@
 	if [ -f $DOZE_DISABLER ]; then
 		dumpsys deviceidle disable
 		echo $(date) "Doze disabled" >> $BOEFFLA_LOGFILE
-	else
-		dumpsys deviceidle enable
-		echo $(date) "Doze enabled" >> $BOEFFLA_LOGFILE
 	fi
 
 # disable SELinux if configured
@@ -197,7 +194,6 @@
 		echo "0" > /sys/fs/selinux/enforce
 		echo $(date) "SELinux: permissive" >> $BOEFFLA_LOGFILE
 	else
-		echo "1" > /sys/fs/selinux/enforce
 		echo $(date) "SELinux: enforcing" >> $BOEFFLA_LOGFILE
 	fi
 
