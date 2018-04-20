@@ -65,20 +65,6 @@
 	
 # Apply Boeffla-Kernel default settings
 
-	# Set AC charging rate default
-	echo "1100" > /sys/kernel/charge_levels/charge_level_ac
-
-	# Ext4 tweaks default to on
-	/sbin/busybox sync
-	/sbin/busybox mount -o remount,commit=20,noatime $CACHE_DEVICE /cache
-	/sbin/busybox sync
-	/sbin/busybox mount -o remount,commit=20,noatime $DATA_DEVICE /data
-	/sbin/busybox sync
-
-	# Sdcard buffer tweaks default to 256 kb
-	echo 256 > /sys/block/mmcblk0/bdi/read_ahead_kb
-	echo 256 > /sys/block/mmcblk1/bdi/read_ahead_kb
-
 	echo $(date) Boeffla-Kernel default settings applied >> $BOEFFLA_LOGFILE
 
 # init.d support (enabler only to be considered for CM based roms)
@@ -132,10 +118,13 @@
 		. $BOEFFLA_STARTCONFIG
 		echo $(date) "Startup configuration applied"  >> $BOEFFLA_LOGFILE
 	else
-		echo "80" > /proc/sys/vm/swappiness
 		echo $(date) "No startup configuration found, enable all default settings"  >> $BOEFFLA_LOGFILE
 	fi
 	
+# Switch to fq_codel on mobile data and wlan
+	tc qdisc add dev rmnet0 root fq_codel
+	tc qdisc add dev wlan0 root fq_codel
+
 # Turn off debugging for certain modules
 	echo 0 > /sys/module/ump/parameters/ump_debug_level
 	echo 0 > /sys/module/mali/parameters/mali_debug_level
