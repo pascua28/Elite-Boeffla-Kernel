@@ -194,6 +194,7 @@
 		echo "0" > /sys/fs/selinux/enforce
 		echo $(date) "SELinux: permissive" >> $BOEFFLA_LOGFILE
 	else
+        echo "1" > /sys/fs/selinux/enforce
 		echo $(date) "SELinux: enforcing" >> $BOEFFLA_LOGFILE
 	fi
 
