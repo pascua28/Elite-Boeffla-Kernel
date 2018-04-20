@@ -132,14 +132,6 @@
 		. $BOEFFLA_STARTCONFIG
 		echo $(date) "Startup configuration applied"  >> $BOEFFLA_LOGFILE
 	else
-		# If not, apply default Boeffla-Kernel zRam
-		# Enable total 400 MB zRam on 1 device as default
-		echo "1" > /sys/block/zram0/reset
-		echo "419430400" > /sys/block/zram0/disksize
-		busybox mkswap /dev/block/zram0
-		busybox swapon -p 2 /dev/block/zram0
-		busybox sleep 0.5s
-		busybox sync
 		echo "80" > /proc/sys/vm/swappiness
 		echo $(date) "No startup configuration found, enable all default settings"  >> $BOEFFLA_LOGFILE
 	fi
