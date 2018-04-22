@@ -22,6 +22,25 @@ obj-$(CONFIG_CPU_FREQ_GOV_ALUCARD)		+= cpufreq_alucard.o
 obj-$(CONFIG_CPU_FREQ_GOV_DARKNESS)		+= cpufreq_darkness.o
 obj-$(CONFIG_CPU_FREQ_GOV_WHEATLEY)	+= cpufreq_wheatley.o
 
+# Compiler optimizations for cpu governor code
+CFLAGS_cpufreq_performance.o += -Ofast
+CFLAGS_cpufreq_powersave.o += -Ofast
+CFLAGS_cpufreq_userspace.o += -Ofast
+CFLAGS_cpufreq_ondemand.o += -Ofast
+CFLAGS_cpufreq_slp.o += -Ofast
+CFLAGS_cpufreq_conservative.o += -Ofast
+CFLAGS_cpufreq_zzmoove.o += -Ofast
+CFLAGS_cpufreq_interactive.o += -Ofast
+CFLAGS_cpufreq_adaptive.o += -Ofast
+CFLAGS_cpufreq_pegasusq.o += -Ofast
+CFLAGS_cpufreq_pegasusqplus.o += -Ofast
+CFLAGS_cpufreq_lulzactiveq.o += -Ofast
+CFLAGS_cpufreq_smartass2.o += -Ofast
+CFLAGS_cpufreq_intelliactive.o += -Ofast
+CFLAGS_cpufreq_alucard.o += -Ofast
+CFLAGS_cpufreq_darkness.o += -Ofast
+CFLAGS_cpufreq_wheatley.o += -Ofast
+
 # CPUfreq cross-arch helpers
 obj-$(CONFIG_CPU_FREQ_TABLE)		+= freq_table.o
 
