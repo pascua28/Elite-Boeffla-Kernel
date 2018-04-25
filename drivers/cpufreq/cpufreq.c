@@ -1898,6 +1898,9 @@ static void screenoff_freq(bool screenoff)
 	for_each_possible_cpu(cpu) {
 		freq_info = &per_cpu(asd, cpu);
 		policy = cpufreq_cpu_get(0);
+        
+        if (!strnicmp(policy->governor->name, "zzmoove", CPUFREQ_NAME_LEN))
+            break;
 
 		if (screenoff) {
 			policy->max = screenoff_max;
