@@ -61,7 +61,13 @@ static int mmc_queue_thread(void *d)
 
 		spin_lock_irq(q->queue_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
-		req = blk_fetch_request(q);
+
+		/* sync operation in case of TLC prod. */
+		if ((mq->card->quirks & MMC_QUIRK_MOVINAND_TLC) && (mq->mqrq_prev->req))
+			req = NULL;
+		else
+			req = blk_fetch_request(q);
+
 		/* set nopacked_period if next request is RT class */
 		if (req && IS_RT_CLASS_REQ(req))
 			mmc_set_nopacked_period(mq, HZ);
@@ -104,7 +110,6 @@ static void mmc_request(struct request_queue *q)
 	struct mmc_queue *mq = q->queuedata;
 	struct request *req;
 	struct io_context *ioc;
-	struct task_struct *tsk = current;
 
 	if (!mq) {
 		while ((req = blk_fetch_request(q)) != NULL) {
@@ -114,7 +119,7 @@ static void mmc_request(struct request_queue *q)
 		return;
 	}
 
-	ioc = get_task_io_context(tsk, GFP_NOWAIT, 0);
+	ioc = get_io_context(GFP_NOWAIT, 0);
 	if (ioc) {
 		/* Set nopacked period if requesting process is RT class */
 		if (IOPRIO_PRIO_CLASS(ioc->ioprio) == IOPRIO_CLASS_RT)
