@@ -86,8 +86,8 @@ static struct darkness_tuners {
 	atomic_t force_freqs_step;
 } darkness_tuners_ins = {
 	.sampling_rate = ATOMIC_INIT(60000),
-	.up_sf_step = ATOMIC_INIT(0),
-	.down_sf_step = ATOMIC_INIT(0),
+	.up_sf_step = ATOMIC_INIT(2),
+	.down_sf_step = ATOMIC_INIT(1),
 	.force_freqs_step = ATOMIC_INIT(0),
 };
 
