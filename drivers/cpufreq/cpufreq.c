@@ -84,7 +84,6 @@ static DEFINE_PER_CPU(struct rw_semaphore, cpu_policy_rwsem);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct cpu_freq_info {
 	unsigned int max_freq;
-	unsigned int max_freq2;
 };
 
 static DEFINE_PER_CPU(struct cpu_freq_info, asd);
@@ -1888,13 +1887,6 @@ static void screenoff_freq(bool screenoff)
 	if (screenoff_max == UINT_MAX)
 		return;
 
-    if (screenoff) {
-	freq_info = &per_cpu(asd, 0);
-	policy = cpufreq_cpu_get(0);
-	freq_info->max_freq = policy->cpuinfo.max_freq;
-	freq_info->max_freq2 = policy->max;
-        }
-    
 	for_each_possible_cpu(cpu) {
 		freq_info = &per_cpu(asd, cpu);
 		policy = cpufreq_cpu_get(0);
@@ -1903,14 +1895,19 @@ static void screenoff_freq(bool screenoff)
             break;
 
 		if (screenoff) {
+			if (cpu == 0) {
+			freq_info->max_freq = policy->max;
+			}
 			policy->max = screenoff_max;
 			policy->cpuinfo.max_freq = screenoff_max;
+			policy->user_policy.max = screenoff_max;
 		} else {
 			if (cpu > 0) {
 				freq_info = &per_cpu(asd, 0);
 			}
 			policy->cpuinfo.max_freq = freq_info->max_freq;
-			policy->max = freq_info->max_freq2;
+			policy->max = freq_info->max_freq;
+			policy->user_policy.max = freq_info->max_freq;
 		}
 		cpufreq_update_policy(cpu);
 	}
