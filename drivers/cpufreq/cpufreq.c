@@ -82,12 +82,7 @@ static DEFINE_PER_CPU(int, cpufreq_policy_cpu);
 static DEFINE_PER_CPU(struct rw_semaphore, cpu_policy_rwsem);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-struct cpu_freq_info {
-	unsigned int max_freq;
-};
-
-static DEFINE_PER_CPU(struct cpu_freq_info, asd);
-
+unsigned int old_max_freq;
 static unsigned int screenoff_max = UINT_MAX;
 module_param(screenoff_max, uint, 0664);
 #endif
@@ -1881,14 +1876,12 @@ static struct notifier_block __refdata cpufreq_cpu_notifier = {
 static void screenoff_freq(bool screenoff)
 {
 	struct cpufreq_policy *policy;
-	struct cpu_freq_info *freq_info;
 	unsigned int cpu;
 
 	if (screenoff_max == UINT_MAX)
 		return;
 
 	for_each_possible_cpu(cpu) {
-		freq_info = &per_cpu(asd, cpu);
 		policy = cpufreq_cpu_get(0);
         
         if (!strnicmp(policy->governor->name, "zzmoove", CPUFREQ_NAME_LEN))
@@ -1896,18 +1889,11 @@ static void screenoff_freq(bool screenoff)
 
 		if (screenoff) {
 			if (cpu == 0) {
-			freq_info->max_freq = policy->max;
+			old_max_freq = policy->max;
 			}
-			policy->max = screenoff_max;
-			policy->cpuinfo.max_freq = screenoff_max;
 			policy->user_policy.max = screenoff_max;
 		} else {
-			if (cpu > 0) {
-				freq_info = &per_cpu(asd, 0);
-			}
-			policy->cpuinfo.max_freq = freq_info->max_freq;
-			policy->max = freq_info->max_freq;
-			policy->user_policy.max = freq_info->max_freq;
+			policy->user_policy.max =old_max_freq;
 		}
 		cpufreq_update_policy(cpu);
 	}
