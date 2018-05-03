@@ -364,26 +364,22 @@ static int rx_demux(struct link_device *ld, struct sk_buff *skb)
 
 #ifdef DEBUG_MODEM_IF
 	snprintf(tag, MIF_MAX_STR_LEN, "LNK: %s->%s", mc->name, iod->name);
-	if (ch >= SIPC5_CH_ID_FMT_0 && ch <= SIPC5_CH_ID_FMT_9)
+	if (unlikely(iod->format == IPC_FMT))
 		pr_ipc(1, tag, skb->data, len);
 #if 0
-	else if (ch >= SIPC5_CH_ID_RFS_0 && ch <= SIPC5_CH_ID_RFS_9)
-		pr_ipc(1, tag, skb->data, len);
-#endif
-#if 0
-	else if (ch >= SIPC5_CH_ID_BOOT_0 && ch <= SIPC5_CH_ID_BOOT_9)
+	if (iod->format == IPC_RAW)
 		pr_ipc(0, tag, skb->data, len);
 #endif
 #if 0
-	else if (ch >= SIPC5_CH_ID_DUMP_0 && ch >=  SIPC5_CH_ID_DUMP_9)
+	if (iod->format == IPC_BOOT)
 		pr_ipc(0, tag, skb->data, len);
 #endif
 #if 0
-	else if (ch >= SIPC_CH_ID_CPLOG1 || ch <= SIPC_CH_ID_CPLOG2)
+	if (iod->format == IPC_RAMDUMP)
 		pr_ipc(0, tag, skb->data, len);
 #endif
 #if 0
-	else if (ch >= SIPC_CH_ID_PDP_0 && ch <= SIPC_CH_ID_PDP_14)
+	if (ch == 28)
 		pr_ipc(0, tag, skb->data, len);
 #endif
 #endif /*DEBUG_MODEM_IF*/
@@ -985,12 +981,12 @@ static int misc_open(struct inode *inode, struct file *filp)
 	struct io_device *iod = to_io_device(filp->private_data);
 	struct modem_shared *msd = iod->msd;
 	struct link_device *ld;
-	int ref_cnt = atomic_read(&iod->opened);
+	int ref_cnt;
 	int ret;
 	filp->private_data = (void *)iod;
 
 	list_for_each_entry(ld, &msd->link_dev_list, list) {
-		if (IS_CONNECTED(iod, ld) && ld->init_comm && ref_cnt == 0) {
+		if (IS_CONNECTED(iod, ld) && ld->init_comm) {
 			ret = ld->init_comm(ld, iod);
 			if (ret < 0) {
 				mif_err("%s<->%s: ERR! init_comm fail(%d)\n",
@@ -1362,33 +1358,17 @@ static ssize_t misc_write(struct file *filp, const char __user *data,
 static ssize_t misc_read(struct file *filp, char *buf, size_t count,
 			loff_t *fpos)
 {
-	struct io_device *iod;
-	struct sk_buff_head *rxq;
+	struct io_device *iod = (struct io_device *)filp->private_data;
+	struct sk_buff_head *rxq = &iod->sk_rx_q;
 	struct sk_buff *skb;
 	int copied = 0;
 
-	if (!filp) {
-		mif_err("ERR! no filp\n");
-		return -EFAULT;
-	}
-
-	iod = (struct io_device *)filp->private_data;
-	if (!iod) {
-		mif_err("ERR! no IO device\n");
-		return -EFAULT;
-	}
-
-	rxq = &iod->sk_rx_q;
-	if (!rxq) {
-		mif_err("%s: ERR! no RXQ\n", iod->name);
-		return -EFAULT;
+	if (skb_queue_empty(rxq)) {
+		mif_info("%s: ERR! no data in rxq\n", iod->name);
+		return 0;
 	}
 
 	skb = skb_dequeue(rxq);
-	if (!skb) {
-		mif_info("%s: ERR! no skb\n", iod->name);
-		return 0;
-	}
 
 	if (iod->format == IPC_FMT) {
 		struct timespec epoch;
