@@ -941,6 +941,52 @@ err_vdd_arm:
 late_initcall(exynos_cpufreq_init);
 
 /* sysfs interface for UV control */
+ssize_t show_UV_uV_table(struct cpufreq_policy *policy, char *buf) {
+	int i, len = 0;
+	if (buf)
+	{
+		for (i = exynos_info->max_support_idx; i<=exynos_info->min_support_idx; i++)
+		{
+			if(exynos_info->freq_table[i].frequency==CPUFREQ_ENTRY_INVALID) continue;
+			len += sprintf(buf + len, "%d %d \n", 
+				exynos_info->freq_table[i].frequency/1000,
+				exynos_info->volt_table[i]);
+		}
+	}
+	return len;
+}
+
+ssize_t store_UV_uV_table(struct cpufreq_policy *policy, 
+				 const char *buf, size_t count) {
+
+	int i, tokens, top_offset, invalid_offset;
+	int t[CPUFREQ_LEVEL_END];
+
+	top_offset = 0;
+	invalid_offset = 0;
+
+	if((tokens = read_into((int*)&t, CPUFREQ_LEVEL_END, buf, count)) < 0)
+		return -EINVAL;
+
+	if(tokens != CPUFREQ_LEVEL_END) {
+		top_offset = CPUFREQ_LEVEL_END - tokens;
+	}
+	
+	for (i = 0 + top_offset; i < CPUFREQ_LEVEL_END; i++) {
+		if (t[i] > CPU_UV_MV_MAX) 
+			t[i] = CPU_UV_MV_MAX;
+		else if (t[i] < CPU_UV_MV_MIN) 
+			t[i] = CPU_UV_MV_MIN;
+
+		while(exynos_info->freq_table[i+invalid_offset].frequency==CPUFREQ_ENTRY_INVALID)
+			++invalid_offset;
+
+		exynos_info->volt_table[i+invalid_offset] = t[i];
+	}
+	
+	return count;
+}		
+
 ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf) {
 
   int i, len = 0;
