@@ -22,13 +22,13 @@ MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS ?= 0
 MALI_UPPER_HALF_SCHEDULING ?= 1
 # MALI_SEC
 # Include the mapping between TARGET_PLATFORM and KDIR + MALI_PLATFORM
-ifeq ($(CONFIG_CPU_EXYNOS4210),y)
-    TARGET_PLATFORM=pegasus-m400
-endif
 ifeq ($(CONFIG_CPU_EXYNOS4212),y)
     TARGET_PLATFORM=pegasus-m400
 endif
 ifeq ($(CONFIG_CPU_EXYNOS4412),y)
+    TARGET_PLATFORM=pegasus-m400
+endif
+ifeq ($(CONFIG_CPU_EXYNOS4210),y)
     TARGET_PLATFORM=pegasus-m400
 endif
 ifeq ($(CONFIG_SOC_EXYNOS3470),y)
@@ -44,7 +44,6 @@ MALI_PLATFORM_FILES = $(subst $(srctree)/$(src)/,,$(wildcard $(srctree)/$(src)/p
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
-$(warning Current directory is $(srctree)/$(src) from $(shell pwd))
 ifeq ($(wildcard $(srctree)/$(src)/linux/license/gpl/*),)
     ccflags-y += -I$(srctree)/$(src)/linux/license/proprietary
     ifeq ($(CONFIG_MALI400_PROFILING),y)
@@ -169,17 +168,7 @@ ccflags-y += -I$(srctree)/$(src)/../ump/include -I$(srctree)/$(src)/include/linu
 # Get subversion revision number, fall back to only ${MALI_RELEASE_NAME} if no svn info is available
 MALI_RELEASE_NAME=$(shell cat $(srctree)/$(src)/.version 2> /dev/null)
 
-SVN_INFO = (cd $(srctree)/$(src); svn info 2>/dev/null)
 
-ifneq ($(shell $(SVN_INFO) 2>/dev/null),)
-# SVN detected
-SVN_REV := $(shell $(SVN_INFO) | grep '^Revision: '| sed -e 's/^Revision: //' 2>/dev/null)
-DRIVER_REV := $(MALI_RELEASE_NAME)-r$(SVN_REV)
-CHANGE_DATE := $(shell $(SVN_INFO) | grep '^Last Changed Date: ' | cut -d: -f2- | cut -b2-)
-CHANGED_REVISION := $(shell $(SVN_INFO) | grep '^Last Changed Rev: ' | cut -d: -f2- | cut -b2-)
-REPO_URL := $(shell $(SVN_INFO) | grep '^URL: ' | cut -d: -f2- | cut -b2-)
-
-else # SVN
 GIT_REV := $(shell cd $(srctree)/$(src); git describe --always 2>/dev/null)
 ifneq ($(GIT_REV),)
 # Git detected
@@ -193,7 +182,6 @@ else # Git
 DRIVER_REV := $(MALI_RELEASE_NAME)
 CHANGE_DATE := $(MALI_RELEASE_NAME)
 CHANGED_REVISION := $(MALI_RELEASE_NAME)
-endif
 endif
 
 ccflags-y += -DSVN_REV_STRING=\"$(DRIVER_REV)\"
