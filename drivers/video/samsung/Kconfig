@@ -384,6 +384,9 @@ config FB_S5P_V2_YPANSTEP
 	  This indicates the number of vertical steps for pan display, 0 means no pan display and
 	  1 means the double size of video buffer will be allocated for default window
 
+config CUSTOM_LOGO
+	bool "CUSTOM_LOGO"
+
 choice
 depends on FB_S5P_V2
 prompt "Select LCD Type"

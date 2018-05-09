@@ -33,6 +33,15 @@
 #include <linux/suspend.h>
 #endif
 
+#ifdef CONFIG_CUSTOM_LOGO
+#ifdef CONFIG_MACH_M0
+#include "logo_i9300.h"
+#endif
+#ifdef CONFIG_MACH_T0_EUR_OPEN
+#include "logo_n7100.h
+#endif
+#endif
+
 #include <mach/sec_debug.h>
 #include <linux/bootmem.h>
 #include "s3cfb.h"
@@ -148,6 +157,10 @@ int s3cfb_draw_logo(struct fb_info *fb)
 		memcpy(fb->screen_base, logo_virt_buf, fb->var.yres * fb->fix.line_length);
 		printk(KERN_INFO "Bootloader sent 'bootloaderfb' : %08X\n", bootloaderfb);
 	}
+
+#ifdef CONFIG_CUSTOM_LOGO
+	memcpy(fb->screen_base, LOGO_RGB24, fb->var.yres *fb->fix.line_length);
+#endif
 
 #endif /* #ifdef RGB_BOOTSCREEN */
 #endif
