@@ -1543,6 +1543,7 @@ static inline u32 wincon(u32 bits_per_pixel, u32 transp_length, u32 red_length)
 }
 #endif
 
+#ifdef CONFIG_BUSFREQ_OPP
 void s3c_fb_set_busfreq(struct s3cfb_global *fbdev, unsigned int num_of_win)
 {
 	if (num_of_win > S3C_FB_MAX_WIN)
@@ -1551,11 +1552,23 @@ void s3c_fb_set_busfreq(struct s3cfb_global *fbdev, unsigned int num_of_win)
 	dev_dbg(fbdev->dev, "%s : nWin=%d, busfreq = %d\n", __func__,
 			num_of_win, fb_busfreq_table[num_of_win]);
 
-#if defined(CONFIG_CPU_EXYNOS4212) || defined(CONFIG_CPU_EXYNOS4412)
-#ifdef CONFIG_BUSFREQ_OPP
 	dev_lock(fbdev->bus_dev, fbdev->dev, fb_busfreq_table[num_of_win]);
+}
+#else
+void s3c_fb_set_busfreq(struct s3cfb_global *fbdev, unsigned int num_of_win) {}
 #endif
-#endif
+
+static void s3c_fd_fence_wait(struct s3cfb_global *fbdev, struct sync_fence *fence)
+{
+       int err = sync_fence_wait(fence, 1000);
+       if (err >= 0)
+               return;
+
+       if (err == -ETIME)
+               err = sync_fence_wait(fence, 10 * MSEC_PER_SEC);
+
+       if (err < 0)
+               dev_warn(fbdev->dev, "error waiting on fence: %d\n", err);
 }
 
 void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
@@ -1564,6 +1577,7 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 	unsigned short i;
 	bool wait_for_vsync;
 	struct s3cfb_window *win;
+	struct sync_fence *old_fence[S3C_FB_MAX_WIN];
 
 #if defined(CONFIG_CPU_EXYNOS4212) || defined(CONFIG_CPU_EXYNOS4412)
 #ifdef CONFIG_BUSFREQ_OPP
@@ -1571,6 +1585,13 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 	unsigned int pre_num_of_win = 0;
 	unsigned int shadow_regs = 0;
 	unsigned int clkval = 0;
+       memset(&old_fence, 0, sizeof(old_fence));
+
+       for (i = 0; i < pdata->nr_wins; i++) {
+               old_fence[i] = regs->fence[i];
+               if (regs->fence[i])
+                       s3c_fd_fence_wait(fbdev, regs->fence[i]);
+       }
 
 	for (i = 0; i < pdata->nr_wins; i++)
 		if (regs->shadowcon & SHADOWCON_CHx_ENABLE(i))
@@ -1640,6 +1661,10 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 		}
 	} while (wait_for_vsync);
 
+               for (i = 0; i < pdata->nr_wins; i++) {
+                       if (old_fence[i])
+                               sync_fence_put(old_fence[i]);
+               }
 		sw_sync_timeline_inc(fbdev->timeline, 1);
 	}
 
@@ -1800,6 +1825,15 @@ static int s3c_fb_set_win_buffer(struct s3cfb_global *fbdev,
 		ret = -EINVAL;
 		goto err_invalid;
 	}
+       if (win_config->fence_fd >= 0) {
+               regs->fence[win_no] = sync_fence_fdget(win_config->fence_fd);
+               if (!regs->fence[win_no]) {
+                       dev_err(fbdev->dev, "failed to import fence fd\n");
+                       ret = -EINVAL;
+                       goto err_invalid;
+               }
+       } else
+               regs->fence[win_no] = NULL;
 
 	window_size = win_config->stride * win_config->h;
 
@@ -1890,21 +1924,9 @@ static int s3c_fb_set_win_buffer(struct s3cfb_global *fbdev,
 			fb->var.transp.length,
 			fb->var.red.length);
 
-	if (win_no) {
-		if ((win_config->plane_alpha > 0) && (win_config->plane_alpha < 0xFF)) {
-			if (fb->var.transp.length) {
-				// we have an alpha channel in the pixel format
-				if (win_config->blending != S3C_FB_BLENDING_NONE)
-					regs->wincon[win_no] |= WINCON1_ALPHA_MUL;
-			} else {
-				regs->wincon[win_no] &= ~(WINCON1_ALPHA_SEL);
-				if (win_config->blending == S3C_FB_BLENDING_PREMULT)
-					win_config->blending = S3C_FB_BLENDING_COVERAGE;
-			}
-		}
+	if (win_no) 
 		regs->blendeq[win_no - 1] = blendeq(win_config->blending,
 				fb->var.transp.length, win_config->plane_alpha);
-	}
 
 	return 0;
 
@@ -1940,11 +1962,14 @@ static int s3c_fb_set_win_config(struct s3cfb_global *fbdev,
 		if (fbdev->support_fence == FENCE_NOT_SUPPORT) {
 			win_data->fence = -1;
 		} else {
-		fbdev->timeline_max++;
-		pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
-		fence = sync_fence_create("display", pt);
-		sync_fence_install(fence, fd);
-		win_data->fence = fd;
+			fbdev->timeline_max++;
+			pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
+			fence = sync_fence_create("display", pt);
+                       if (fence != NULL) {
+                               sync_fence_install(fence, fd);
+                               win_data->fence = fd;
+                       } else
+                               dev_err(fbdev->dev, "creating fence is failed");
 
 			sw_sync_timeline_inc(fbdev->timeline, 1);
 		}
@@ -2005,15 +2030,18 @@ static int s3c_fb_set_win_config(struct s3cfb_global *fbdev,
 			kfree(regs);
 			win_data->fence = -1;
 		} else {
-		fbdev->timeline_max++;
-		pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
-		fence = sync_fence_create("display", pt);
-		sync_fence_install(fence, fd);
-		win_data->fence = fd;
+                       fbdev->timeline_max++;
+                       pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
+                       fence = sync_fence_create("display", pt);
+                       if (fence != NULL) {
+                               sync_fence_install(fence, fd);
+                               win_data->fence = fd;
+                       } else
+                               dev_err(fbdev->dev, "creating fence is failed");
 
-		list_add_tail(&regs->list, &fbdev->update_regs_list);
-		mutex_unlock(&fbdev->update_regs_list_lock);
-		queue_kthread_work(&fbdev->update_regs_worker,
+                       list_add_tail(&regs->list, &fbdev->update_regs_list);
+                       mutex_unlock(&fbdev->update_regs_list_lock);
+                       queue_kthread_work(&fbdev->update_regs_worker,
 					&fbdev->update_regs_work);
 		}
 	}
