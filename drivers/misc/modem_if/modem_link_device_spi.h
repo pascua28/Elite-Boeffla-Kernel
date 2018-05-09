@@ -18,7 +18,7 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 
 
 #define SPI_TIMER_TX_WAIT_TIME 60 /* ms */

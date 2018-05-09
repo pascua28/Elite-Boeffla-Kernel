@@ -112,7 +112,8 @@ enum pageflags {
 #endif
 #ifdef CONFIG_CLEANCACHE
 	PG_was_active,
-#endif
+#endif 
+	PG_readahead,		/* page in a readahead window */
 	__NR_PAGEFLAGS,
 
 	/* Filesystems */
@@ -270,9 +271,9 @@ __PAGEFLAG(SlobFree, slob_free)
 
 __PAGEFLAG(SlubFrozen, slub_frozen)
 
-#ifdef CONFIG_CLEANCACHE
+#ifdef CONFIG_CLEANCACHE 
 PAGEFLAG(WasActive, was_active)
-#endif
+#endif 
 
 /*
  * Private page markings that may be used by the filesystem that owns the page

@@ -26,7 +26,11 @@
 #define DEVICE_CTRL		0x01
 #define EEPROM_START		0xA0
 #define EEPROM_END		0xA7
+#if defined(CONFIG_MACH_KONA)
 #define EPROM_START		0xA0
+#else
+#define EPROM_START		0x98
+#endif
 #define EPROM_END		0xAF
 
 #if defined(CONFIG_MACH_KONA)

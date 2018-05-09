@@ -100,6 +100,7 @@ int sysctl_tcp_thin_dupack __read_mostly;
 
 int sysctl_tcp_moderate_rcvbuf __read_mostly = 1;
 int sysctl_tcp_abc __read_mostly;
+int sysctl_tcp_default_init_rwnd __read_mostly = TCP_DEFAULT_INIT_RCVWND;
 
 #define FLAG_DATA		0x01 /* Incoming frame contained data.		*/
 #define FLAG_WIN_UPDATE		0x02 /* Incoming ACK was a window update.	*/
@@ -347,14 +348,16 @@ static void tcp_fixup_rcvbuf(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	int rcvmem = tp->advmss + MAX_TCP_HEADER + 16 + sizeof(struct sk_buff);
 
-	/* Try to select rcvbuf so that 4 mss-sized segments
-	 * will fit to window and corresponding skbs will fit to our rcvbuf.
-	 * (was 3; 4 is minimum to allow fast retransmit to work.)
+	/* Try to select rcvbuf so that sysctl_tcp_default_init_rwnd mss-sized
+	 * segments will fit to window and corresponding skbs will fit to our
+	 * rcvbuf.
+	 * (was 3; then 4 as then minimum to allow fast retransmit to work.)
 	 */
 	while (tcp_win_from_space(rcvmem) < tp->advmss)
 		rcvmem += 128;
-	if (sk->sk_rcvbuf < 4 * rcvmem)
-		sk->sk_rcvbuf = min(4 * rcvmem, sysctl_tcp_rmem[2]);
+	if (sk->sk_rcvbuf < sysctl_tcp_default_init_rwnd * rcvmem)
+		sk->sk_rcvbuf = min(sysctl_tcp_default_init_rwnd * rcvmem,
+				    sysctl_tcp_rmem[2]);
 }
 
 /* 4. Try to fixup all. It is made immediately after connection enters
@@ -2847,10 +2850,10 @@ static inline void tcp_complete_cwr(struct sock *sk)
 
 	/* Do not moderate cwnd if it's already undone in cwr or recovery. */
 	if (tp->undo_marker) {
-	if (inet_csk(sk)->icsk_ca_state == TCP_CA_CWR)
-	  tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
-	else /* PRR */
-		tp->snd_cwnd = tp->snd_ssthresh;
+		if (inet_csk(sk)->icsk_ca_state == TCP_CA_CWR)
+			tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
+		else /* PRR */
+			tp->snd_cwnd = tp->snd_ssthresh;
 		tp->snd_cwnd_stamp = tcp_time_stamp;
 	}
 	tcp_ca_event(sk, CA_EVENT_COMPLETE_CWR);
@@ -2974,31 +2977,30 @@ EXPORT_SYMBOL(tcp_simple_retransmit);
  * It computes the number of packets to send (sndcnt) based on packets newly
  * delivered:
  *   1) If the packets in flight is larger than ssthresh, PRR spreads the
- *  cwnd reductions across a full RTT.
+ *	cwnd reductions across a full RTT.
  *   2) If packets in flight is lower than ssthresh (such as due to excess
- *  losses and/or application stalls), do not perform any further cwnd
- *  reductions, but instead slow start up to ssthresh.
+ *	losses and/or application stalls), do not perform any further cwnd
+ *	reductions, but instead slow start up to ssthresh.
  */
-
 static void tcp_update_cwnd_in_recovery(struct sock *sk, int newly_acked_sacked,
-          int fast_rexmit, int flag)
+					int fast_rexmit, int flag)
 {
-  struct tcp_sock *tp = tcp_sk(sk);
-  int sndcnt = 0;
-  int delta = tp->snd_ssthresh - tcp_packets_in_flight(tp);
+	struct tcp_sock *tp = tcp_sk(sk);
+	int sndcnt = 0;
+	int delta = tp->snd_ssthresh - tcp_packets_in_flight(tp);
 
-  if (tcp_packets_in_flight(tp) > tp->snd_ssthresh) {
-    u64 dividend = (u64)tp->snd_ssthresh * tp->prr_delivered +
-             tp->prior_cwnd - 1;
-    sndcnt = div_u64(dividend, tp->prior_cwnd) - tp->prr_out;
-  } else {
-    sndcnt = min_t(int, delta,
-             max_t(int, tp->prr_delivered - tp->prr_out,
-             newly_acked_sacked) + 1);
-  }
+	if (tcp_packets_in_flight(tp) > tp->snd_ssthresh) {
+		u64 dividend = (u64)tp->snd_ssthresh * tp->prr_delivered +
+			       tp->prior_cwnd - 1;
+		sndcnt = div_u64(dividend, tp->prior_cwnd) - tp->prr_out;
+	} else {
+		sndcnt = min_t(int, delta,
+			       max_t(int, tp->prr_delivered - tp->prr_out,
+				     newly_acked_sacked) + 1);
+	}
 
-  sndcnt = max(sndcnt, (fast_rexmit ? 1 : 0));
-  tp->snd_cwnd = tcp_packets_in_flight(tp) + sndcnt;
+	sndcnt = max(sndcnt, (fast_rexmit ? 1 : 0));
+	tp->snd_cwnd = tcp_packets_in_flight(tp) + sndcnt;
 }
 
 /* Process an event, which can update packets-in-flight not trivially.
@@ -3013,7 +3015,7 @@ static void tcp_update_cwnd_in_recovery(struct sock *sk, int newly_acked_sacked,
  * tcp_xmit_retransmit_queue().
  */
 static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked,
-          int newly_acked_sacked, int flag)
+				  int newly_acked_sacked, int flag)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -3172,9 +3174,9 @@ static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked,
 
 	if (do_lost || (tcp_is_fack(tp) && tcp_head_timedout(sk)))
 		tcp_update_scoreboard(sk, fast_rexmit);
-		tp->prr_delivered += newly_acked_sacked;
-		tcp_update_cwnd_in_recovery(sk, newly_acked_sacked, fast_rexmit, flag);
-		tcp_xmit_retransmit_queue(sk);
+	tp->prr_delivered += newly_acked_sacked;
+	tcp_update_cwnd_in_recovery(sk, newly_acked_sacked, fast_rexmit, flag);
+	tcp_xmit_retransmit_queue(sk);
 }
 
 static void tcp_valid_rtt_meas(struct sock *sk, u32 seq_rtt)
@@ -3817,7 +3819,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	flag |= tcp_clean_rtx_queue(sk, prior_fackets, prior_snd_una);
 
 	newly_acked_sacked = (prior_packets - prior_sacked) -
-	         (tp->packets_out - tp->sacked_out);
+			     (tp->packets_out - tp->sacked_out);
 
 	if (tp->frto_counter)
 		frto_cwnd = tcp_process_frto(sk, flag);
@@ -3831,7 +3833,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 		    tcp_may_raise_cwnd(sk, flag))
 			tcp_cong_avoid(sk, ack, prior_in_flight);
 		tcp_fastretrans_alert(sk, prior_packets - tp->packets_out,
-					newly_acked_sacked, flag);
+				      newly_acked_sacked, flag);
 	} else {
 		if ((flag & FLAG_DATA_ACKED) && !frto_cwnd)
 			tcp_cong_avoid(sk, ack, prior_in_flight);
@@ -5029,7 +5031,8 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	    /* More than one full frame received... */
-	if (((tp->rcv_nxt - tp->rcv_wup) > inet_csk(sk)->icsk_ack.rcv_mss &&
+	if (((tp->rcv_nxt - tp->rcv_wup) > (inet_csk(sk)->icsk_ack.rcv_mss) *
+					sysctl_tcp_delack_seg &&
 	     /* ... and right edge of window advances far enough.
 	      * (tcp_recvmsg() will send ACK otherwise). Or...
 	      */

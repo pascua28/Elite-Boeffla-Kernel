@@ -275,7 +275,7 @@ void inflate_fast(z_streamp strm, unsigned start)
 			sfrom = (unsigned short *)(from - OFF);
 			loops = len >> 1;
 			do
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && !defined(STATIC)
 			    PUP(sout) = PUP(sfrom);
 #else
 			    PUP(sout) = UP_UNALIGNED(sfrom);

@@ -19,6 +19,9 @@ obj-$(CONFIG_MOUSE_RISCPC)		+= rpcmouse.o
 obj-$(CONFIG_MOUSE_SERIAL)		+= sermouse.o
 obj-$(CONFIG_MOUSE_SYNAPTICS_I2C)	+= synaptics_i2c.o
 obj-$(CONFIG_MOUSE_VSXXXAA)		+= vsxxxaa.o
+# [START] HELIXTECH: KT_SPIDER_FEATURE ====================================
+obj-$(CONFIG_MOUSE_SPIDERMHL)		+= spidermhl.o
+# [END] HELIXTECH: KT_SPIDER_FEATURE ======================================
 
 psmouse-objs := psmouse-base.o synaptics.o
 

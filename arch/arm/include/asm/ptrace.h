@@ -188,6 +188,10 @@ static inline int valid_user_regs(struct pt_regs *regs)
 	return 0;
 }
 
+static inline long regs_return_value(struct pt_regs *regs)
+{
+	return regs->ARM_r0;
+}
 #define instruction_pointer(regs)	(regs)->ARM_pc
 
 #ifdef CONFIG_SMP
@@ -234,6 +238,11 @@ static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {
 	return regs->ARM_sp;
 }
+
+#define current_pt_regs(void) ({				\
+	register unsigned long sp asm ("sp");			\
+	(struct pt_regs *)((sp | (THREAD_SIZE - 1)) - 7) - 1;	\
+})
 
 #endif /* __KERNEL__ */
 

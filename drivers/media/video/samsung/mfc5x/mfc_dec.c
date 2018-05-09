@@ -27,6 +27,10 @@
 #endif
 #include <mach/regs-mfc.h>
 
+#ifdef CONFIG_EXYNOS_MEDIA_MONITOR
+#include <mach/media_monitor.h>
+#endif
+
 #include "mfc_dec.h"
 #include "mfc_cmd.h"
 #include "mfc_log.h"
@@ -1936,6 +1940,10 @@ if (HD_MOVIE_SIZE_MULTIPLY_WIDTH_HEIGHT > (ctx->width * ctx->height)) {
 	INIT_LIST_HEAD(&ctx->presetcfgs);
 
 	mfc_print_buf();
+
+#ifdef CONFIG_EXYNOS_MEDIA_MONITOR
+	mhs_set_status(MHS_DECODING, true);
+#endif
 
 	return MFC_OK;
 

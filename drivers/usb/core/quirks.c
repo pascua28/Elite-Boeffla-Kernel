@@ -173,7 +173,7 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x058b, 0x0041), .driver_info = USB_QUIRK_HSIC_TUNE },
 
 	/* IMC_MAIN - XMM6260, XMM6262 */
-	{ USB_DEVICE(0x1519, 0x0020), .driver_info = USB_QUIRK_HSIC_TUNE },
+	{ USB_DEVICE(0x1519, 0x0020), .driver_info = USB_QUIRK_HSIC_TUNE | USB_QUIRK_NO_DPM_RESUME },
 
 	/* STE_BOOT - M7400 */
 	{ USB_DEVICE(0x04cc, 0x7400), .driver_info = USB_QUIRK_HSIC_TUNE },
@@ -182,11 +182,10 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x04cc, 0x2333), .driver_info = USB_QUIRK_HSIC_TUNE },
 
 	/* Qualcomm MDM9x15 */
-	{ USB_DEVICE(0x05c6, 0x9048),
-		.driver_info = USB_QUIRK_HSIC_TUNE | USB_QUIRK_NO_DPM_RESUME},
+	{ USB_DEVICE(0x05c6, 0x9048), .driver_info = USB_QUIRK_HSIC_TUNE },
 
-	{ USB_DEVICE(0x05c6, 0x904C),
-		.driver_info = USB_QUIRK_HSIC_TUNE | USB_QUIRK_NO_DPM_RESUME},
+	{ USB_DEVICE(0x05c6, 0x904C), .driver_info = USB_QUIRK_HSIC_TUNE },
+
 	{ }  /* terminating entry must be last */
 };
 

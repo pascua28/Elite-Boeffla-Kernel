@@ -34,7 +34,7 @@ ENTRY(v6_early_abort)
  */
 	bic	r1, r1, #1 << 11		@ clear bit 11 of FSR
 	tst	r3, #PSR_J_BIT			@ Java?
-	movne	pc, lr
+	retne	lr
 	do_thumb_abort
 	ldreq	r3, [r2]			@ read aborted ARM instruction
 #ifdef CONFIG_CPU_ENDIAN_BE8
@@ -43,6 +43,6 @@ ENTRY(v6_early_abort)
 	do_ldrd_abort
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
-	mov	pc, lr
+	ret	lr
 
 

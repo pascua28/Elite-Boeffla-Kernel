@@ -1,6 +1,6 @@
 /*
  * Author: andip71, 22.09.2014
- * 
+ *
  * Modifications: Yank555.lu 20.08.2013
  *
  * Version 1.6.7

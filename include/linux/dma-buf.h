@@ -51,16 +51,20 @@ struct dma_buf_attachment;
  *		   pages.
  * @release: release this buffer; to be called after the last dma_buf_put.
  * @begin_cpu_access: [optional] called before cpu access to invalidate cpu
- *		      caches and allocate backing storage (if not yet done)
- *		      respectively pin the objet into memory.
+ * 		      caches and allocate backing storage (if not yet done)
+ * 		      respectively pin the objet into memory.
  * @end_cpu_access: [optional] called after cpu access to flush cashes.
  * @kmap_atomic: maps a page from the buffer into kernel address
- *		 space, users may not block until the subsequent unmap call.
- *		 This callback must not sleep.
+ * 		 space, users may not block until the subsequent unmap call.
+ * 		 This callback must not sleep.
  * @kunmap_atomic: [optional] unmaps a atomically mapped page from the buffer.
- *		   This Callback must not sleep.
+ * 		   This Callback must not sleep.
  * @kmap: maps a page from the buffer into kernel address space.
  * @kunmap: [optional] unmaps a page from the buffer.
+ * @mmap: used to expose the backing storage to userspace. Note that the
+ * 	  mapping needs to be coherent - if the exporter doesn't directly
+ * 	  support this, it needs to fake coherency by shooting down any ptes
+ * 	  when transitioning away from the cpu domain.
  */
 struct dma_buf_ops {
 	int (*attach)(struct dma_buf *, struct device *,
@@ -92,6 +96,8 @@ struct dma_buf_ops {
 	void (*kunmap_atomic)(struct dma_buf *, unsigned long, void *);
 	void *(*kmap)(struct dma_buf *, unsigned long);
 	void (*kunmap)(struct dma_buf *, unsigned long, void *);
+
+	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
 };
 
 /**
@@ -167,6 +173,9 @@ void *dma_buf_kmap_atomic(struct dma_buf *, unsigned long);
 void dma_buf_kunmap_atomic(struct dma_buf *, unsigned long, void *);
 void *dma_buf_kmap(struct dma_buf *, unsigned long);
 void dma_buf_kunmap(struct dma_buf *, unsigned long, void *);
+
+int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
+		 unsigned long);
 #else
 
 static inline struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
@@ -247,6 +256,13 @@ static inline void *dma_buf_kmap(struct dma_buf *dmabuf, unsigned long pnum)
 static inline void dma_buf_kunmap(struct dma_buf *dmabuf,
 				  unsigned long pnum, void *vaddr)
 {
+}
+
+static inline int dma_buf_mmap(struct dma_buf *dmabuf,
+			       struct vm_area_struct *vma,
+			       unsigned long pgoff)
+{
+	return -ENODEV;
 }
 #endif /* CONFIG_DMA_SHARED_BUFFER */
 

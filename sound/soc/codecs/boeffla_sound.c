@@ -1,6 +1,6 @@
 /*
  * Author: andip71, 22.09.2014
- * 
+ *
  * Modifications: Yank555.lu 20.08.2013
  *
  * Version 1.6.7
@@ -21,17 +21,17 @@
  * GNU General Public License for more details.
  *
  */
-       
+
 
 /*
  * Change log:
- * 
+ *
  * 1.6.7 (22.09.2014)
  *   - Improved sysfs input validation
  *
  * 1.6.5 (14.01.2014)
  *   - Allow speaker level minimum of 20
- * 
+ *
  */
 
 #include <sound/soc.h>
@@ -43,6 +43,10 @@
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/gpio.h>
+
+#include <linux/cpu.h>
+#include <linux/cpumask.h>
+#include <mach/cpufreq.h>
 
 #include "wm8994.h"
 
@@ -106,6 +110,17 @@ static unsigned int regcache[REGDUMP_BANKS * REGDUMP_REGISTERS + 1];	// register
 
 static int mic_level;			// internal mic level
 
+// define variables for incall hook
+static void wm8994_incall_hook(void);
+static void incall_boost(struct work_struct *work);
+static DECLARE_WORK(incall_boost_work, incall_boost);
+struct workqueue_struct *incall_boost_queue;
+
+bool is_incall = false;
+static bool prev_incall_state = false;
+static bool bootdone = false;
+
+#define INCALL_BOOST_FREQ 1400000
 
 /*****************************************/
 // Internal function declarations
@@ -150,6 +165,42 @@ static unsigned int get_mic_level(int reg_index, unsigned int val);
 static void reset_boeffla_sound(void);
 
 
+// incall hook by arter97
+static void wm8994_incall_hook(void)
+{
+	// fall-out early when boot is not finished
+	// (a dirty workaround for early kernel-panic)
+	if (!bootdone)
+		return;
+
+	is_incall = check_for_call();
+	if (is_incall != prev_incall_state) {
+		queue_work(incall_boost_queue, &incall_boost_work);
+		prev_incall_state = is_incall;
+	}
+}
+
+static void incall_boost(struct work_struct *work)
+{
+	int cpu;
+
+	if (is_incall) {
+		pr_info("%s: locking cpufreq for incall boost\n", __func__);
+		exynos_cpufreq_lock_free(DVFS_LOCK_ID_INCALL);
+
+		for_each_cpu_not(cpu, cpu_online_mask) {
+			if (cpu == 0)
+				continue;
+			cpu_up(cpu);
+		}
+
+		exynos_cpufreq_lock(DVFS_LOCK_ID_INCALL, exynos_cpufreq_get_level_ret(INCALL_BOOST_FREQ));
+	} else {
+		pr_info("%s: freeing incall cpufreq lock\n", __func__);
+		exynos_cpufreq_lock_free(DVFS_LOCK_ID_INCALL);
+	}
+}
+
 /*****************************************/
 // Boeffla sound hook functions for
 // original wm8994 alsa driver
@@ -187,6 +238,9 @@ unsigned int Boeffla_sound_hook_wm8994_write(unsigned int reg, unsigned int val)
 	bool current_is_call;
 	bool current_is_headphone;
 	bool current_is_fmradio;
+
+	// call incall hook no-matter-what boeffla sound is enabled or not
+	wm8994_incall_hook();
 
 	// Terminate instantly if boeffla sound is not enabled and return
 	// original value back
@@ -496,7 +550,7 @@ bool check_for_dapm(enum snd_soc_dapm_type dapm_type, char* widget_name)
 	struct snd_soc_dapm_widget *w;
 
 	/* Iterate widget list and find power mode of given widget per its name */
-	list_for_each_entry(w, &codec->card->widgets, list) 
+	list_for_each_entry(w, &codec->card->widgets, list)
 	{
 		if (w->dapm != &codec->dapm)
 			continue;
@@ -1180,11 +1234,11 @@ static void set_mono_downmix(void)
 	unsigned int val;
 
 // P4Note has stereo speakers, so also allow mono without headphones attached
-#ifndef CONFIG_MACH_P4NOTE 
+#ifndef CONFIG_MACH_P4NOTE
 	if (!is_call && is_headphone && (mono_downmix == ON))
 #else
 	if (!is_call  && (mono_downmix == ON))
-#endif  
+#endif
 	{
 		if (!is_mono_downmix)
 		{
@@ -1425,6 +1479,8 @@ static ssize_t boeffla_sound_store(struct device *dev, struct device_attribute *
 {
 	unsigned int ret = -EINVAL;
 	int val;
+
+	bootdone = true;
 
 	// read values from input buffer
 	ret = sscanf(buf, "%d", &val);
@@ -2418,6 +2474,9 @@ static int boeffla_sound_init(void)
 
 	// Initialize delayed work for Eq reapplication
 	INIT_DELAYED_WORK_DEFERRABLE(&apply_settings_work, apply_settings);
+
+	// Add incall hook by arter97
+	incall_boost_queue = create_singlethread_workqueue("incall_boost_work");
 
 	// Print debug info
 	printk("Boeffla-sound: engine version %s started\n", BOEFFLA_SOUND_VERSION);

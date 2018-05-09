@@ -327,6 +327,8 @@ static inline int is_vmalloc_or_module_addr(const void *x)
 }
 #endif
 
+extern void kvfree(const void *addr);
+
 static inline void compound_lock(struct page *page)
 {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -966,7 +968,7 @@ extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
 extern void truncate_setsize(struct inode *inode, loff_t newsize);
 extern int vmtruncate(struct inode *inode, loff_t offset);
 extern int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end);
-
+void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
 int truncate_inode_page(struct address_space *mapping, struct page *page);
 int generic_error_remove_page(struct address_space *mapping, struct page *page);
 
@@ -1100,14 +1102,50 @@ static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
 	atomic_long_add(value, &mm->rss_stat.count[member]);
 }
 
+#ifdef CONFIG_LOWMEM_CHECK
+#ifdef CONFIG_HIGHMEM
+static inline int is_lowmem_page(struct page *page)
+{
+	if (page_zonenum(page) == ZONE_HIGHMEM)
+		return 0;
+	return 1;
+}
+#else
+static inline int is_lowmem_page(struct page *page)
+{
+	return 1;
+}
+#endif
+#endif
+
+#ifdef CONFIG_LOWMEM_CHECK
+static inline void inc_mm_counter(struct mm_struct *mm, int member, struct page *page)
+#else
 static inline void inc_mm_counter(struct mm_struct *mm, int member)
+#endif
 {
 	atomic_long_inc(&mm->rss_stat.count[member]);
+#ifdef CONFIG_LOWMEM_CHECK
+	if (is_lowmem_page(page)) {
+		member += LOWMEM_COUNTER;
+		atomic_long_inc(&mm->rss_stat.count[member]);
+	}
+#endif
 }
 
+#ifdef CONFIG_LOWMEM_CHECK
+static inline void dec_mm_counter(struct mm_struct *mm, int member, struct page *page)
+#else
 static inline void dec_mm_counter(struct mm_struct *mm, int member)
+#endif
 {
 	atomic_long_dec(&mm->rss_stat.count[member]);
+#ifdef CONFIG_LOWMEM_CHECK
+	if (is_lowmem_page(page)) {
+		member += LOWMEM_COUNTER;
+		atomic_long_dec(&mm->rss_stat.count[member]);
+	}
+#endif
 }
 
 static inline unsigned long get_mm_rss(struct mm_struct *mm)
@@ -1186,6 +1224,7 @@ struct shrink_control {
 struct shrinker {
 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
 	int seeks;	/* seeks to recreate an obj */
+	long batch;	/* reclaim batch size, 0 = default */
 
 	/* These are for internal use */
 	struct list_head list;
@@ -1400,6 +1439,8 @@ extern void setup_per_cpu_pageset(void);
 
 extern void zone_pcp_update(struct zone *zone);
 
+extern int extra_free_kbytes;
+
 /* nommu.c */
 extern atomic_long_t mmap_pages_allocated;
 extern int nommu_shrink_inode_mappings(struct inode *, size_t, size_t);
@@ -1495,7 +1536,7 @@ int write_one_page(struct page *page, int wait);
 void task_dirty_inc(struct task_struct *tsk);
 
 /* readahead.c */
-#define VM_MAX_READAHEAD	128	/* kbytes */
+#define VM_MAX_READAHEAD	256	/* kbytes */
 #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
 
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
@@ -1569,8 +1610,8 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn);
 int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn);
-int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
-
+int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start,
+			unsigned long len);
 
 struct page *follow_page(struct vm_area_struct *, unsigned long address,
 			unsigned int foll_flags);

@@ -388,5 +388,11 @@ config SND_SOC_WM2000
 config SND_SOC_WM9090
 	tristate
 
+config SND_BOEFFLA
+  bool "Boeffla Sound Engine (AndiP71)"
+  default y
+  help
+    Include the Boeffla Sound Engine by AndiP71
+
 source "sound/soc/codecs/mc1n2/Kconfig"
 source "sound/soc/codecs/ymu831/Kconfig"

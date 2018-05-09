@@ -126,16 +126,46 @@ static u32 hw_rev;
 static u8 inform_data_rev6[] = {0,
 	7, 0, 48, 255,
 	7, 1, 11, 255,
+#if 1	//20140325 add TA callback config by tei for debug
+	8, 0, 180, 40,
+	9, 6, 112, 110,
+	9, 7, 65, 70,
+	9, 8, 1, 2,
+#endif	//20140325 add TA callback config by tei for debug
 	47, 1, 35, 40,
 	55, 0, 1, 0,
 	55, 1, 25, 11,
 	55, 2, 7, 3,
+#if 1	//20140325 add TA callback config by tei for debug
+	56, 3, 55, 38,
+#endif	//20140325 add TA callback config by tei for debug
 	56, 36, 0, 3,
 	62, 1, 0, 1,
+#if 1	//20140325 add TA callback config by tei for debug
+	62, 3, 23, 22,
+	62, 5, 0, 15,
+	62, 7, 0, 25,
+	62, 8, 25, 5,
+#endif	//20140325 add TA callback config by tei for debug
+#if 0	//20140325 add TA callback config by tei for debug
 	62, 10, 5, 21,
 	62, 12, 5, 21,
+#else   //20140325 add TA callback config by tei for debug
+	62, 10, 5, 1,
+	62, 12, 5, 1,
+#endif  //20140325 add TA callback config by tei for debug
+#if 0	//20140325 add TA callback config by tei for debug
 	62, 19, 130, 62,
+#else   //20140325 add TA callback config by tei for debug
+	62, 19, 130, 120,
+#endif	//20140325 add TA callback config by tei for debug
 	62, 20, 12, 20,
+#if 0	//20140307 add TA callback config by tei for debug
+	62, 43, 20, 3,
+	62, 44, 15, 3,
+	62, 47, 0, 50,
+	62, 48, 0, 20,
+#endif	//20140307 add TA callback config by tei for debug
 };
 
 static u8 inform_data_rev5[] = {0,
@@ -155,7 +185,9 @@ static u8 inform_data_rev5[] = {0,
 };
 
 /* Added for the LTE model */
+#if defined(CONFIG_TARGET_LOCALE_USA)
 static u8 inform_data_rev9[] = {0,
+	7, 0, 48, 255,
 	7, 1, 11, 255,
 	46, 3, 16, 24,
 	47, 1, 35, 45,
@@ -174,8 +206,73 @@ static u8 inform_data_rev9[] = {0,
 	62, 19, 136, 100,
 	62, 21, 35, 45,
 	62, 25, 16, 24,
-	62, 26, 16, 24,
 };
+#else // N8020 (Note10 LTE)
+static u8 inform_data_rev9[] = {0,
+	7, 0, 48, 255,
+	7, 1, 11, 255,
+#if 1 //20140509 add #if 1 by tei
+	8, 0, 1, 40,
+	40, 0, 17, 0,
+	9, 6, 116, 110,
+	9, 8, 1, 2,
+	9, 22, 5, 0,
+	9, 23, 0, 0,
+	9, 24, 5, 0,
+	9, 25, 5, 0,
+	9, 30, 32, 40,
+	9, 34, 0, 1,
+#endif //20140509 add #if 1 by tei
+#if 0 //20140509 add #if 1 by tei
+	46, 3, 16, 24,
+#else //20140509 add #if 1 by tei
+	46, 3, 16, 28,
+#endif //20140509 add #if 1 by tei
+	47, 1, 35, 45,
+#if 0	//20140509 add #if 1 by tei
+	47, 9, 16, 24,
+#else   //20140509 add #if 1 by tei
+	47, 9, 16, 28,
+#endif  //20140509 add #if 1 by tei
+	55, 0, 1, 0,
+	55, 1, 25, 11,
+	55, 2, 7, 3,
+	56, 3, 45, 40,
+	56, 36, 0, 3,
+
+#if 0	//20140509 add #if 1 by tei
+	62, 3, 0, 23,
+	62, 7, 90, 18,
+	62, 8, 1, 8,
+	62, 10, 0, 8,
+	62, 12, 0, 8,
+#else   //20140509 add #if 1 by tei
+	62, 3, 0, 0,
+	62, 7, 90, 9,
+	62, 8, 1, 15,
+	62, 10, 0, 0,
+	62, 12, 0, 0,
+#endif  //20140509 add #if 1 by tei
+	62, 13, 1, 1,
+#if 1 //20140509 add #if 1 by tei
+	62, 14, 2, 5,
+#endif //20140509 add #if 1 by tei
+#if 0	//20140509 add #if 1 by tei
+	62, 19, 136, 100,
+	62, 21, 35, 45,
+#else  //20140509 add #if 1 by tei
+	62, 19, 136, 110,
+	62, 20, 12, 20,
+	62, 21, 35, 50,
+#endif //20140509 add #if 1 by tei
+	62, 25, 16, 24,
+	62, 26, 16, 24,
+#if 1 //20140509 add #if 1 by tei
+	62, 43, 10, 3,
+	62, 44, 0, 3,
+#endif //20140509 add #if 1 by tei
+};
+#endif
 
 static u8 inform_data[] = {0,
 	7, 0, 48, 255,
@@ -343,9 +440,11 @@ static int ts_power_reset(void)
 /*
 	Configuration for MXT1664-S
 */
-#define MXT1664S_CONFIG_DATE		"N80XX_ATM_0703"
-#if defined(CONFIG_MACH_P4NOTELTE_USA_VZW)
+#define MXT1664S_CONFIG_DATE		"N80XX_ATM_KK_0421"
+#if defined(CONFIG_TARGET_LOCALE_USA)
 #define MXT1664S_CONFIG_DATE_FOR_OVER_HW9	"I925_ATM_1121"
+#else
+#define MXT1664S_CONFIG_DATE_FOR_OVER_HW9	"N80XX_LTE_ATM_KK_0513"
 #endif
 
 #define MXT1664S_MAX_MT_FINGERS	10
@@ -364,10 +463,10 @@ static u8 t8_config_s[] = { GEN_ACQUISITIONCONFIG_T8,
 };
 
 static u8 t9_config_s[] = { TOUCH_MULTITOUCHSCREEN_T9,
-	0x83, 0, 0, P4_NOTE_X_NUM, P4_NOTE_Y_NUM,
+	0x8B, 0, 0, P4_NOTE_X_NUM, P4_NOTE_Y_NUM,
 	0, MXT1664S_BLEN_BATT, MXT1664S_THRESHOLD_BATT, 1, 1,
 	10, 15, 1, 65, MXT1664S_MAX_MT_FINGERS, 20, 30, 20, 255, 15,
-	255, 15, 5, 246, 5, 5, 0, 0, 0, 0,
+	255, 15, 5, /*246 //20140408 246->5*/5, 5, 5, 0, 0, 0, 0,
 	32, 20, 51, 53, 0, 1
 };
 
@@ -398,7 +497,7 @@ static u8 t27_config_s[] = {
 };
 
 static u8 t40_config_s[] = { PROCI_GRIPSUPPRESSION_T40,
-	0x11, 3, 55, 0, 0
+	0x11, 3, /*55  //20140408 55->3*/3, 0, 0
 };
 
 static u8 t42_config_s[] = { PROCI_TOUCHSUPPRESSION_T42,
@@ -551,11 +650,19 @@ static void switch_config(u32 rev)
 		t7_config_s[1] = 48;
 		t7_config_s[2] = 11;
 
+#if defined(CONFIG_TARGET_LOCALE_USA)
 		t8_config_s[1] = 1;
+#else // N8020 (Note10 LTE)
+		t8_config_s[1] = 40;
+#endif
 
+		t9_config_s[7] = 116;
 		t9_config_s[8] = 55;
+		t9_config_s[14] = 50;
+		t9_config_s[24] = 0;
 		t9_config_s[27] = 64;
 
+		t40_config_s[3] = 15;
 		t40_config_s[4] = 2;
 		t40_config_s[5] = 2;
 
@@ -589,17 +696,15 @@ static void switch_config(u32 rev)
 		t62_config_s[14] = 1;
 		t62_config_s[20] = 136;
 		t62_config_s[22] = 35;
-#if defined(CONFIG_MACH_P4NOTELTE_USA_VZW)
+#if defined(CONFIG_TARGET_LOCALE_USA)
 		t62_config_s[23] = 48;
 		t62_config_s[26] = 24;
 		t62_config_s[27] = 24;
 #endif
 		t62_config_s[35] = 80;
-		t62_config_s[36] = 50;
+		t62_config_s[36] = 40;
 		t62_config_s[38] = 5;
-#if defined(CONFIG_MACH_P4NOTELTE_USA_VZW)
 		t62_config_s[40] = 50;
-#endif
 		t62_config_s[42] = 30;
 		t62_config_s[43] = 40;
 		t62_config_s[44] = 10;
@@ -607,11 +712,10 @@ static void switch_config(u32 rev)
 		t62_config_s[48] = 30;
 		t62_config_s[49] = 30;
 		t62_config_s[53] = 20;
-#if defined(CONFIG_MACH_P4NOTELTE_USA_VZW)
+
 		/* Change Config Name for LTE */
 		mxt1664s_pdata.config_version =
 			MXT1664S_CONFIG_DATE_FOR_OVER_HW9;
-#endif
 	}
 }
 
@@ -626,30 +730,42 @@ void __init p4_tsp_init(u32 system_rev)
 	printk(KERN_DEBUG "[TSP] TSP IC : %s\n",
 		(5 <= hw_rev) ? "Atmel" : "Synaptics");
 
-	gpio = GPIO_TSP_RST;
-	gpio_request(gpio, "TSP_RST");
-	gpio_direction_output(gpio, 1);
-	gpio_export(gpio, 0);
-
-	gpio = GPIO_TSP_LDO_ON;
-	gpio_request(gpio, "TSP_LDO_ON");
-	gpio_direction_output(gpio, 1);
-	gpio_export(gpio, 0);
-
 	if (5 <= hw_rev) {
-		gpio = GPIO_TSP_LDO_ON1;
-		gpio_request(gpio, "TSP_LDO_ON1");
-		gpio_direction_output(gpio, 1);
-		gpio_export(gpio, 0);
-
 		gpio = GPIO_TSP_LDO_ON2;
 		gpio_request(gpio, "TSP_LDO_ON2");
-		gpio_direction_output(gpio, 1);
+		gpio_direction_output(gpio, 0);
+		gpio_export(gpio, 0);
+
+		gpio = GPIO_TSP_LDO_ON1;
+		gpio_request(gpio, "TSP_LDO_ON1");
+		gpio_direction_output(gpio, 0);
+		gpio_export(gpio, 0);
+
+		gpio = GPIO_TSP_LDO_ON;
+		gpio_request(gpio, "TSP_LDO_ON");
+		gpio_direction_output(gpio, 0);
+		gpio_export(gpio, 0);
+
+		gpio = GPIO_TSP_RST;
+		gpio_request(gpio, "TSP_RST");
+		gpio_direction_output(gpio, 0);
 		gpio_export(gpio, 0);
 
 		switch_config(hw_rev);
-	} else if (1 <= hw_rev)
-		have_tsp_ldo = true;
+	} else {
+		gpio = GPIO_TSP_RST;
+		gpio_request(gpio, "TSP_RST");
+		gpio_direction_output(gpio, 1);
+		gpio_export(gpio, 0);
+
+		gpio = GPIO_TSP_LDO_ON;
+		gpio_request(gpio, "TSP_LDO_ON");
+		gpio_direction_output(gpio, 1);
+		gpio_export(gpio, 0);
+
+		if (1 <= hw_rev)
+			have_tsp_ldo = true;
+	}
 
 	gpio = GPIO_TSP_INT;
 	gpio_request(gpio, "TSP_INT");
@@ -686,6 +802,7 @@ static int wacom_resume_hw(void);
 static int wacom_early_suspend_hw(void);
 static int wacom_late_resume_hw(void);
 static int wacom_reset_hw(void);
+static void wacom_compulsory_flash_mode(bool en);
 static void wacom_register_callbacks(struct wacom_g5_callbacks *cb);
 
 static struct wacom_g5_platform_data wacom_platform_data = {
@@ -697,7 +814,7 @@ static struct wacom_g5_platform_data wacom_platform_data = {
 	.gpio_pen_insert = GPIO_S_PEN_IRQ,
 #endif
 #ifdef WACOM_HAVE_FWE_PIN
-	.gpio_fwe = GPIO_PEN_FWE0,
+	.compulsory_flash_mode = wacom_compulsory_flash_mode,
 #endif
 	.init_platform_hw = wacom_init_hw,
 	.suspend_platform_hw = wacom_suspend_hw,
@@ -769,6 +886,14 @@ static int wacom_init_hw(void)
 	return 0;
 }
 
+#ifdef WACOM_HAVE_FWE_PIN
+static void wacom_compulsory_flash_mode(bool en)
+{
+	gpio_set_value(GPIO_PEN_FWE0, en);
+}
+
+#endif
+
 static int wacom_suspend_hw(void)
 {
 	return wacom_early_suspend_hw();
@@ -787,7 +912,10 @@ static int wacom_early_suspend_hw(void)
 
 static int wacom_late_resume_hw(void)
 {
+	gpio_direction_output(GPIO_PEN_PDCT_18V, 1);
 	gpio_set_value(GPIO_PEN_LDO_EN, 1);
+	msleep(20);
+	gpio_direction_input(GPIO_PEN_PDCT_18V);
 	return 0;
 }
 

@@ -28,7 +28,7 @@
 /* change 4129 to 4802 */
 #define AE_SCL_SUBRACT_VALUE		4802
 
-static const uint16_t aeoffset_table[] = { /* normal 4.6times */
+const uint16_t aeoffset_table[] = { // normal 4.6times
 	0, 35, 70, 103, 136, 167, 198, 228, 257, 285,
 	313, 339, 366, 391, 416, 441, 465, 488, 511, 533,
 	555, 576, 597, 618, 638, 657, 677, 696, 714, 732,

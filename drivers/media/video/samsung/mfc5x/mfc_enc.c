@@ -31,6 +31,10 @@
 #include "mfc_buf.h"
 #include "mfc_interface.h"
 
+#ifdef CONFIG_EXYNOS_MEDIA_MONITOR
+#include <mach/media_monitor.h>
+#endif
+
 #ifdef CONFIG_SLP_DMABUF
 #include <linux/dma-buf.h>
 #include <media/videobuf2-core.h>
@@ -1338,6 +1342,10 @@ int mfc_init_encoding(struct mfc_inst_ctx *ctx, union mfc_args *args)
 		ret = MFC_ENC_INIT_FAIL;
 		goto err_handling;
 	}
+
+#ifdef CONFIG_EXYNOS_MEDIA_MONITOR
+	mhs_set_status(MHS_ENCODING, true);
+#endif
 
 	ctx->width = init_arg->cmn.in_width;
 	ctx->height = init_arg->cmn.in_height;

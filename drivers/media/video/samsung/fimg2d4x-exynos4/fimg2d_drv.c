@@ -230,7 +230,21 @@ static long fimg2d_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 #ifdef CONFIG_BUSFREQ_OPP
 #if defined(CONFIG_CPU_EXYNOS4212) || defined(CONFIG_CPU_EXYNOS4412)
+#if defined(CONFIG_BUSFREQ_ELEVATION)
+			dev_lock(info->bus_dev, info->dev, 267160);
+#else
+#if defined(CONFIG_MACH_P4NOTE)
+/* P4Note(SHV-E230x,SHW-M480x) : sometime screen-noise in vertical mode.
+*  reason : when layer-composition changing between GPU and Overlay. insufficient bandwidth
+*  solution : increase bandwidth
+*  by : mingu85.jeon (LSI)
+*/
+			if (blit.param.rotate == ROT_90 || blit.param.rotate == ROT_270)
+				dev_lock(info->bus_dev, info->dev, 267160);
+			else
+#endif
 			dev_lock(info->bus_dev, info->dev, 160160);
+#endif
 #endif
 #endif
 		if ((blit.dst) && (dst.addr.type == ADDR_USER)

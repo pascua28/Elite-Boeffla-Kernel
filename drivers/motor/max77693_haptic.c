@@ -24,11 +24,6 @@
 #include <linux/mfd/max77693.h>
 #include <linux/mfd/max77693-private.h>
 
-#define PWM_MIN 0
-#define PWM_DEFAULT 50
-#define PWM_THRESH 75
-#define PWM_MAX 100
-
 static unsigned long pwm_val = 50; /* duty in percent */
 static int pwm_duty = 27787; /* duty value, 37050=100%, 27787=50%, 18525=0% */
 
@@ -58,8 +53,6 @@ static void max77693_haptic_i2c(struct max77693_haptic_data *hap_data, bool en)
 	int ret;
 	u8 value = hap_data->pdata->reg2;
 	u8 lscnfg_val = 0x00;
-
-	pr_debug("[VIB] %s %d\n", __func__, en);
 
 	if (en) {
 		value |= MOTOR_EN;
@@ -121,7 +114,6 @@ static enum hrtimer_restart haptic_timer_func(struct hrtimer *timer)
 {
 	struct max77693_haptic_data *hap_data
 		= container_of(timer, struct max77693_haptic_data, timer);
-	unsigned long flags;
 
 	hap_data->timeout = 0;
 	queue_work(hap_data->workqueue, &hap_data->work);
@@ -158,7 +150,6 @@ static void haptic_work(struct work_struct *work)
 	struct max77693_haptic_data *hap_data
 		= container_of(work, struct max77693_haptic_data, work);
 
-	pr_debug("[VIB] %s\n", __func__);
 	if (hap_data->timeout > 0) {
 		if (hap_data->running)
 			return;
@@ -166,7 +157,6 @@ static void haptic_work(struct work_struct *work)
 		max77693_haptic_i2c(hap_data, true);
 
 		pwm_config(hap_data->pwm, pwm_duty, hap_data->pdata->period);
-        pr_info("[VIB] %s: pwm_config duty=%d\n", __func__, pwm_duty);
 		pwm_enable(hap_data->pwm);
 
 		if (hap_data->pdata->motor_en)
@@ -254,8 +244,7 @@ void vibtonz_pwm(int nForce)
 	/* add to avoid the glitch issue */
 	if (prev_duty != pwm_duty) {
 		prev_duty = pwm_duty;
-
-        pr_debug("[VIB] %s: setting pwm_duty=%d", __func__, pwm_duty);
+		pr_debug("[VIB] %s: setting pwm_duty=%d", __func__, pwm_duty);
 		pwm_config(g_hap_data->pwm, pwm_duty, pwm_period);
 	}
 #ifdef SEC_DEBUG_VIB
@@ -266,6 +255,19 @@ EXPORT_SYMBOL(vibtonz_pwm);
 #endif
 
 static ssize_t pwm_value_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int count;
+
+	pwm_val = ((pwm_duty - 18525) * 100) / 18525;
+
+	count = sprintf(buf, "%lu\n", pwm_val);
+	pr_debug("[VIB] pwm_value: %lu\n", pwm_val);
+
+	return count;
+}
+
+static ssize_t pwm_val_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	int count;
@@ -299,48 +301,66 @@ ssize_t pwm_value_store(struct device *dev,
 		pwm_duty = 18525;
 	}
 
+	return size;
+}
+
+ssize_t pwm_val_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	if (kstrtoul(buf, 0, &pwm_val))
+		pr_err("[VIB] %s: error on storing pwm_val\n", __func__); 
+
+	pr_info("[VIB] %s: pwm_value=%lu\n", __func__, pwm_val);
+
+	pwm_duty = (pwm_val * 18525) / 100 + 18525;
+
+	/* make sure new pwm duty is in range */
+	if(pwm_duty > 37050)
+	{
+		pwm_duty = 37050;
+	}
+	else if (pwm_duty < 18525)
+	{
+		pwm_duty = 18525;
+	}
+
 	pr_info("[VIB] %s: pwm_duty=%d\n", __func__, pwm_duty);
 
 	return size;
 }
+
 static DEVICE_ATTR(pwm_value, S_IRUGO | S_IWUSR,
 		pwm_value_show, pwm_value_store);
 
-static ssize_t pwm_default_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static DEVICE_ATTR(pwm_val, S_IRUGO | S_IWUSR,
+		pwm_val_show, pwm_val_store);
+
+static int create_vibrator_sysfs(void)
 {
-	return sprintf(buf, "%u\n", PWM_DEFAULT);
+	int ret;
+	struct kobject *vibrator_kobj;
+	vibrator_kobj = kobject_create_and_add("vibrator", NULL);
+
+	if (unlikely(!vibrator_kobj))
+		return ENOMEM;
+
+	ret = sysfs_create_file(vibrator_kobj, &dev_attr_pwm_val.attr);
+
+	if (unlikely(ret < 0)) {
+		pr_err("[VIB] sysfs_create_file failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = sysfs_create_file(vibrator_kobj, &dev_attr_pwm_value.attr);
+
+	if (unlikely(ret < 0)) {
+		pr_err("[VIB] sysfs_create_file failed: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
-
-static DEVICE_ATTR(pwm_default, S_IRUGO,
-		pwm_default_show, NULL);
-
-static ssize_t pwm_max_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", PWM_MAX);
-}
-
-static DEVICE_ATTR(pwm_max, S_IRUGO,
-		pwm_max_show, NULL);
-
-static ssize_t pwm_min_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", PWM_MIN);
-}
-
-static DEVICE_ATTR(pwm_min, S_IRUGO,
-		pwm_min_show, NULL);
-
-static ssize_t pwm_threshold_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", PWM_THRESH);
-}
-
-static DEVICE_ATTR(pwm_threshold, S_IRUGO,
-		pwm_threshold_show, NULL);
 
 static int max77693_haptic_probe(struct platform_device *pdev)
 {
@@ -370,6 +390,12 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	hap_data->pdata = pdata;
 
 	hap_data->workqueue = create_singlethread_workqueue("hap_work");
+	if (IS_ERR(hap_data->workqueue)) {
+	        pr_err("[VIB] Failed to create workqueue for hap_work\n");
+	        error = -EFAULT;
+		goto err_create_workqueue;
+	}
+
 	INIT_WORK(&(hap_data->work), haptic_work);
 	spin_lock_init(&(hap_data->lock));
 
@@ -404,6 +430,9 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	hap_data->tout_dev.get_time = haptic_get_time;
 	hap_data->tout_dev.enable = haptic_enable;
 
+    create_vibrator_sysfs();
+
+
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	error = timed_output_dev_register(&hap_data->tout_dev);
 	if (error < 0) {
@@ -419,23 +448,6 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	if (error < 0) {
 		pr_err("[VIB] create sysfs fail: pwm_value\n");
 	}
-	error = device_create_file(hap_data->tout_dev.dev, &dev_attr_pwm_max);
-	if (error < 0) {
-		pr_err("[VIB] create sysfs fail: pwm_max\n");
-	}
-	error = device_create_file(hap_data->tout_dev.dev, &dev_attr_pwm_min);
-	if (error < 0) {
-		pr_err("[VIB] create sysfs fail: pwm_min\n");
-	}
-	error = device_create_file(hap_data->tout_dev.dev, &dev_attr_pwm_default);
-	if (error < 0) {
-		pr_err("[VIB] create sysfs fail: pwm_default\n");
-	}
-	error = device_create_file(hap_data->tout_dev.dev, &dev_attr_pwm_threshold);
-	if (error < 0) {
-		pr_err("[VIB] create sysfs fail: pwm_threshold\n");
-	}
-
 #endif
 	pr_debug("[VIB] -- %s\n", __func__);
 
@@ -446,6 +458,8 @@ err_timed_output_register:
 err_regulator_get:
 	pwm_free(hap_data->pwm);
 err_pwm_request:
+	destroy_workqueue(hap_data->workqueue);
+err_create_workqueue:
 	kfree(hap_data);
 	g_hap_data = NULL;
 	return error;
@@ -491,7 +505,6 @@ static struct platform_driver max77693_haptic_driver = {
 
 static int __init max77693_haptic_init(void)
 {
-	pr_debug("[VIB] %s\n", __func__);
 	return platform_driver_register(&max77693_haptic_driver);
 }
 module_init(max77693_haptic_init);

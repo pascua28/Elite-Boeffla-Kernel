@@ -81,7 +81,7 @@
 #define MAX_EXECVE_AUDIT_LEN 7500
 
 /* number of audit rules */
-int audit_n_rules;
+int audit_n_rules = 1;
 
 /* determines whether we collect data for signals sent */
 int audit_signals;
@@ -1347,48 +1347,50 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 	context->fsgid = cred->fsgid;
 	context->personality = tsk->personality;
 
-	ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
-	if (!ab)
-		return;		/* audit_panic has been called */
-	audit_log_format(ab, "arch=%x syscall=%d",
-			 context->arch, context->major);
-	if (context->personality != PER_LINUX)
-		audit_log_format(ab, " per=%lx", context->personality);
-	if (context->return_valid)
-		audit_log_format(ab, " success=%s exit=%ld",
-				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
-				 context->return_code);
+	if (context->major != 294) { /* __NR_setsockopt */
+		ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
+		if (!ab)
+			return;		/* audit_panic has been called */
+		audit_log_format(ab, "arch=%x syscall=%d",
+				 context->arch, context->major);
+		if (context->personality != PER_LINUX)
+			audit_log_format(ab, " per=%lx", context->personality);
+		if (context->return_valid)
+			audit_log_format(ab, " success=%s exit=%ld",
+					 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
+					 context->return_code);
 
-	spin_lock_irq(&tsk->sighand->siglock);
-	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
-		tty = tsk->signal->tty->name;
-	else
-		tty = "(none)";
-	spin_unlock_irq(&tsk->sighand->siglock);
+		spin_lock_irq(&tsk->sighand->siglock);
+		if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
+			tty = tsk->signal->tty->name;
+		else
+			tty = "(none)";
+		spin_unlock_irq(&tsk->sighand->siglock);
 
-	audit_log_format(ab,
-		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
-		  " ppid=%d pid=%d auid=%u uid=%u gid=%u"
-		  " euid=%u suid=%u fsuid=%u"
-		  " egid=%u sgid=%u fsgid=%u tty=%s ses=%u",
-		  context->argv[0],
-		  context->argv[1],
-		  context->argv[2],
-		  context->argv[3],
-		  context->name_count,
-		  context->ppid,
-		  context->pid,
-		  tsk->loginuid,
-		  context->uid,
-		  context->gid,
-		  context->euid, context->suid, context->fsuid,
-		  context->egid, context->sgid, context->fsgid, tty,
-		  tsk->sessionid);
+		audit_log_format(ab,
+			  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
+			  " ppid=%d pid=%d auid=%u uid=%u gid=%u"
+			  " euid=%u suid=%u fsuid=%u"
+			  " egid=%u sgid=%u fsgid=%u tty=%s ses=%u",
+			  context->argv[0],
+			  context->argv[1],
+			  context->argv[2],
+			  context->argv[3],
+			  context->name_count,
+			  context->ppid,
+			  context->pid,
+			  tsk->loginuid,
+			  context->uid,
+			  context->gid,
+			  context->euid, context->suid, context->fsuid,
+			  context->egid, context->sgid, context->fsgid, tty,
+			  tsk->sessionid);
 
 
-	audit_log_task_info(ab, tsk);
-	audit_log_key(ab, context->filterkey);
-	audit_log_end(ab);
+		audit_log_task_info(ab, tsk);
+		audit_log_key(ab, context->filterkey);
+		audit_log_end(ab);
+	}
 
 	for (aux = context->aux; aux; aux = aux->next) {
 
@@ -1545,7 +1547,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
  *
  * Called from copy_process and do_exit
  */
-void audit_free(struct task_struct *tsk)
+void __audit_free(struct task_struct *tsk)
 {
 	struct audit_context *context;
 
@@ -1583,7 +1585,7 @@ void audit_free(struct task_struct *tsk)
  * will only be written if another part of the kernel requests that it
  * be written).
  */
-void audit_syscall_entry(int arch, int major,
+void __audit_syscall_entry(int arch, int major,
 			 unsigned long a1, unsigned long a2,
 			 unsigned long a3, unsigned long a4)
 {
@@ -1689,14 +1691,18 @@ void audit_finish_fork(struct task_struct *child)
  * message), then write out the syscall information.  In call cases,
  * free the names stored from getname().
  */
-void audit_syscall_exit(int valid, long return_code)
+void __audit_syscall_exit(int success, long return_code)
 {
 	struct task_struct *tsk = current;
 	struct audit_context *context;
 
-	context = audit_get_context(tsk, valid, return_code);
+	if (success)
+		success = AUDITSC_SUCCESS;
+	else
+		success = AUDITSC_FAILURE;
 
-	if (likely(!context))
+	context = audit_get_context(tsk, success, return_code);
+	if (!context)
 		return;
 
 	if (context->in_syscall && context->current_state == AUDIT_RECORD_CONTEXT)
@@ -2271,7 +2277,7 @@ void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mod
 	context->ipc.has_perm = 1;
 }
 
-int audit_bprm(struct linux_binprm *bprm)
+int __audit_bprm(struct linux_binprm *bprm)
 {
 	struct audit_aux_data_execve *ax;
 	struct audit_context *context = current->audit_context;
@@ -2299,7 +2305,7 @@ int audit_bprm(struct linux_binprm *bprm)
  * @args: args array
  *
  */
-void audit_socketcall(int nargs, unsigned long *args)
+void __audit_socketcall(int nargs, unsigned long *args)
 {
 	struct audit_context *context = current->audit_context;
 
@@ -2331,7 +2337,7 @@ void __audit_fd_pair(int fd1, int fd2)
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_sockaddr(int len, void *a)
+int __audit_sockaddr(int len, void *a)
 {
 	struct audit_context *context = current->audit_context;
 
@@ -2541,7 +2547,15 @@ void audit_core_dumps(long signr)
 	audit_log_format(ab, " sig=%ld", signr);
 	audit_log_end(ab);
 }
+void __audit_seccomp(unsigned long syscall)
+{
+	struct audit_buffer *ab;
 
+	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_ANOM_ABEND);
+//	audit_log_abend(ab, "seccomp", SIGKILL);
+	audit_log_format(ab, " syscall=%ld", syscall);
+	audit_log_end(ab);
+}
 struct list_head *audit_killed_trees(void)
 {
 	struct audit_context *ctx = current->audit_context;

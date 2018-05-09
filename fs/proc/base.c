@@ -2171,19 +2171,11 @@ static const struct file_operations proc_fd_operations = {
  */
 static int proc_fd_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	struct task_struct *p;
-	int rv;
-
-	rv = generic_permission(inode, mask, flags, NULL);
+	int rv = generic_permission(inode, mask, flags, NULL);
 	if (rv == 0)
-		return rv;
-
-	rcu_read_lock();
-	p = pid_task(proc_pid(inode), PIDTYPE_PID);
-	if (p && same_thread_group(p, current))
+		return 0;
+	if (task_pid(current) == proc_pid(inode))
 		rv = 0;
-	rcu_read_unlock();
-
 	return rv;
 }
 

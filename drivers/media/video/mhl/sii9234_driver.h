@@ -34,10 +34,6 @@
 #define __CONFIG_TMDS_OFFON_WORKAROUND__
 #endif
 
-#ifndef __CONFIG_USE_TIMER__
-#define __CONFIG_USE_TIMER__
-#endif
-
 #ifndef CONFIG_SII9234_RCP
 #define CONFIG_SII9234_RCP		1
 #include <linux/input.h>
@@ -48,9 +44,27 @@
 #include <linux/30pin_con.h>
 #endif
 
+#include <linux/switch.h>
+
 #ifdef CONFIG_SAMSUNG_SMARTDOCK
 #define ADC_SMARTDOCK   0x10 /* 40.2K ohm */
 #endif
+
+// [START] HELIXTECH: KT_SPIDER_FEATURE ====================================
+#ifdef CONFIG_SPIDER_MHL
+#include <linux/sched.h>
+#include <linux/wait.h>
+#include <linux/miscdevice.h>
+#include <linux/fs.h>
+#include <linux/poll.h>
+#include <linux/spidermhl.h>
+
+#define SPIDERMHL_VERSION	"0.2"
+
+/* Keyboard performance test 12-05-07 pianist */
+#define KEYBD_PERF	1
+#endif	/* CONFIG_SPIDER_MHL */
+// [END] HELIXTECH: KT_SPIDER_FEATURE ======================================
 
 #define T_WAIT_TIMEOUT_RGND_INT		2000
 #define T_WAIT_TIMEOUT_DISC_INT		1000
@@ -250,6 +264,13 @@
 #define CBUS_MHL_STATUS_REG_2           0xB2
 #define CBUS_MHL_STATUS_REG_3           0xB3
 
+// [START] HELIXTECH: KT_SPIDER_FEATURE ====================================
+#ifdef CONFIG_SPIDER_MHL
+/* MHL Scratchpad Registers */
+#define MHL_SCRATCHPAD_REG_0		0xC0
+#endif	/* CONFIG_SPIDER_MHL */
+// [END] HELIXTECH: KT_SPIDER_FEATURE ======================================
+
 /* MHL TX DISC6 0x95 Register Bits */
 #define USB_D_OVR                       (1<<7)
 #define USB_ID_OVR                      (1<<6)
@@ -378,6 +399,11 @@
 #define	INTR_CBUS1_DESIRED_MASK		(BIT2 | BIT3 | BIT4 | BIT5 | BIT6)
 #define	INTR_CBUS2_DESIRED_MASK		(BIT2 | BIT3) /* (BIT0| BIT2 | BIT3) */
 
+enum hpd_state {
+	LOW = 0,
+	HIGH
+};
+
 enum page_num {
 	PAGE0 = 0,
 	PAGE1,
@@ -435,6 +461,14 @@ enum cbus_command {
 	CBUS_WRITE_BURST =      0x6C,
 	CBUS_GET_SC3_ERR_CODE =	0x6D,
 };
+
+enum mhl_vbus_type {
+	MHL_VBUS_TA_500mA = 0x00,
+	MHL_VBUS_TA_900mA = 0x01,
+	MHL_VBUS_TA_1500mA = 0x02,
+	MHL_VBUS_USB = 0x03,
+};
+
 #if 0
 enum mhl_status_enum_type {
 	NO_MHL_STATUS = 0x00,
@@ -507,6 +541,7 @@ struct sii9234_data {
 	wait_queue_head_t		wq;
 #ifdef CONFIG_SAMSUNG_MHL_9290
 	struct notifier_block           acc_con_nb;
+	struct work_struct		tmds_reset_work;
 #endif
 	bool				claimed;
 	u8				cbus_connected; /* wolverin */
@@ -521,6 +556,7 @@ struct sii9234_data {
 	struct cbus_packet		cbus_pkt;
 	struct cbus_packet		cbus_pkt_buf[CBUS_PKT_BUF_COUNT];
 	struct device_cap		devcap;
+	u8 plim; /* charger info of MHL 2.0 */
 	struct mhl_tx_status_type mhl_status_value;
 #ifdef CONFIG_SII9234_RCP
 	u8 error_key;
@@ -541,9 +577,6 @@ struct sii9234_data {
 #ifdef __CONFIG_TMDS_OFFON_WORKAROUND__
 	struct work_struct		tmds_offon_work;
 #endif
-#ifdef __CONFIG_USE_TIMER__
-	struct timer_list		cbus_command_timer;
-#endif
 #ifdef CONFIG_MACH_MIDAS
 	struct wake_lock		mhl_wake_lock;
 #endif
@@ -551,6 +584,26 @@ struct sii9234_data {
 	struct workqueue_struct *mhl_tx_init_wq;
 	struct work_struct mhl_400ms_rsen_work;
 	struct workqueue_struct *mhl_400ms_rsen_wq;
+
+// [START] HELIXTECH: KT_SPIDER_FEATURE ====================================
+#ifdef CONFIG_SPIDER_MHL
+	struct spider_event		*eventq;
+	struct fasync_struct		*spider_fa;
+	struct mutex			spider_lock;
+	wait_queue_head_t		spider_wq;
+
+	unsigned int			qhead;
+	unsigned int			qtail;
+
+	bool				isopened;
+	bool				sm_connected;
+	bool				sm_discovery;
+	bool				sm_issued;
+#if KEYBD_PERF
+	unsigned int			keycnt;
+#endif
+#endif	/* CONFIG_SPIDER_MHL */
+// [END] HELIXTECH: KT_SPIDER_FEATURE ======================================
 
 #ifdef CONFIG_EXTCON
 	/* Extcon */
@@ -570,7 +623,54 @@ struct sii9234_data {
 	bool				wake_pulse_completed;
 	unsigned int			wp_cnt;
 	struct hrtimer			pulse_timer;
+	struct switch_dev		mhl_event_switch;
 };
+
+// [START] HELIXTECH: KT_SPIDER_FEATURE ====================================
+#ifdef CONFIG_SPIDER_MHL
+#define MODULE_NAME	"spider-mhl"
+#define MAX_EVENT_QUEUE	200
+
+/* internal states */
+#define SPIDER_CONNECTED		1
+#define SPIDER_DISCONNECTED		2
+#define SPIDER_MSC_MSG			3
+#define SPIDER_WRITE_BURST_MSG		4
+
+static struct sii9234_data *g_sii9234;
+static struct spider_event events[MAX_EVENT_QUEUE];
+
+/* forward declarations */
+static struct spider_event *spider_get_queue(struct sii9234_data *sii9234);
+static void spider_put_queue(struct sii9234_data *sii9234,
+					struct spider_event *event);
+static void spider_issue_event(struct sii9234_data *sii9234,
+					struct spider_event *event);
+static void spider_mouse_event(struct sii9234_data *sii9234,
+						struct spider_event *event);
+static void spider_handle_new_event(struct sii9234_data *sii9234,
+						struct spider_event *event);
+static void spider_handle_new_state(struct sii9234_data *sii9234,
+						struct spider_event *event);
+static void spider_handle_msg(struct sii9234_data *sii9234, void *data,
+								int state);
+static void cbus_handle_msg(struct sii9234_data *sii9234, int state);
+static struct sii9234_data *spider_get_sii9234_data(void);
+static int spider_init(struct sii9234_data *sii9234);
+static void spider_exit(void);
+static int spider_open(struct inode *inode, struct file *filp);
+static int spider_release(struct inode *inode, struct file *filp);
+static ssize_t spider_read(struct file *filp, char *buf, size_t count,
+							loff_t *ppos);
+static ssize_t spider_write(struct file *filp, const char *buf,
+					size_t count, loff_t *ppos);
+static unsigned int spider_poll(struct file *filp,
+					struct poll_table_struct *wait);
+static long spider_ioctl(struct file *filp, unsigned int cmd,
+							unsigned long arg);
+static int spider_fasync(int fd, struct file *filp, int on);
+#endif	/* CONFIG_SPIDER_MHL */
+// [END] HELIXTECH: KT_SPIDER_FEATURE ======================================
 
 #ifdef __MHL_NEW_CBUS_MSC_CMD__
 struct msc_packet {
@@ -599,10 +699,12 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data);
 
 #ifdef CONFIG_SAMSUNG_MHL_9290
 static int sii9234_30pin_init_for_9290(struct sii9234_data *sii9234);
+void sii9234_tmds_reset(void);
+void sii9234_tmds_reset_work(struct work_struct *work);
 #endif
 
 #ifdef CONFIG_SAMSUNG_USE_11PIN_CONNECTOR
-#	if !defined(CONFIG_MACH_P4NOTE)
+#	if !defined(CONFIG_MACH_P4NOTE) && !defined(CONFIG_MACH_TAB3) && !defined(CONFIG_MACH_SP7160LTE)
 extern int max77693_muic_get_status1_adc1k_value(void);
 #endif
 #endif

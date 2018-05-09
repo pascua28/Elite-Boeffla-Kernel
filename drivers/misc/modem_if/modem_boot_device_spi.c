@@ -29,7 +29,7 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 #include "modem_prj.h"
 
 #define SPI_XMIT_DELEY	100

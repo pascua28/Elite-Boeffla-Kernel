@@ -322,12 +322,6 @@ static ssize_t light_enable_store(struct device *dev,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_TOUCH_WAKE
-	if (!new_value) { // Yank555.lu : Proxy disabled, consider proximity not detected
-		proximity_off();
-	}
-#endif
-
 	mutex_lock(&cm36651->power_lock);
 	pr_info("%s,new_value=%d\n", __func__, new_value);
 	if (new_value && !(cm36651->power_state & LIGHT_ENABLED)) {
@@ -415,7 +409,7 @@ static int proximity_store_cancelation(struct device *dev, bool do_calib)
 	set_fs(KERNEL_DS);
 
 	cancel_filp = filp_open(CANCELATION_FILE_PATH,
-			O_CREAT | O_TRUNC | O_WRONLY, 0666);
+			O_CREAT | O_TRUNC | O_WRONLY | O_SYNC, 0666);
 	if (IS_ERR(cancel_filp)) {
 		pr_err("%s: Can't open cancelation file\n", __func__);
 		set_fs(old_fs);
@@ -488,6 +482,12 @@ static ssize_t proximity_enable_store(struct device *dev,
 		pr_err("%s: invalid value %d\n", __func__, *buf);
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_TOUCH_WAKE
+	if (!new_value) { // Yank555.lu : Proxy disabled, consider proximity not detected
+		proximity_off();
+	}
+#endif
 
 	mutex_lock(&cm36651->power_lock);
 	pr_info("%s, new_value = %d, threshold = %d\n", __func__, new_value,
@@ -769,11 +769,11 @@ irqreturn_t cm36651_irq_thread_fn(int irq, void *data)
 
 // Yank555.lu : this is where we will know is something changes in proximity detection
 #ifdef CONFIG_TOUCH_WAKE
-		if (!val) { // 0 is close = proximity detected
-			proximity_detected();
-		} else {
-			proximity_off();
-		}
+	if (!val) { // 0 is close = proximity detected
+		proximity_detected();
+	} else {
+		proximity_off();
+	}
 #endif
 
 	wake_lock_timeout(&cm36651->prx_wake_lock, 3 * HZ);

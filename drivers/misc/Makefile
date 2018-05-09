@@ -19,6 +19,7 @@ obj-$(CONFIG_PHANTOM)		+= phantom.o
 obj-$(CONFIG_SENSORS_BH1780)	+= bh1780gli.o
 obj-$(CONFIG_SENSORS_BH1770)	+= bh1770glc.o
 obj-$(CONFIG_SENSORS_APDS990X)	+= apds990x.o
+obj-$(CONFIG_ANDROID_PMEM)	+= pmem.o
 obj-$(CONFIG_SGI_IOC4)		+= ioc4.o
 obj-$(CONFIG_ENCLOSURE_SERVICES) += enclosure.o
 obj-$(CONFIG_KGDB_TESTS)	+= kgdbts.o
@@ -52,20 +53,22 @@ obj-y				+= carma/
 obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
 obj-$(CONFIG_APANIC)		+= apanic.o
 obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
+obj-$(CONFIG_SENSORS_AK8963)	+= akm8963.o
 obj-$(CONFIG_SAMSUNG_C2C)	+= c2c/
 obj-$(CONFIG_USBHUB_USB3503)	+= usb3503.o
 obj-$(CONFIG_USBHUB_USB3503_OTG_CONN)	+= usb3503_otg_conn.o
 obj-$(CONFIG_USBHUB_USB3803)	+= usb3803.o
 ifeq ($(CONFIG_SEC_MODEM_P8LTE),y)
 obj-$(CONFIG_SEC_MODEM)         += modem_if_na/
-else
-ifeq ($(CONFIG_MACH_U1),y)
-obj-$(CONFIG_SEC_MODEM)		+= modem_if_u1/
+else ifeq ($(CONFIG_SEC_MODEM_U1_SPR),y)
+obj-$(CONFIG_SEC_MODEM)		+= modem_if_na_spr/
+else ifeq ($(CONFIG_SEC_MODEM_V2), y)
+obj-$(CONFIG_SEC_MODEM)         += modem_v2/
+else ifeq ($(CONFIG_LTE_MODEM_CMC221), y)
+obj-$(CONFIG_SEC_MODEM)		+= modem_if_c1/
 else
 obj-$(CONFIG_SEC_MODEM)		+= modem_if/
 endif
-endif
-obj-$(CONFIG_MFD_MAX77693)	+= max77693-muic.o
 obj-$(CONFIG_STMPE811_ADC)	+= stmpe811-adc.o
 obj-$(CONFIG_JACK_MON)		+= jack.o
 obj-$(CONFIG_UART_SELECT)	+= uart_select.o
@@ -75,7 +78,6 @@ obj-$(CONFIG_SEC_DEV_JACK)	+= sec_jack_muic.o
 else
 obj-$(CONFIG_SEC_DEV_JACK)	+= sec_jack.o
 endif
-obj-$(CONFIG_MUIC_MAX8997)	+= max8997-muic.o
 obj-$(CONFIG_PN544)		+= pn544.o
 obj-$(CONFIG_FM34_WE395)	+= fm34_we395.o
 obj-$(CONFIG_AUDIENCE_ES305)	+= es305.o
@@ -87,9 +89,14 @@ obj-$(CONFIG_SLP_LOWMEM_NOTIFY)	+= slp_lowmem_notify.o
 obj-$(CONFIG_MACH_M0_CTC)   += cw_tty.o
 
 # Secure OS Mobicore Interface
-CFLAGS_tzic.o :=$(call as-instr,.arch_extension sec,-DREQUIRES_SEC=1)
 obj-$(CONFIG_MOBICORE_SUPPORT)  += tzic.o
-obj-$(CONFIG_UID_CPUTIME) += uid_cputime.o
+obj-$(CONFIG_MOBICORE_DRIVER)  += tzic.o
+
+ifeq ($(TIMA_ENABLED),1)
+obj-$(CONFIG_TIMA_LOG)		+= tima_debug_log.o
+endif
 
 # Touchwake
 obj-$(CONFIG_TOUCH_WAKE)        += touch_wake.o
+
+obj-$(CONFIG_UID_CPUTIME) += uid_cputime.o

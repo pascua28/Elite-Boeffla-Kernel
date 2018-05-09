@@ -46,7 +46,7 @@ ENTRY(s3c_cpu_save)
 
 	ldr	r0, =pm_cpu_sleep
 	ldr	r0, [ r0 ]
-	mov	pc, r0
+	ret	r0
 
 resume_with_mmu:
 	ldmfd	sp!, { r3 - r12, pc }

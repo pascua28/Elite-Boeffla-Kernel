@@ -22,7 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/cma.h>
 #include <plat/devs.h>
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 #include "modem_prj.h"
 #include <plat/gpio-cfg.h>
 
@@ -31,6 +31,11 @@ int irq_lock_flag;
 
 int sprd_boot_done;
 extern int spi_thread_restart(void);
+
+#ifdef CONFIG_SEC_DUAL_MODEM_MODE
+int cp_boot_flag;
+EXPORT_SYMBOL(cp_boot_flag);
+#endif
 
 static int sprd8803_on(struct modem_ctl *mc)
 {
@@ -46,6 +51,7 @@ static int sprd8803_on(struct modem_ctl *mc)
 	gpio_set_value(mc->gpio_sim_io_sel, 1);
 	gpio_set_value(mc->gpio_cp_ctrl1, 0);
 	gpio_set_value(mc->gpio_cp_ctrl2, 1);
+	cp_boot_flag = 1;
 #endif
 	msleep(100);
 	pr_info("[MODEM_IF] %s\n", __func__);

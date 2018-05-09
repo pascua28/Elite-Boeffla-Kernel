@@ -386,6 +386,9 @@ struct input_keymap_entry {
 #define KEY_F23			193
 #define KEY_F24			194
 
+#define KEY_SYM			198
+#define KEY_CENTER		199
+
 #define KEY_PLAYCD		200
 #define KEY_PAUSECD		201
 #define KEY_PROG3		202
@@ -451,6 +454,15 @@ struct input_keymap_entry {
 #define KEY_FOLDER_CLOSE	252  /*only use Grande CHN CTC */
 #define KEY_3G	253  /*only use Grande CHN CTC */
 
+/* Dummy touchkey code */
+#define KEY_DUMMY_HOME1		249
+#define KEY_DUMMY_HOME2		250
+#define KEY_DUMMY_MENU		251
+#define KEY_DUMMY_HOME		252
+#define KEY_DUMMY_BACK		253
+
+#define KEY_RECENT			254
+
 /* kona dummy touchkey */
 #define KEY_DUMMY_1     251
 #define KEY_DUMMY_2     252
@@ -511,6 +523,7 @@ struct input_keymap_entry {
 #define BTN_MODE		0x13c
 #define BTN_THUMBL		0x13d
 #define BTN_THUMBR		0x13e
+#define BTN_GAME		0x13f	/* Add game button for samsung bluetooth keypad */
 
 #define BTN_DIGI		0x140
 #define BTN_TOOL_PEN		0x140
@@ -694,6 +707,23 @@ struct input_keymap_entry {
 #define KEY_DMB_ANT_DET_UP		0x21b
 #define KEY_DMB_ANT_DET_DOWN	0x21c
 
+#define KEY_CAMERA_SHUTTER		0x220
+#define KEY_CAMERA_JOG_L   			0x221
+#define KEY_CAMERA_JOG_R   		0x222
+#define KEY_CAMERA_STROBE			0x223
+
+#define KEY_ZOOM_RING_MOVE			0x224
+#define KEY_ZOOM_RING_IN			0x225
+#define KEY_ZOOM_RING_OUT			0x226
+#define KEY_ZOOM_RING_SPEED1		0x231
+#define KEY_ZOOM_RING_SPEED2		0x232
+#define KEY_ZOOM_RING_SPEED3		0x233
+#define KEY_ZOOM_RING_SPEED4		0x234
+
+#define KEY_CAMERA_IFUNC			0x227
+#define KEY_CAMERA_FOCUS_L		0x228
+#define KEY_CAMERA_FOCUS_R		0x229
+
 #define KEY_PEN_PDCT		0x230 /* E-PEN PDCT flag*/
 
 #define KEY_FAKE_PWR		0x240 /* Fake Power off flag*/
@@ -810,14 +840,14 @@ struct input_keymap_entry {
 #define ABS_MT_PRESSURE		0x3a	/* Pressure on contact area */
 #define ABS_MT_DISTANCE		0x3b	/* Contact hover distance */
 #define ABS_MT_ANGLE		0x3c	/* touch angle */
-#define ABS_MT_COMPONENT	0x3c	/* touch component */
 #define ABS_MT_PALM		0x3d	/* palm touch */
-#define ABS_MT_SUMSIZE		0x3d	/* touch sumsize */
+#define ABS_MT_COMPONENT	0x3e	/* touch component */
+#define ABS_MT_SUMSIZE		0x3f	/* touch sumsize */
 
 #ifdef __KERNEL__
 /* Implementation details, userspace should not care about these */
 #define ABS_MT_FIRST		ABS_MT_TOUCH_MAJOR
-#define ABS_MT_LAST		ABS_MT_PALM
+#define ABS_MT_LAST		ABS_MT_SUMSIZE
 #endif
 
 #define ABS_MAX			0x3f
@@ -842,15 +872,10 @@ struct input_keymap_entry {
 #define SW_KEYPAD_SLIDE		0x0a  /* set = keypad slide out */
 #define SW_FRONT_PROXIMITY	0x0b  /* set = front proximity sensor active */
 #define SW_ROTATE_LOCK		0x0c  /* set = rotate locked/disabled */
-#define SW_PEN_INSERT			0x0e	/* set = pen out */
+#define SW_PEN_INSERT			0x13	/* set = pen out */
 #define SW_STROBE_INSERT		0x0f	/* set = strobe out */
-//#ifdef CONFIG_SENSORS_HALL
-//#define SW_FLIP			0x10  /* set = flip cover... */
-//#define SW_MAX			0x17
-//#else
-#define SW_MAX			0x10
-//#endif
-
+#define SW_FLIP			0x15  /* set = flip cover... */
+#define SW_MAX			0x17
 #define SW_CNT			(SW_MAX+1)
 
 /*
@@ -931,6 +956,8 @@ struct input_keymap_entry {
 #define BUS_GSC			0x1A
 #define BUS_ATARI		0x1B
 #define BUS_SPI			0x1C
+
+#define BUS_RMI         0x1D
 
 /*
  * MT_TOOL types
@@ -1173,6 +1200,18 @@ struct ff_effect {
 #include <linux/mod_devicetable.h>
 
 /**
+ * struct input_value - input value representation
+ * @type: type of value (EV_KEY, EV_ABS, etc)
+ * @code: the value code
+ * @value: the value
+ */
+struct input_value {
+	__u16 type;
+	__u16 code;
+	__s32 value;
+};
+
+/**
  * struct input_dev - represents an input device
  * @name: name of the device
  * @phys: physical path to the device in the system hierarchy
@@ -1248,7 +1287,6 @@ struct ff_effect {
  *	last user closes the device
  * @going_away: marks devices that are in a middle of unregistering and
  *	causes input_open_device*() fail with -ENODEV.
- * @sync: set to %true when there were no new events since last EV_SYN
  * @dev: driver model's view of this device
  * @h_list: list of input handles associated with the device. When
  *	accessing the list dev->mutex must be held
@@ -1316,12 +1354,14 @@ struct input_dev {
 	unsigned int users;
 	bool going_away;
 
-	bool sync;
-
 	struct device dev;
 
 	struct list_head	h_list;
 	struct list_head	node;
+
+	unsigned int num_vals;
+	unsigned int max_vals;
+	struct input_value *vals;
 };
 #define to_input_dev(d) container_of(d, struct input_dev, dev)
 
@@ -1382,6 +1422,9 @@ struct input_handle;
  * @event: event handler. This method is being called by input core with
  *	interrupts disabled and dev->event_lock spinlock held and so
  *	it may not sleep
+ * @events: event sequence handler. This method is being called by
+ *	input core with interrupts disabled and dev->event_lock
+ *	spinlock held and so it may not sleep
  * @filter: similar to @event; separates normal event handlers from
  *	"filters".
  * @match: called after comparing device's id with handler's id_table
@@ -1418,6 +1461,8 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
+	void (*events)(struct input_handle *handle,
+		       const struct input_value *vals, unsigned int count);
 	bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 	bool (*match)(struct input_handler *handler, struct input_dev *dev);
 	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);

@@ -25,7 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/cdev.h>
 #include <linux/types.h>
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 
 #ifndef CONFIG_SAMSUNG_PRODUCT_SHIP
 #define DEBUG_MODEM_IF

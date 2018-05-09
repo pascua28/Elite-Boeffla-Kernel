@@ -20,6 +20,9 @@
 #include <linux/syscalls.h> /* sys_sync */
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
+#ifdef CONFIG_FAST_BOOT
+#include <linux/fake_shut_down.h>
+#endif
 
 #include "power.h"
 
@@ -47,13 +50,6 @@ enum {
 	SUSPEND_REQUESTED_AND_SUSPENDED = SUSPEND_REQUESTED | SUSPENDED,
 };
 static int state;
-
-#ifdef CONFIG_SPEEDUP_KEYRESUME
-	struct sched_param earlysuspend_s = { .sched_priority = 66 };
-	struct sched_param earlysuspend_v = { .sched_priority = 0 };
-	int earlysuspend_old_prio = 0;
-	int earlysuspend_old_policy = 0;
-#endif
 
 static void sync_system(struct work_struct *work)
 {
@@ -102,6 +98,7 @@ static void early_suspend(struct work_struct *work)
 
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
+
 	if (state == SUSPEND_REQUESTED)
 		state |= SUSPENDED;
 	else
@@ -146,18 +143,6 @@ static void late_resume(struct work_struct *work)
 	struct early_suspend *pos;
 	unsigned long irqflags;
 	int abort = 0;
-
-#ifdef CONFIG_SPEEDUP_KEYRESUME
-	earlysuspend_old_prio = current->rt_priority;
-	earlysuspend_old_policy = current->policy;
-
-	/* just for this write, set us real-time */
-	if (!(unlikely(earlysuspend_old_policy == SCHED_FIFO) || unlikely(earlysuspend_old_policy == SCHED_RR))) {
-		if ((sched_setscheduler(current, SCHED_RR, &earlysuspend_s)) < 0)
-			printk(KERN_ERR "late_resume: up late_resume failed\n");
-	}
-#endif
-
 	struct timer_list timer;
 	struct pm_wd_data data;
 
@@ -165,6 +150,7 @@ static void late_resume(struct work_struct *work)
 
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
+
 	if (state == SUSPENDED)
 		state &= ~SUSPENDED;
 	else
@@ -191,20 +177,9 @@ static void late_resume(struct work_struct *work)
 abort:
 	mutex_unlock(&early_suspend_lock);
 
-#ifdef CONFIG_SPEEDUP_KEYRESUME
-	if (!(unlikely(earlysuspend_old_policy == SCHED_FIFO) || unlikely(earlysuspend_old_policy == SCHED_RR))) {
-		earlysuspend_v.sched_priority = earlysuspend_old_prio;
-		if ((sched_setscheduler(current, earlysuspend_old_policy, &earlysuspend_v)) < 0)
-			printk(KERN_ERR "late_resume: down late_resume failed\n");
-	}
-#endif
-
 	pm_wd_del_timer(&timer);
 }
 
-#ifdef CONFIG_FAST_BOOT
-extern bool fake_shut_down;
-#endif
 void request_suspend_state(suspend_state_t new_state)
 {
 	unsigned long irqflags;
@@ -230,8 +205,12 @@ void request_suspend_state(suspend_state_t new_state)
 		queue_work(suspend_work_queue, &early_suspend_work);
 	} else if (old_sleep && new_state == PM_SUSPEND_ON) {
 #ifdef CONFIG_FAST_BOOT
-		if (fake_shut_down)
+		if (fake_shut_down) {
+			pr_info("%s : end of fake shut down\n", __func__);
 			fake_shut_down = false;
+			raw_notifier_call_chain(&fsd_notifier_list,
+					FAKE_SHUT_DOWN_CMD_OFF, NULL);
+		}
 #endif
 		state &= ~SUSPEND_REQUESTED;
 		wake_lock(&main_wake_lock);

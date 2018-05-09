@@ -24,6 +24,11 @@
 
 #ifdef __KERNEL__
 struct sii9234_platform_data {
+// [START] HELIXTECH: KT_SPIDER_FEATURE ====================================
+#ifdef CONFIG_SPIDER_MHL
+	int udelay;
+#endif	/* CONFIG_SPIDER_MHL */
+// [END] HELIXTECH: KT_SPIDER_FEATURE ======================================
 	u8 power_state;
 	u8	swing_level;
 	u8	factory_test;
@@ -42,6 +47,7 @@ struct sii9234_platform_data {
 	int (*get_vbus_status)(void);
 	void (*sii9234_otg_control)(bool onoff);
 #endif
+	void (*sii9234_muic_cb)(bool otg_enable, int plim);
 	struct i2c_client *mhl_tx_client;
 	struct i2c_client *tpi_client;
 	struct i2c_client *hdmi_rx_client;
@@ -63,7 +69,6 @@ extern void max77693_muic_usb_cb(u8 usb_mode);
 
 #ifdef	CONFIG_SAMSUNG_WORKAROUND_HPD_GLANCE
 extern	void mhl_hpd_handler(bool onoff);
-extern bool (*is_mhl_power_state_on)(void);
 #endif
 
 #ifdef	CONFIG_SAMSUNG_USE_11PIN_CONNECTOR

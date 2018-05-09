@@ -23,6 +23,8 @@
 #include <linux/mfd/s5m87xx/s5m-pmic.h>
 #include <linux/sched.h>
 
+#include <mach/sec_debug.h>
+
 struct s5m8767_info {
 	struct device *dev;
 	struct s5m87xx_dev *iodev;
@@ -488,7 +490,7 @@ static int s5m8767_set_voltage(struct regulator_dev *rdev,
 	*selector = i;
 
 	if (val < i) {
-		udelay(DIV_ROUND_UP(desc->step * (i - val),
+		udelay(1 + DIV_ROUND_UP(desc->step * (i - val),
 			s5m8767->ramp_delay * 1000));
 	}
 	return ret;
@@ -526,8 +528,22 @@ static int s5m8767_set_voltage_buck(struct regulator_dev *rdev,
 
 	switch (reg_id) {
 	case S5M8767_BUCK1:
+		sec_debug_aux_log(SEC_DEBUG_AUXLOG_CPU_BUS_CLOCK_CHANGE,
+			"%s: BUCK1: min_vol=%d, max_vol=%d(%ps)",
+			__func__, min_vol, max_vol,
+			__builtin_return_address(0));
 		return s5m8767_set_voltage(rdev, min_uV, max_uV, selector);
-	case S5M8767_BUCK2 ... S5M8767_BUCK4:
+	case S5M8767_BUCK2:
+		sec_debug_aux_log(SEC_DEBUG_AUXLOG_CPU_BUS_CLOCK_CHANGE,
+			"%s: BUCK2: min_vol=%d, max_vol=%d(%ps)",
+			__func__, min_vol, max_vol,
+			__builtin_return_address(0));
+	case S5M8767_BUCK3:
+		sec_debug_aux_log(SEC_DEBUG_AUXLOG_CPU_BUS_CLOCK_CHANGE,
+			"%s: BUCK3: min_vol=%d, max_vol=%d(%ps)",
+			__func__, min_vol, max_vol,
+			__builtin_return_address(0));
+	case S5M8767_BUCK4:
 		break;
 	case S5M8767_BUCK5 ... S5M8767_BUCK6:
 		return s5m8767_set_voltage(rdev, min_uV, max_uV, selector);
@@ -712,6 +728,7 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 	struct s5m8767_info *s5m8767;
 	struct i2c_client *i2c;
 	int i, ret, size, buck_init;
+	u8 data[28];
 
 	if (!pdata) {
 		dev_err(pdev->dev.parent, "Platform data not supplied\n");
@@ -763,27 +780,6 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 						buck_voltage_val1.step);
 
 	s5m_reg_write(i2c, S5M8767_REG_BUCK1DVS2, buck_init);
-
-	buck_init = s5m8767_convert_voltage(&buck_voltage_val2,
-						pdata->buck2_init,
-						pdata->buck2_init +
-						buck_voltage_val2.step);
-
-	s5m_reg_write(i2c, S5M8767_REG_BUCK2DVS2, buck_init);
-
-	buck_init = s5m8767_convert_voltage(&buck_voltage_val2,
-						pdata->buck3_init,
-						pdata->buck3_init +
-						buck_voltage_val2.step);
-
-	s5m_reg_write(i2c, S5M8767_REG_BUCK3DVS2, buck_init);
-
-	buck_init = s5m8767_convert_voltage(&buck_voltage_val2,
-						pdata->buck4_init,
-						pdata->buck4_init +
-						buck_voltage_val2.step);
-
-	s5m_reg_write(i2c, S5M8767_REG_BUCK4DVS2, buck_init);
 
 	buck_init = s5m8767_convert_voltage(&buck_voltage_val2,
 						pdata->buck2_init,
@@ -983,6 +979,13 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* all LDO OVCM Disable */
+	for	(i = 0; i < 28; i++)
+		data[i] = 0xA2;
+
+	s5m_bulk_write(i2c, S5M8767_REG_LDO1, 28, data);
+	
+
 	for (i = 0; i < pdata->num_regulators; i++) {
 		const struct s5m_voltage_desc *desc;
 		int id = pdata->regulators[i].id;
@@ -1034,6 +1037,38 @@ static int __devexit s5m8767_pmic_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_S5M8767_OSC)
+static int s5m_regulator_resume(struct device *dev)
+{
+	struct s5m8767_info *s5m8767 = dev_get_drvdata(dev);
+	u8 val;
+
+	s5m_reg_write(s5m8767->iodev->i2c, 0x2f, 0x0);
+	s5m_reg_read(s5m8767->iodev->i2c, 0x2f, &val);
+	pr_info("%s after resume set OSC = 0x%02x\n", __func__, val);
+
+	return 0;
+}
+
+static int s5m_regulator_suspend(struct device *dev)
+{
+	struct s5m8767_info *s5m8767 = dev_get_drvdata(dev);
+	u8 val;
+
+	s5m_reg_write(s5m8767->iodev->i2c, 0x2f, 0x40);
+	s5m_reg_read(s5m8767->iodev->i2c, 0x2f, &val);
+	pr_info("%s after suspend set OSC = 0x%02x\n", __func__, val);
+
+	return 0;
+}
+
+
+static const struct dev_pm_ops s5m_regulator_pm_ops = {
+	.resume = s5m_regulator_resume,
+	.suspend = s5m_regulator_suspend,
+};
+#endif
+
 static const struct platform_device_id s5m8767_pmic_id[] = {
 	{ "s5m8767-pmic", 0},
 	{ },
@@ -1044,6 +1079,9 @@ static struct platform_driver s5m8767_pmic_driver = {
 	.driver = {
 		.name = "s5m8767-pmic",
 		.owner = THIS_MODULE,
+#if defined(CONFIG_S5M8767_OSC)
+		.pm	= &s5m_regulator_pm_ops,
+#endif
 	},
 	.probe = s5m8767_pmic_probe,
 	.remove = __devexit_p(s5m8767_pmic_remove),

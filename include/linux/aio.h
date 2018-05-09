@@ -139,6 +139,7 @@ struct kiocb {
 		(x)->ki_dtor = NULL;			\
 		(x)->ki_obj.tsk = tsk;			\
 		(x)->ki_user_data = 0;                  \
+		(x)->private = NULL;			\
 	} while (0)
 
 #define AIO_RING_MAGIC			0xa10a10a1
@@ -182,7 +183,6 @@ struct kioctx {
 
 	/* This needs improving */
 	unsigned long		user_id;
-	struct hlist_node	list;
 
 	wait_queue_head_t	wait;
 

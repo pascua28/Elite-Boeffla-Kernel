@@ -18,7 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 
 #include "modem_prj.h"
 #include "modem_link_device_usb.h"

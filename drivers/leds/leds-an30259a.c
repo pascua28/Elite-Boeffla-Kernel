@@ -404,14 +404,10 @@ static void an30259a_start_led_pattern(int mode)
 		SLPTT1, SLPTT2, DT1, DT2, DT3, DT4) */
 	case CHARGING:
 		leds_on(LED_R, true, false, r_brightness);
-		leds_on(LED_G, false, false, LED_OFF);
-		leds_on(LED_B, false, false, LED_OFF);
 		break;
 
 	case CHARGING_ERR:
 		leds_on(LED_R, true, true, r_brightness);
-		leds_on(LED_G, false, false, LED_OFF);
-		leds_on(LED_B, false, false, LED_OFF);
 		/* Yank555.lu : Handle fading / blinking */
 		if (led_enable_fade == 1) {
 			leds_set_slope_mode(client, LED_R,
@@ -423,8 +419,6 @@ static void an30259a_start_led_pattern(int mode)
 		break;
 
 	case MISSED_NOTI:
-		leds_on(LED_R, false, false, LED_OFF);
-		leds_on(LED_G, false, false, LED_OFF);
 		leds_on(LED_B, true, true, b_brightness);
 		/* Yank555.lu : Handle fading / blinking */
 		if (led_enable_fade == 1) {
@@ -438,8 +432,6 @@ static void an30259a_start_led_pattern(int mode)
 
 	case LOW_BATTERY:
 		leds_on(LED_R, true, true, r_brightness);
-		leds_on(LED_G, false, false, LED_OFF);
-		leds_on(LED_B, false, false, LED_OFF);
 		/* Yank555.lu : Handle fading / blinking */
 		if (led_enable_fade == 1) {
 			leds_set_slope_mode(client, LED_R,
@@ -451,13 +443,10 @@ static void an30259a_start_led_pattern(int mode)
 		break;
 
 	case FULLY_CHARGED:
-		leds_on(LED_R, false, false, LED_OFF);
 		leds_on(LED_G, true, false, g_brightness);
-		leds_on(LED_B, false, false, LED_OFF);
 		break;
 
 	case POWERING:
-		leds_on(LED_R, false, false, 0);
 		leds_on(LED_G, true, true, LED_G_CURRENT);
 		leds_on(LED_B, true, true, LED_B_CURRENT);
 		leds_set_slope_mode(client, LED_G,
@@ -583,17 +572,19 @@ static ssize_t store_an30259a_led_pattern(struct device *dev,
 					const char *buf, size_t count)
 {
 	int retval;
-	unsigned long mode;
+	unsigned int mode = 0;
+	unsigned int type = 0;
 	struct an30259a_data *data = dev_get_drvdata(dev);
 
-	retval = strict_strtoul(buf, 16, &mode);
-	if (retval != 0) {
+	retval = sscanf(buf, "%d %d", &mode, &type);
+
+	if (retval == 0) {
 		dev_err(&data->client->dev, "fail to get led_pattern mode.\n");
 		return count;
 	}
 
 	an30259a_start_led_pattern(mode);
-	printk(KERN_DEBUG "led pattern : %lu is activated\n", mode);
+	printk(KERN_DEBUG "led pattern : %d is activated\n", mode);
 
 	return count;
 }
@@ -646,23 +637,20 @@ static ssize_t store_an30259a_led_blink(struct device *dev,
 static ssize_t show_an30259a_led_fade(struct device *dev,
                     struct device_attribute *attr, char *buf)
 {
-    int ret;
-
-    ret = sprintf(buf, "%d\n", led_enable_fade);
-    pr_info("[LED] %s: led_fade=%d\n", __func__, led_enable_fade);
-
-    return ret;
+	switch(led_enable_fade) {
+		case 0:		return sprintf(buf, "%d - LED fading is disabled\n", led_enable_fade);
+		case 1:		return sprintf(buf, "%d - LED fading is enabled\n", led_enable_fade);
+		default:	return sprintf(buf, "%d - LED fading is in undefined status\n", led_enable_fade);
+	}
 }
 
 static ssize_t store_an30259a_led_fade(struct device *dev,
 					struct device_attribute *devattr,
 					const char *buf, size_t count)
 {
-	int retval;
-	int enabled = 0;
-	struct an30259a_data *data = dev_get_drvdata(dev);
+	int enabled = -1; /* default to not set a new value */
 
-	retval = sscanf(buf, "%d", &enabled);
+	sscanf(buf, "%d", &enabled);
 
 	switch(enabled) { /* Accept only if 0 or 1 */
 		case 0:
@@ -715,8 +703,8 @@ static ssize_t store_an30259a_led_speed(struct device *dev,
 
 	sscanf(buf, "%d", &new_led_speed);
 
-	// only accept if between 0 and 60
-	if ((new_led_speed >= 0) && (new_led_speed <= 60))
+	// only accept if between 0 and 15
+	if ((new_led_speed >= 0) && (new_led_speed <= 15))
 		led_speed = new_led_speed;
 		
 	return count;
@@ -1069,11 +1057,11 @@ static int __devinit an30259a_probe(struct i2c_client *client,
 	}
 
 #ifdef SEC_LED_SPECIFIC
-	led_enable_fade = 0;  /* default to CM behaviour = don't fade */
+	led_enable_fade = 0;  /* default to stock behaviour = blink */
 //	led_intensity =  0;   /* default to CM behaviour = brighter blink intensity allowed */
-	led_intensity =  0;   /* default to Samsung behaviour = normal intensity */
+	led_intensity = 40;   /* default to Samsung behaviour = normal intensity */
 	led_speed = 1;        /* default to stock behaviour = normal blinking/fading speed */
-	led_slope_up_1 = 1;   /* default slope durations to CM behaviour */
+	led_slope_up_1 = 1;   /* default slope durations for fading */
 	led_slope_up_2 = 1;
 	led_slope_down_1 = 1;
 	led_slope_down_2 = 1;
@@ -1089,10 +1077,13 @@ static int __devinit an30259a_probe(struct i2c_client *client,
 	if (ret) {
 		dev_err(&client->dev,
 			"Failed to create sysfs group for samsung specific led\n");
-		goto exit;
+		goto exit2;
 	}
 #endif
 	return ret;
+
+exit2: 
+	device_destroy(sec_class, 0);
 exit:
 	mutex_destroy(&data->mutex);
 	kfree(data);
@@ -1104,6 +1095,22 @@ static int __devexit an30259a_remove(struct i2c_client *client)
 	struct an30259a_data *data = i2c_get_clientdata(client);
 	int i;
 	dev_dbg(&client->adapter->dev, "%s\n", __func__);
+	
+	// this is not an ugly hack to shutdown led.
+	data->shadow_reg[AN30259A_REG_LEDON] &= ~(LED_ON << 0);
+	data->shadow_reg[AN30259A_REG_LEDON] &= ~(LED_ON << 1);
+	data->shadow_reg[AN30259A_REG_LEDON] &= ~(LED_ON << 2);
+	data->shadow_reg[AN30259A_REG_LED1CNT2 + 0 * 4] &= ~AN30259A_MASK_DELAY;
+	data->shadow_reg[AN30259A_REG_LED1CNT2 + 1 * 4] &= ~AN30259A_MASK_DELAY;
+	data->shadow_reg[AN30259A_REG_LED1CNT2 + 2 * 4] &= ~AN30259A_MASK_DELAY;
+	data->shadow_reg[AN30259A_REG_LEDON] &= ~(LED_SLOPE_MODE << 0);
+	data->shadow_reg[AN30259A_REG_LEDON] &= ~(LED_SLOPE_MODE << 1);
+	data->shadow_reg[AN30259A_REG_LEDON] &= ~(LED_SLOPE_MODE << 2);
+	data->shadow_reg[AN30259A_REG_LED1CC + 0] = 0;
+	data->shadow_reg[AN30259A_REG_LED1CC + 1] = 0;
+	data->shadow_reg[AN30259A_REG_LED1CC + 2] = 0;
+	msleep(200);	
+	
 #ifdef SEC_LED_SPECIFIC
 	sysfs_remove_group(&led_dev->kobj, &sec_led_attr_group);
 #endif
@@ -1113,6 +1120,7 @@ static int __devexit an30259a_remove(struct i2c_client *client)
 		led_classdev_unregister(&data->leds[i].cdev);
 		cancel_work_sync(&data->leds[i].brightness_work);
 	}
+	
 	mutex_destroy(&data->mutex);
 	kfree(data);
 	return 0;

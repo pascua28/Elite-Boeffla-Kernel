@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 
 #include <mach/c2c.h>
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 
@@ -212,8 +212,6 @@ static int ss222_boot_off(struct modem_ctl *mc)
 	struct link_device *ld = get_current_link(mc->bootd);
 	unsigned long remain;
 	mif_debug("+++\n");
-
-	ld->mode = LINK_MODE_IPC;
 
 	remain = wait_for_completion_timeout(&ld->init_cmpl, MIF_INIT_TIMEOUT);
 	if (remain == 0) {

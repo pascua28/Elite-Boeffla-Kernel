@@ -59,14 +59,14 @@
 #include "f_mtp.c"
 #endif
 #include "f_accessory.c"
-#include "f_hid.h"
-#include "f_hid_android_keyboard.c"
-#include "f_hid_android_mouse.c"
 #define USB_ETH_RNDIS y
 #include "f_rndis.c"
 #include "rndis.c"
 #include "f_diag.c"
 #include "f_dm.c"
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_SIDESYNC
+#include "f_conn_gadget.c"
+#endif
 
 MODULE_AUTHOR("Mike Lockwood");
 MODULE_DESCRIPTION("Android Composite USB Driver");
@@ -101,7 +101,7 @@ struct android_usb_function {
 	/* Optional: cleanup during gadget unbind */
 	void (*cleanup)(struct android_usb_function *);
 	/* Optional: called when the function is added the list of
-	 * enabled functions */
+	 *		enabled functions */
 	void (*enable)(struct android_usb_function *);
 	/* Optional: called when it is removed */
 	void (*disable)(struct android_usb_function *);
@@ -151,6 +151,15 @@ static char serial_string[256];
 #include "u_composite_notifier.c"
 #endif
 #include "u_ether.c"
+
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+int g_rndis;
+int is_rndis_use(void)
+{
+	return g_rndis;
+}
+EXPORT_SYMBOL_GPL(is_rndis_use);
+#endif
 
 /* String Table */
 static struct usb_string strings_dev[] = {
@@ -317,6 +326,44 @@ static struct android_usb_function adb_function = {
 	.bind_config	= adb_function_bind_config,
 };
 
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_SIDESYNC
+struct conn_gadget_data {
+	bool opened;
+	bool enabled;
+};
+
+static int
+conn_gadget_function_init(struct android_usb_function *f,
+		struct usb_composite_dev *cdev)
+{
+	f->config = kzalloc(sizeof(struct conn_gadget_data), GFP_KERNEL);
+	if (!f->config)
+		return -ENOMEM;
+
+	return conn_gadget_setup();
+}
+
+static void conn_gadget_function_cleanup(struct android_usb_function *f)
+{
+	conn_gadget_cleanup();
+	kfree(f->config);
+}
+
+static int
+conn_gadget_function_bind_config(struct android_usb_function *f,
+		struct usb_configuration *c)
+{
+	return conn_gadget_bind_config(c);
+}
+
+static struct android_usb_function conn_gadget_function = {
+	.name = "conn_gadget",
+	.init = conn_gadget_function_init,
+	.cleanup = conn_gadget_function_cleanup,
+	.bind_config = conn_gadget_function_bind_config,
+};
+#endif
+
 static void adb_ready_callback(void)
 {
 	struct android_dev *dev = _android_dev;
@@ -482,6 +529,7 @@ static struct android_usb_function ptp_function = {
 	.init		= ptp_function_init,
 	.cleanup	= ptp_function_cleanup,
 	.bind_config	= ptp_function_bind_config,
+	.ctrlrequest    = mtp_function_ctrlrequest,
 };
 
 
@@ -694,7 +742,6 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	struct fsg_common *common;
 	int err, i;
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
-	int i;
 	unsigned int cdfs = 0;
 #endif
 	config = kzalloc(sizeof(struct mass_storage_function_config),
@@ -727,6 +774,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
 			config->fsg.luns[i].cdrom = 1;
 			config->fsg.luns[i].removable = 1;
 			config->fsg.luns[i].nofua = 1;
+			config->fsg.luns[i].ro=0;  // Read /Write
 		}
 
 		common = fsg_common_init(NULL, cdev, &config->fsg);
@@ -904,6 +952,41 @@ static ssize_t mass_storage_product_store(struct device *dev,
 static DEVICE_ATTR(product_string, S_IRUGO | S_IWUSR,
 					mass_storage_product_show,
 					mass_storage_product_store);
+
+static ssize_t sua_version_info_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct android_usb_function *f = dev_get_drvdata(dev);
+	struct mass_storage_function_config *config = f->config;
+	int ret;
+
+	ret = sprintf(buf, "%s\r\n",config->common->version_string);
+	printk(KERN_DEBUG "usb: %s version %s\n", __func__, buf);
+	return ret;
+}
+
+/*
+ /sys/class/android_usb/android0/f_mass_storage/sua_version_info
+*/
+static ssize_t sua_version_info_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct android_usb_function *f = dev_get_drvdata(dev);
+	struct mass_storage_function_config *config = f->config;
+	int len = 0;
+
+	if (size < sizeof(config->common->version_string))
+		memcpy(config->common->version_string, buf, size);
+	else
+	{
+		len = sizeof(config->common->version_string);
+		memcpy(config->common->version_string, buf, len-1);
+	}
+	return size;
+}
+
+static DEVICE_ATTR(sua_version_info,  S_IRUGO | S_IWUSR,
+		sua_version_info_show, sua_version_info_store);
 #endif
 
 static struct device_attribute *mass_storage_function_attributes[] = {
@@ -911,6 +994,7 @@ static struct device_attribute *mass_storage_function_attributes[] = {
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	&dev_attr_vendor_string,
 	&dev_attr_product_string,
+	&dev_attr_sua_version_info,
 #endif
 	NULL
 };
@@ -1087,41 +1171,6 @@ static struct android_usb_function audio_source_function = {
 	.attributes	= audio_source_function_attributes,
 };
 
-static int hid_function_init(struct android_usb_function *f, struct usb_composite_dev *cdev)
-{
-	return ghid_setup(cdev->gadget, 2);
-}
-
-static void hid_function_cleanup(struct android_usb_function *f)
-{
-	ghid_cleanup();
-}
-
-static int hid_function_bind_config(struct android_usb_function *f, struct usb_configuration *c)
-{
-	int ret;
-	printk(KERN_INFO "hid keyboard\n");
-	ret = hidg_bind_config(c, &ghid_device_android_keyboard, 0);
-	if (ret) {
-		pr_info("%s: hid_function_bind_config keyboard failed: %d\n", __func__, ret);
-		return ret;
-	}
-	printk(KERN_INFO "hid mouse\n");
-	ret = hidg_bind_config(c, &ghid_device_android_mouse, 1);
-	if (ret) {
-		pr_info("%s: hid_function_bind_config mouse failed: %d\n", __func__, ret);
-		return ret;
-	}
-	return 0;
-}
-
-static struct android_usb_function hid_function = {
-	.name		= "hid",
-	.init		= hid_function_init,
-	.cleanup	= hid_function_cleanup,
-	.bind_config	= hid_function_bind_config,
-};
-
 static struct android_usb_function *supported_functions[] = {
 	&adb_function,
 	&acm_function,
@@ -1131,12 +1180,14 @@ static struct android_usb_function *supported_functions[] = {
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	&ncm_function,
 #endif
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_SIDESYNC
+	&conn_gadget_function,
+#endif
 	&mass_storage_function,
 	&accessory_function,
 	&diag_function,
 	&dm_function,
 	&audio_source_function,
-	&hid_function,
 	NULL
 };
 
@@ -1287,6 +1338,10 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 	char buf[256], *b;
 	int err;
 
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+	g_rndis = 0;
+#endif
+
 	mutex_lock(&dev->mutex);
 
 	if (dev->enabled) {
@@ -1328,12 +1383,12 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 					"android_usb: Cannot enable '%s'",
 					name);
 			}
+			if (!strcmp(name,"rndis")) {
+				g_rndis = 1;
+			}
 #endif
 		}
 	}
-
-	/* HID driver always enabled, it's the whole point of this kernel patch */
-	android_enable_function(dev, "hid");
 
 	mutex_unlock(&dev->mutex);
 
@@ -1381,13 +1436,25 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 				/* Samsung KIES needs fixed bcdDevice number */
 				cdev->desc.bcdDevice = cpu_to_le16(0x0400);
 			}
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_SIDESYNC
+			if (!strcmp(f->name, "conn_gadget")) {
+				if(cdev->desc.bcdDevice == cpu_to_le16(0x0400))	{
+					printk(KERN_DEBUG "usb: conn_gadget + kies (bcdDevice=0xC00)\n");
+					cdev->desc.bcdDevice = cpu_to_le16(0x0C00);
+				} else {
+					printk(KERN_DEBUG "usb: conn_gadget only (bcdDevice=0x800)\n");
+					cdev->desc.bcdDevice = cpu_to_le16(0x0800);
+				}
+			}
+#endif
 			if (is_ncm_ready(f->name))
 				set_ncm_device_descriptor(&cdev->desc);
 		}
 		strncpy(manufacturer_string, "SAMSUNG",
-				sizeof(manufacturer_string) - 1);
+			 sizeof(manufacturer_string) - 1);
 		strncpy(product_string, "SAMSUNG_Android",
-				sizeof(product_string) - 1);
+			sizeof(product_string) - 1);
+
 #endif
 		cdev->desc.bDeviceSubClass = device_desc.bDeviceSubClass;
 		cdev->desc.bDeviceProtocol = device_desc.bDeviceProtocol;

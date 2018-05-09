@@ -300,10 +300,9 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	 * request of the caller allocate from it.  Repeat until allocate has
 	 * succeeded or all heaps have been tried
 	 */
+	len = PAGE_ALIGN(len);
 	if (WARN_ON(!len))
 		return ERR_PTR(-EINVAL);
-
-	len = PAGE_ALIGN(len);
 
 	mutex_lock(&dev->lock);
 	for (n = rb_first(&dev->heaps); n != NULL; n = rb_next(n)) {

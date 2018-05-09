@@ -48,6 +48,18 @@
 
 #define S5C73M3_DRIVER_NAME	"S5C73M3"
 
+#include <sound/soc.h>
+#include <sound/core.h>
+#include <sound/jack.h>
+
+#include <linux/miscdevice.h>
+#include <linux/mfd/wm8994/core.h>
+#include <linux/mfd/wm8994/registers.h>
+#include <linux/mfd/wm8994/pdata.h>
+#include <linux/mfd/wm8994/gpio.h>
+
+#include <../sound/soc/codecs/wm8994.h>
+
 extern struct class *camera_class; /*sys/class/camera*/
 struct device *s5c73m3_dev; /*sys/class/camera/rear*/
 struct v4l2_subdev *sd_internal;
@@ -56,8 +68,14 @@ struct v4l2_subdev *sd_internal;
 struct device *bus_dev;
 #endif
 
-#define S5C73M3_FW_DIR "/system/vendor/firmware"
-#define FW_PATH_LEN 50
+static struct snd_soc_codec *codec;
+static struct wm8994_priv *wm8994;
+
+static int speaker_vol_left = 377, speaker_vol_right = 377;
+static bool sensor_enabled = false;
+static bool camera_speaker_enabled = true;
+
+/*#define S5C73M3_FROM_BOOTING*/
 #define S5C73M3_CORE_VDD	"/data/ISP_CV"
 #define S5C73M3_FW_PATH		"/sdcard/SlimISP.bin"
 #define S5C73M3_FW_VER_LEN		6
@@ -71,6 +89,42 @@ struct device *bus_dev;
 			}
 struct s5c73m3_fw_version camfw_info[S5C73M3_PATH_MAX];
 
+#if defined(CONFIG_MACH_BAFFIN) && !defined(CONFIG_MACH_SUPERIOR_KOR_SKT)
+/* for 5:3 WIDE RATIO */
+static const struct s5c73m3_frmsizeenum preview_frmsizes[] = {
+	{ S5C73M3_PREVIEW_QVGA,	320,	240,	0x01 },
+	{ S5C73M3_PREVIEW_VGA,	640,	480,	0x02 },
+	{ S5C73M3_PREVIEW_528X432,	528,	432,	0x03 },
+	{ S5C73M3_PREVIEW_960X720,	960,	720,	0x04 },
+	{ S5C73M3_PREVIEW_WVGA,	800,	480,	0x05 },
+	{ S5C73M3_PREVIEW_720P,	1280,	720,	0x06 },
+	{ S5C73M3_VDIS_720P,	1536,	864,	0x07 },
+	{ S5C73M3_PREVIEW_800X600,	800,	600,	0x09 },
+	{ S5C73M3_PREVIEW_1080P,	1920,	1080,	0x0A},
+	{ S5C73M3_PREVIEW_D1,	720,	480,	0x0B },
+	{ S5C73M3_VDIS_1080P,	2304,	1296,	0x0C},
+	{ S5C73M3_PREVIEW_CIF,	352,	288,	0x0E },
+	{ S5C73M3_PREVIEW_1008X672,	1008,	672,	0x0F },
+};
+
+static const struct s5c73m3_frmsizeenum capture_frmsizes[] = {
+	{ S5C73M3_CAPTURE_VGA,	640,	480,	0x10 },
+	{ S5C73M3_CAPTURE_WVGA,	800,	480,	0x20 },
+	{ S5C73M3_CAPTURE_XGA,	1024,	768,	0x30 },
+	{ S5C73M3_CAPTURE_WXGA,	1280,	768,	0x40 },
+	{ S5C73M3_CAPTURE_1280X960,	1280,	960,	0x50 },
+	{ S5C73M3_CAPTURE_W1MP,	1600,	960,	0x60 },
+	{ S5C73M3_CAPTURE_2MP,	1600,	1200,	0x70 },
+	{ S5C73M3_CAPTURE_2000X1200,	2000,	1200,	0x80 },
+	{ S5C73M3_CAPTURE_2000X1500,	2000,	1500,	0x90 },
+	{ S5C73M3_CAPTURE_W4MP,	2560,	1536,	0xA0 },
+	{ S5C73M3_CAPTURE_5MP,	2560,	1920,	0xB0 },
+	{ S5C73M3_CAPTURE_3264X2176,	3264,	2176,	0xC0 },
+	{ S5C73M3_CAPTURE_3264X1960,	3264,	1960,	0xD0 },
+	{ S5C73M3_CAPTURE_W6MP,	3264,	1836,	0xE0 },
+	{ S5C73M3_CAPTURE_8MP,	3264,	2448,	0xF0 },
+};
+#else
 static const struct s5c73m3_frmsizeenum preview_frmsizes[] = {
 	{ S5C73M3_PREVIEW_QVGA,	320,	240,	0x01 },
 	{ S5C73M3_PREVIEW_CIF,	352,	288,	0x0E },
@@ -80,7 +134,7 @@ static const struct s5c73m3_frmsizeenum preview_frmsizes[] = {
 	{ S5C73M3_PREVIEW_1008X672,	1008,	672,	0x0F },
 	{ S5C73M3_PREVIEW_1184X666,	1184,	666,	0x05 },
 	{ S5C73M3_PREVIEW_720P,	1280,	720,	0x06 },
-#ifdef CONFIG_MACH_T0
+#if defined(CONFIG_MACH_T0)
 	{ S5C73M3_PREVIEW_1280X960,	1280,	960,	0x09 },
 #else
 	{ S5C73M3_PREVIEW_800X600,	800,	600,	0x09 },
@@ -105,6 +159,7 @@ static const struct s5c73m3_frmsizeenum capture_frmsizes[] = {
 	{ S5C73M3_CAPTURE_3264X2176,	3264,	2176,	0xC0 },
 	{ S5C73M3_CAPTURE_8MP,	3264,	2448,	0xF0 },
 };
+#endif
 
 static const struct s5c73m3_effectenum s5c73m3_effects[] = {
 	{IMAGE_EFFECT_NONE, S5C73M3_IMAGE_EFFECT_NONE},
@@ -173,7 +228,6 @@ static struct s5c73m3_control s5c73m3_ctrls[] = {
 
 static u8 sysfs_sensor_fw[10] = {0,};
 static u8 sysfs_phone_fw[10] = {0,};
-static u8 sysfs_sensor_type[15] = {0,};
 static u8 sysfs_isp_core[10] = {0,};
 static u8 data_memory[500000] = {0,};
 static u32 crc_table[256] = {0,};
@@ -583,7 +637,7 @@ static int s5c73m3_get_sensor_fw_binary(struct v4l2_subdev *sd)
 	struct file *fp = NULL;
 	mm_segment_t old_fs;
 	long ret = 0;
-	char fw_path[FW_PATH_LEN] = {0,};
+	char fw_path[25] = {0,};
 	u8 mem0 = 0, mem1 = 0;
 	u32 CRC = 0;
 	u32 DataCRC = 0;
@@ -591,24 +645,36 @@ static int s5c73m3_get_sensor_fw_binary(struct v4l2_subdev *sd)
 	u32 crc_index = 0;
 	int retryCnt = 2;
 
-#ifdef CONFIG_MACH_T0
+#if defined(CONFIG_MACH_T0)
 	if (state->sensor_fw[1] == 'D') {
-		sprintf(fw_path, S5C73M3_FW_DIR "/SlimISP_%cK.bin",
+		sprintf(fw_path, "/data/cfw/SlimISP_%cK.bin",
 			state->sensor_fw[0]);
 	} else {
-		sprintf(fw_path, S5C73M3_FW_DIR "/SlimISP_%c%c.bin",
+		sprintf(fw_path, "/data/cfw/SlimISP_%c%c.bin",
+			state->sensor_fw[0],
+			state->sensor_fw[1]);
+	}
+#elif defined(CONFIG_MACH_BAFFIN)
+	if (state->sensor_fw[1] == 'D') {
+		sprintf(fw_path, "/data/cfw/SlimISP_%cK.bin",
+			state->sensor_fw[0]);
+	} else if (state->sensor_fw[1] == 'H') {
+		sprintf(fw_path, "/data/cfw/SlimISP_%cM.bin",
+			state->sensor_fw[0]);
+	} else {
+		sprintf(fw_path, "/data/cfw/SlimISP_%c%c.bin",
 			state->sensor_fw[0],
 			state->sensor_fw[1]);
 	}
 #else
 	if (state->sensor_fw[0] == 'O') {
-		sprintf(fw_path, S5C73M3_FW_DIR "/SlimISP_G%c.bin",
+		sprintf(fw_path, "/data/cfw/SlimISP_G%c.bin",
 			state->sensor_fw[1]);
 	} else if (state->sensor_fw[0] == 'S') {
-		sprintf(fw_path, S5C73M3_FW_DIR "/SlimISP_Z%c.bin",
+		sprintf(fw_path, "/data/cfw/SlimISP_Z%c.bin",
 			state->sensor_fw[1]);
 	} else {
-	sprintf(fw_path, S5C73M3_FW_DIR "/SlimISP_%c%c.bin",
+	sprintf(fw_path, "/data/cfw/SlimISP_%c%c.bin",
 		state->sensor_fw[0],
 		state->sensor_fw[1]);
 	}
@@ -844,17 +910,6 @@ static int s5c73m3_get_sensor_fw_version(struct v4l2_subdev *sd)
 	err = s5c73m3_write(sd, 0x3010, 0x00A4, 0x0183);
 	CHECK_ERR(err);
 
-	for (i = 0; i < 5; i++) {
-		err = s5c73m3_read(sd, 0x0000, 0x06+i*2, &sensor_type);
-		CHECK_ERR(err);
-		state->sensor_type[i*2] = sensor_type&0x00ff;
-		state->sensor_type[i*2+1] = (sensor_type&0xff00)>>8;
-#ifdef FEATURE_DEBUG_DUMP
-		cam_err("0x%x\n", sensor_type);
-#endif
-	}
-	state->sensor_type[i*2+2] = ' ';
-
 	for (i = 0; i < 3; i++) {
 		err = s5c73m3_read(sd, 0x0000, i*2, &sensor_fw);
 		CHECK_ERR(err);
@@ -875,11 +930,8 @@ static int s5c73m3_get_sensor_fw_version(struct v4l2_subdev *sd)
 
 	memcpy(sysfs_sensor_fw, state->sensor_fw,
 		sizeof(state->sensor_fw));
-	memcpy(sysfs_sensor_type, state->sensor_type,
-		sizeof(state->sensor_type));
 
-	cam_dbg("Sensor_version = %s, Sensor_Type = %s\n",
-		state->sensor_fw, state->sensor_type);
+	cam_dbg("Sensor_version = %s\n", state->sensor_fw);
 
 	if ((state->sensor_fw[0] < 'A') || state->sensor_fw[0] > 'Z') {
 		cam_dbg("Sensor Version is invalid data\n");
@@ -893,7 +945,7 @@ static int s5c73m3_get_sensor_fw_version(struct v4l2_subdev *sd)
 				cam_err("\n 0010h : ");
 		}
 		mdelay(50);
-		memcpy(state->sensor_type,
+		memcpy(sysfs_sensor_fw,
 			state->sensor_fw,
 			0x100000); /* for kernel panic */
 #endif
@@ -964,16 +1016,28 @@ static int s5c73m3_get_phone_fw_version(struct v4l2_subdev *sd)
 	struct device *dev = sd->v4l2_dev->dev;
 	struct s5c73m3_state *state = to_state(sd);
 	const struct firmware *fw = {0, };
-	char fw_path[FW_PATH_LEN] = {0,};
-	char fw_path_in_data[FW_PATH_LEN] = {0,};
+	char fw_path[20] = {0,};
+	char fw_path_in_data[25] = {0,};
 	u8 *buf = NULL;
 	int err = 0;
 	int retVal = 0;
 	int fw_requested = 1;
 
-#ifdef CONFIG_MACH_T0
+#if defined(CONFIG_MACH_T0)
 	if (state->sensor_fw[1] == 'D') {
 		sprintf(fw_path, "SlimISP_%cK.bin",
+			state->sensor_fw[0]);
+	} else {
+		sprintf(fw_path, "SlimISP_%c%c.bin",
+			state->sensor_fw[0],
+			state->sensor_fw[1]);
+	}
+#elif defined(CONFIG_MACH_BAFFIN)
+	if (state->sensor_fw[1] == 'D') {
+		sprintf(fw_path, "SlimISP_%cK.bin",
+			state->sensor_fw[0]);
+	} else if (state->sensor_fw[1] == 'H') {
+		sprintf(fw_path, "SlimISP_%cM.bin",
 			state->sensor_fw[0]);
 	} else {
 		sprintf(fw_path, "SlimISP_%c%c.bin",
@@ -994,7 +1058,7 @@ static int s5c73m3_get_phone_fw_version(struct v4l2_subdev *sd)
 	}
 #endif
 
-	sprintf(fw_path_in_data, S5C73M3_FW_DIR "/%s",
+	sprintf(fw_path_in_data, "/data/cfw/%s",
 		fw_path);
 
 	buf = vmalloc(S5C73M3_FW_VER_LEN+1);
@@ -1035,8 +1099,6 @@ request_fw:
 			camfw_info[S5C73M3_IN_DATA]
 				.ver[S5C73M3_FW_VER_LEN+1] = ' ';
 		}
-		/* support fw only from "data" */
-		if(retVal < 0) err = retVal;
 
 		/* check fw in system folder */
 		retVal = request_firmware(&fw, fw_path, dev);
@@ -1220,8 +1282,13 @@ static int s5c73m3_check_fw_date(struct v4l2_subdev *sd)
 		phone_date,
 		strcmp((char *)&sensor_date, (char *)&phone_date));
 
-#ifdef CONFIG_MACH_T0
+#if defined(CONFIG_MACH_T0)
 	if (state->sensor_fw[1] == 'D')
+		return -1;
+	else
+		return strcmp((char *)&sensor_date, (char *)&phone_date);
+#elif defined(CONFIG_MACH_BAFFIN)
+	if (state->sensor_fw[1] == 'D' || state->sensor_fw[1] == 'H')
 		return -1;
 	else
 		return strcmp((char *)&sensor_date, (char *)&phone_date);
@@ -2439,6 +2506,7 @@ static int s5c73m3_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			err = s5c73m3_check_fw(sd, 1);
 		else
 			err = 0;
+
 		break;
 
 	case V4L2_CID_CAMERA_SENSOR_MODE:
@@ -2681,8 +2749,8 @@ static int s5c73m3_load_fw(struct v4l2_subdev *sd)
 	struct device *dev = sd->v4l2_dev->dev;
 	struct s5c73m3_state *state = to_state(sd);
 	const struct firmware *fw;
-	char fw_path[FW_PATH_LEN] = {0,};
-	char fw_path_in_data[FW_PATH_LEN] = {0,};
+	char fw_path[20] = {0,};
+	char fw_path_in_data[25] = {0,};
 	u8 *buf = NULL;
 	int err = 0;
 	int txSize = 0;
@@ -2691,9 +2759,21 @@ static int s5c73m3_load_fw(struct v4l2_subdev *sd)
 	mm_segment_t old_fs;
 	long fsize = 0, nread;
 
-#ifdef CONFIG_MACH_T0
+#if defined(CONFIG_MACH_T0)
 	if (state->sensor_fw[1] == 'D') {
 		sprintf(fw_path, "SlimISP_%cK.bin",
+			state->sensor_fw[0]);
+	} else {
+		sprintf(fw_path, "SlimISP_%c%c.bin",
+			state->sensor_fw[0],
+			state->sensor_fw[1]);
+	}
+#elif defined(CONFIG_MACH_BAFFIN)
+	if (state->sensor_fw[1] == 'D') {
+		sprintf(fw_path, "SlimISP_%cK.bin",
+			state->sensor_fw[0]);
+	} else if (state->sensor_fw[1] == 'H') {
+		sprintf(fw_path, "SlimISP_%cM.bin",
 			state->sensor_fw[0]);
 	} else {
 		sprintf(fw_path, "SlimISP_%c%c.bin",
@@ -2714,7 +2794,7 @@ static int s5c73m3_load_fw(struct v4l2_subdev *sd)
 	}
 #endif
 
-	sprintf(fw_path_in_data, S5C73M3_FW_DIR "/%s",
+	sprintf(fw_path_in_data, "/data/cfw/%s",
 		fw_path);
 
 	old_fs = get_fs();
@@ -2726,10 +2806,8 @@ static int s5c73m3_load_fw(struct v4l2_subdev *sd)
 			fp = filp_open(S5C73M3_FW_PATH, O_RDONLY, 0);
 		else
 			fp = filp_open(fw_path_in_data, O_RDONLY, 0);
-		if (IS_ERR(fp)){
-			err = -ENOENT;
+		if (IS_ERR(fp))
 			goto out;
-		}
 		else
 			cam_dbg("%s is opened\n",
 			state->fw_index == S5C73M3_SD_CARD ?
@@ -2991,6 +3069,133 @@ static int s5c73m3_enum_framesizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int wm8994_volatile(struct snd_soc_codec *codec, unsigned int reg)
+{
+	if (reg >= WM8994_CACHE_SIZE)
+		return 1;
+
+	switch (reg) {
+	case WM8994_SOFTWARE_RESET:
+	case WM8994_CHIP_REVISION:
+	case WM8994_DC_SERVO_1:
+	case WM8994_DC_SERVO_READBACK:
+	case WM8994_RATE_STATUS:
+	case WM8994_LDO_1:
+	case WM8994_LDO_2:
+	case WM8958_DSP2_EXECCONTROL:
+	case WM8958_MIC_DETECT_3:
+	case WM8994_DC_SERVO_4E:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static int wm8994_readable(struct snd_soc_codec *codec, unsigned int reg)
+{
+	struct wm8994 *control = codec->control_data;
+
+	switch (reg) {
+	case WM8994_GPIO_1:
+	case WM8994_GPIO_2:
+	case WM8994_GPIO_3:
+	case WM8994_GPIO_4:
+	case WM8994_GPIO_5:
+	case WM8994_GPIO_6:
+	case WM8994_GPIO_7:
+	case WM8994_GPIO_8:
+	case WM8994_GPIO_9:
+	case WM8994_GPIO_10:
+	case WM8994_GPIO_11:
+	case WM8994_INTERRUPT_STATUS_1:
+	case WM8994_INTERRUPT_STATUS_2:
+	case WM8994_INTERRUPT_STATUS_1_MASK:
+	case WM8994_INTERRUPT_STATUS_2_MASK:
+	case WM8994_INTERRUPT_RAW_STATUS_2:
+		return 1;
+
+	case WM8958_DSP2_PROGRAM:
+	case WM8958_DSP2_CONFIG:
+	case WM8958_DSP2_EXECCONTROL:
+		if (control->type == WM8958)
+			return 1;
+		else
+			return 0;
+
+	default:
+		break;
+	}
+
+	if (reg >= WM8994_CACHE_SIZE)
+		return 0;
+	return wm8994_access_masks[reg].readable != 0;
+}
+
+static unsigned int wm8994_read(struct snd_soc_codec *codec,
+				unsigned int reg)
+{
+	unsigned int val;
+	int ret;
+
+	if (!wm8994_volatile(codec, reg) && wm8994_readable(codec, reg) &&
+	    reg < codec->driver->reg_cache_size) {
+		ret = snd_soc_cache_read(codec, reg, &val);
+		if (ret >= 0)
+			return val;
+	}
+
+	val = wm8994_reg_read(codec->control_data, reg);
+
+	return val;
+}
+
+static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
+	unsigned int value)
+{
+	int ret;
+
+	if (!wm8994_volatile(codec, reg)) {
+		ret = snd_soc_cache_write(codec, reg, value);
+	}
+
+	return wm8994_reg_write(codec->control_data, reg, value);
+}
+
+void s5c73m3_s_stream_sensor_hook_wm8994_pcm_probe(struct snd_soc_codec *codec_pointer)
+{
+	codec = codec_pointer;
+	wm8994 = snd_soc_codec_get_drvdata(codec);
+}
+
+static ssize_t camera_speaker_read(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", (camera_speaker_enabled ? 1 : 0));
+}
+
+static ssize_t camera_speaker_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	unsigned int ret = -EINVAL;
+	int val;
+
+	// read value from input buffer
+	ret = sscanf(buf, "%d", &val);
+
+	// check value and store if valid
+	if ((val == 0) || (val == 1))
+	{
+		camera_speaker_enabled = val;
+	}
+
+	if (val == 1 && sensor_enabled) {
+		sensor_enabled = false;
+		pr_info("%s: writing speaker_vol to WM8994_SPEAKER_VOLUME\n", __func__);
+		wm8994_write(codec, WM8994_SPEAKER_VOLUME_LEFT, speaker_vol_left);
+		wm8994_write(codec, WM8994_SPEAKER_VOLUME_RIGHT, speaker_vol_right | WM8994_SPKOUT_VU);
+	}
+
+	return size;
+}
+
 static int s5c73m3_s_stream_sensor(struct v4l2_subdev *sd, int onoff)
 {
 	int err = 0;
@@ -3000,6 +3205,34 @@ static int s5c73m3_s_stream_sensor(struct v4l2_subdev *sd, int onoff)
 	u16 i2c_seq_status = 0;
 
 	cam_info("onoff=%d\n", onoff);
+
+	/*
+	 * kernel-side camera shutter sound control by arter97
+	 *
+	 * Automatically disables & enables WM8994 speaker
+	 *              on rear camera sensor open & close
+	 *
+	 * WM8994 control code taken from Boeffla sound engine(@AndiP71)
+	 */
+	if (!camera_speaker_enabled) {
+		if (onoff) {
+			if (!sensor_enabled) {
+				pr_info("%s: saving WM8994_SPEAKER_VOLUME to speaker_vol\n", __func__);
+				speaker_vol_left = wm8994_read(codec, WM8994_SPEAKER_VOLUME_LEFT);
+				speaker_vol_right = wm8994_read(codec, WM8994_SPEAKER_VOLUME_RIGHT);
+			}
+			sensor_enabled = true;
+			pr_info("%s: writing 0 to WM8994_SPEAKER_VOLUME\n", __func__);
+			wm8994_write(codec, WM8994_SPEAKER_VOLUME_LEFT, 0);
+			wm8994_write(codec, WM8994_SPEAKER_VOLUME_RIGHT, 0 | WM8994_SPKOUT_VU);
+		} else {
+			sensor_enabled = false;
+			pr_info("%s: writing speaker_vol to WM8994_SPEAKER_VOLUME\n", __func__);
+			wm8994_write(codec, WM8994_SPEAKER_VOLUME_LEFT, speaker_vol_left);
+			wm8994_write(codec, WM8994_SPEAKER_VOLUME_RIGHT, speaker_vol_right | WM8994_SPKOUT_VU);
+		}
+	}
+
 	err = s5c73m3_writeb(sd, S5C73M3_SENSOR_STREAMING,
 		onoff ? S5C73M3_SENSOR_STREAMING_ON :
 		S5C73M3_SENSOR_STREAMING_OFF);
@@ -3309,8 +3542,7 @@ static int s5c73m3_SPI_booting(struct v4l2_subdev *sd)
 	}
 
 	/*download fw by SPI*/
-	err = s5c73m3_load_fw(sd);
-	CHECK_ERR(err);
+	s5c73m3_load_fw(sd);
 
 	/*ARM reset*/
 	err = s5c73m3_write(sd, 0x3000, 0x0004, 0xFFFD);
@@ -3334,7 +3566,7 @@ static int s5c73m3_read_vdd_core(struct v4l2_subdev *sd)
 	u16 read_val;
 	u32 vdd_core_val = 0;
 	int err;
-	struct file *fp;
+	struct file *fp = NULL;
 	mm_segment_t old_fs;
 
 	cam_trace("E\n");
@@ -3374,6 +3606,7 @@ static int s5c73m3_read_vdd_core(struct v4l2_subdev *sd)
 #if 0 /*read_val should be 0x7383*/
 	err = s5c73m3_read(sd, 0x0000, 0x131C, &read_val);
 	CHECK_ERR(err);
+
 	cam_dbg("read_val %#x\n", read_val);
 #endif
 
@@ -3400,13 +3633,8 @@ static int s5c73m3_read_vdd_core(struct v4l2_subdev *sd)
 		vdd_core_val = 1150000;
 	} else if (read_val & 0x800) {
 		strcpy(sysfs_isp_core, "1.10V");
-#ifdef CONFIG_MACH_M3
 		state->pdata->set_vdd_core(1150000);
 		vdd_core_val = 1150000;
-#else
-		state->pdata->set_vdd_core(1100000);
-		vdd_core_val = 1100000;
-#endif
 	} else if (read_val & 0x2000) {
 		strcpy(sysfs_isp_core, "1.05V");
 		state->pdata->set_vdd_core(1100000);
@@ -3426,8 +3654,10 @@ static int s5c73m3_read_vdd_core(struct v4l2_subdev *sd)
 
 	fp = filp_open(S5C73M3_CORE_VDD,
 		O_WRONLY|O_CREAT|O_TRUNC, 0644);
-	if (IS_ERR(fp))
+	if (IS_ERR(fp)) {
+		cam_err("can't open vdd file\n");
 		goto out;
+	}
 
 	buf = vmalloc(10);
 	if (!buf) {
@@ -3444,7 +3674,7 @@ out:
 	if (buf != NULL)
 		vfree(buf);
 
-	if (fp !=  NULL)
+	if (!IS_ERR(fp) && fp !=  NULL)
 		filp_close(fp, current->files);
 
 	set_fs(old_fs);
@@ -3537,6 +3767,13 @@ static int s5c73m3_init(struct v4l2_subdev *sd, u32 val)
 		}
 	}
 
+#if defined(CONFIG_MACH_BAFFIN) && !defined(CONFIG_MACH_SUPERIOR_KOR_SKT)
+	/* send command to change resolution table */
+	/* 0:1280x720 TABLE(16:9), 1:800x480 TABLE(5:3) */
+	err = s5c73m3_writeb(sd, 0x0B1A, 0x0001);
+	CHECK_ERR(err);
+#endif
+
 	state->isp.bad_fw = 0;
 	s5c73m3_init_param(sd);
 
@@ -3568,9 +3805,7 @@ static const struct v4l2_subdev_ops s5c73m3_ops = {
 static ssize_t s5c73m3_camera_rear_camtype_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	char type[25];
-
-	strcpy(type, sysfs_sensor_type);
+	char type[] = "CML0801";
 	return sprintf(buf, "%s\n", type);
 }
 
@@ -3606,6 +3841,8 @@ static DEVICE_ATTR(rear_camfw, S_IRUGO, s5c73m3_camera_rear_camfw_show, NULL);
 static DEVICE_ATTR(rear_flash, S_IWUSR|S_IWGRP|S_IROTH,
 	NULL, s5c73m3_camera_rear_flash);
 static DEVICE_ATTR(isp_core, S_IRUGO, s5c73m3_camera_isp_core_show, NULL);
+
+static DEVICE_ATTR(camera_speaker_enabled, S_IRUGO | S_IWUGO, camera_speaker_read, camera_speaker_write);
 
 /*
  * s5c73m3_probe
@@ -3722,6 +3959,11 @@ static int __init s5c73m3_mod_init(void)
 		if (device_create_file(s5c73m3_dev, &dev_attr_isp_core) < 0) {
 			cam_warn("failed to create device file, %s\n",
 					dev_attr_isp_core.attr.name);
+		}
+
+		if (device_create_file(s5c73m3_dev, &dev_attr_camera_speaker_enabled) < 0) {
+			cam_warn("failed to create device file, %s\n",
+					dev_attr_camera_speaker_enabled.attr.name);
 		}
 	}
 

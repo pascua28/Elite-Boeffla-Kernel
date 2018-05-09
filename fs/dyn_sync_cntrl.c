@@ -78,15 +78,15 @@ static ssize_t dyn_fsync_earlysuspend_show(struct kobject *kobj,
 	return sprintf(buf, "early suspend active: %u\n", early_suspend_active);
 }
 
-static struct kobj_attribute dyn_fsync_active_attribute =
+static struct kobj_attribute dyn_fsync_active_attribute = 
 	__ATTR(Dyn_fsync_active, 0666,
 		dyn_fsync_active_show,
 		dyn_fsync_active_store);
 
-static struct kobj_attribute dyn_fsync_version_attribute =
+static struct kobj_attribute dyn_fsync_version_attribute = 
 	__ATTR(Dyn_fsync_version, 0444, dyn_fsync_version_show, NULL);
 
-static struct kobj_attribute dyn_fsync_earlysuspend_attribute =
+static struct kobj_attribute dyn_fsync_earlysuspend_attribute = 
 	__ATTR(Dyn_fsync_earlysuspend, 0444, dyn_fsync_earlysuspend_show, NULL);
 
 static struct attribute *dyn_fsync_active_attrs[] =
@@ -129,7 +129,7 @@ static void dyn_fsync_late_resume(struct early_suspend *h)
 	mutex_unlock(&fsync_mutex);
 }
 
-static struct early_suspend dyn_fsync_early_suspend_handler =
+static struct early_suspend dyn_fsync_early_suspend_handler = 
 	{
 		.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
 		.suspend = dyn_fsync_early_suspend,

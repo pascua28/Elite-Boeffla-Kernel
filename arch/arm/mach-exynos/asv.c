@@ -23,7 +23,10 @@
 #include <mach/regs-iem.h>
 #include <mach/asv.h>
 
-static struct samsung_asv *exynos_asv;
+#ifndef CONFIG_ABB_CONTROL
+static
+#endif 
+struct samsung_asv *exynos_asv;
 unsigned int exynos_result_of_asv;
 unsigned int exynos_special_flag;
 bool exynos_dynamic_ema;
@@ -106,4 +109,4 @@ out2:
 out1:
 	return ret;
 }
-device_initcall_sync(exynos4_asv_init);
+subsys_initcall_sync(exynos4_asv_init);

@@ -26,7 +26,7 @@
 #include <linux/fb.h>
 #endif
 
-#include "modem.h"
+#include <linux/platform_data/modem.h>
 #include "modem_prj.h"
 
 #define DPRAM_MAGIC_CODE	0xAA
@@ -393,6 +393,7 @@ struct trace_data_queue {
 	struct trace_data trd[MAX_TRACE_SIZE];
 };
 
+void msq_reset(struct mem_status_queue *msq);
 struct mem_status *msq_get_free_slot(struct mem_status_queue *msq);
 struct mem_status *msq_get_data_slot(struct mem_status_queue *msq);
 

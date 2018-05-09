@@ -41,6 +41,8 @@
 #include <linux/rcupdate.h>
 #include <linux/notifier.h>
 
+#include <linux/ratelimit.h>
+
 static uint32_t lowmem_debug_level = 1;
 static int lowmem_adj[6] = {
 	0,
@@ -56,6 +58,7 @@ static int lowmem_minfree[6] = {
 	16 * 1024,	/* 64MB */
 };
 static int lowmem_minfree_size = 4;
+
 static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
 
@@ -120,6 +123,8 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	    time_before_eq(jiffies, lowmem_deathpending_timeout))
 		return 0;
 
+	other_free += other_file;
+
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if (lowmem_minfree_size < array_size)
@@ -146,6 +151,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	}
 
 	selected_oom_score_adj = min_score_adj;
+
 	rcu_read_lock();
 
 #ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE

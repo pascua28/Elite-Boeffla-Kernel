@@ -92,8 +92,7 @@ void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
 				gfp_t gfp);
 
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
-		      struct net_device *netdev, u32 nlpid,
-		      int freq, int sig_dbm,
+		      struct net_device *netdev, u32 nlpid, int freq,
 		      const u8 *buf, size_t len, gfp_t gfp);
 void nl80211_send_mgmt_tx_status(struct cfg80211_registered_device *rdev,
 				 struct net_device *netdev, u64 cookie,
@@ -120,7 +119,5 @@ void nl80211_pmksa_candidate_notify(struct cfg80211_registered_device *rdev,
 
 bool nl80211_unexpected_frame(struct net_device *dev,
 			      const u8 *addr, gfp_t gfp);
-bool nl80211_unexpected_4addr_frame(struct net_device *dev,
-				    const u8 *addr, gfp_t gfp);
 
 #endif /* __NET_WIRELESS_NL80211_H */

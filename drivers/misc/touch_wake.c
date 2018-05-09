@@ -1,6 +1,6 @@
 /* drivers/misc/touch_wake.c
  *
- * Copyright 2011  Ezekeel
+ * Copyright 2011 Ezekeel
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,14 +22,6 @@
  * Bumped version to 1.1a
  *
  *                                         Jean-Pierre Rasquin <yank555.lu@gmail.com>
- *
- * --------------------------------------------------------------------------------------
- *
- * Implemented double tap to wake with configurable knockon delay time
- *
- * Bumped version to 1.2
- *
- *                                         Lord Boeffla aka andip71 <andip71@gmx.de>
  */
 
 #include <linux/init.h>
@@ -42,22 +34,23 @@
 #include <linux/delay.h>
 #include <linux/wakelock.h>
 #include <linux/input.h>
+#include <linux/syscalls.h>
 #include <linux/battery/samsung_battery.h>
 
 extern void touchscreen_enable(void);
 extern void touchscreen_disable(void);
-extern unsigned int charge_info_cable_type;
 
 static bool touchwake_enabled = false;
+static bool keypower_mode = false;
+static bool charging_mode = false;
 static bool touch_disabled = false;
 static bool device_suspended = false;
 static bool timed_out = true;
 static bool prox_near = false;
 bool knockon = false;
 static bool knocked = false;
-static unsigned int touchoff_delay = 45000;
-static unsigned int knockon_delay = 500;
-static bool charger_mode = false;
+static unsigned int touchoff_delay = 60000;
+static unsigned int charging_touchoff_delay = 180000;
 
 static void touchwake_touchoff(struct work_struct * touchoff_work);
 static DECLARE_DELAYED_WORK(touchoff_work, touchwake_touchoff);
@@ -71,18 +64,19 @@ static struct input_dev * powerkey_device;
 static struct wake_lock touchwake_wake_lock;
 static struct timeval last_powerkeypress;
 
-#define TOUCHWAKE_VERSION "1.2"
+#define TOUCHWAKE_VERSION "1.1a"
 #define TIME_LONGPRESS 500
 #define POWERPRESS_DELAY 100
 #define POWERPRESS_TIMEOUT 1000
+#define KNOCKON_DELAY 500
 
-// #define DEBUG_PRINT
+//#define DEBUG_PRINT
 
 static void touchwake_disable_touch(void)
 {
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Disable touch controls\n");
-	#endif
+#endif
 	touchscreen_disable();
 	touch_disabled = true;
 
@@ -91,9 +85,9 @@ static void touchwake_disable_touch(void)
 
 static void touchwake_enable_touch(void)
 {
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Enable touch controls\n");
-	#endif
+#endif
 	touchscreen_enable();
 	touch_disabled = false;
 	return;
@@ -101,50 +95,77 @@ static void touchwake_enable_touch(void)
 
 static void touchwake_early_suspend(struct early_suspend * h)
 {
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Enter early suspend\n");
-	#endif
+#endif
 
 	if (touchwake_enabled) {
-		if ((charge_info_cable_type != POWER_SUPPLY_TYPE_BATTERY) && charger_mode)	{
-			if (timed_out && !prox_near) {
-				#ifdef DEBUG_PRINT
-				pr_info("[TOUCHWAKE] Charger plug mode - keep touch enabled indefinately\n");
-				#endif
-				wake_lock(&touchwake_wake_lock);
-			}
-		}
-		else if (likely(touchoff_delay > 0))	{
-			if (timed_out && !prox_near) {
-				#ifdef DEBUG_PRINT
-				pr_info("[TOUCHWAKE] Early suspend - enable touch delay\n");
-				#endif
-				wake_lock(&touchwake_wake_lock);
+		if (is_cable_attached) {
+			if (likely(charging_touchoff_delay > 0)) {
+				if (timed_out && !prox_near) {
+#ifdef DEBUG_PRINT
+					pr_info("[TOUCHWAKE] Early suspend - enable touch delay\n");
+#endif
+					wake_lock(&touchwake_wake_lock);
 
-				schedule_delayed_work(&touchoff_work, msecs_to_jiffies(touchoff_delay));
+					schedule_delayed_work(&touchoff_work, msecs_to_jiffies(charging_touchoff_delay));
+				} else {
+#ifdef DEBUG_PRINT
+					pr_info("[TOUCHWAKE] Early suspend - disable touch immediately\n");
+#endif
+					touchwake_disable_touch();
+				}
 			} else {
-				#ifdef DEBUG_PRINT
-				pr_info("[TOUCHWAKE] Early suspend - disable touch immediately\n");
-				#endif
-				touchwake_disable_touch();
+				if (timed_out && !prox_near) {
+#ifdef DEBUG_PRINT
+					pr_info("[TOUCHWAKE] Early suspend - keep touch enabled indefinately\n");
+#endif
+					wake_lock(&touchwake_wake_lock);
+				} else {
+#ifdef DEBUG_PRINT
+					pr_info("[TOUCHWAKE] Early suspend - disable touch immediately (indefinate mode)\n");
+#endif
+					touchwake_disable_touch();
+				}
+			}
+		} else if (!charging_mode) {
+			if (likely(touchoff_delay > 0))	{
+				if (timed_out && !prox_near) {
+#ifdef DEBUG_PRINT
+					pr_info("[TOUCHWAKE] Early suspend - enable touch delay\n");
+#endif
+					wake_lock(&touchwake_wake_lock);
+
+					schedule_delayed_work(&touchoff_work, msecs_to_jiffies(touchoff_delay));
+				} else {
+#ifdef DEBUG_PRINT
+					pr_info("[TOUCHWAKE] Early suspend - disable touch immediately\n");
+#endif
+					touchwake_disable_touch();
+				}
+			} else {
+				if (timed_out && !prox_near) {
+#ifdef DEBUG_PRINT
+					pr_info("[TOUCHWAKE] Early suspend - keep touch enabled indefinately\n");
+#endif
+					wake_lock(&touchwake_wake_lock);
+				} else {
+#ifdef DEBUG_PRINT
+					pr_info("[TOUCHWAKE] Early suspend - disable touch immediately (indefinate mode)\n");
+#endif
+					touchwake_disable_touch();
+				}
 			}
 		} else {
-			if (timed_out && !prox_near) {
-				#ifdef DEBUG_PRINT
-				pr_info("[TOUCHWAKE] Early suspend - keep touch enabled indefinately\n");
-				#endif
-				wake_lock(&touchwake_wake_lock);
-			} else {
-				#ifdef DEBUG_PRINT
-				pr_info("[TOUCHWAKE] Early suspend - disable touch immediately (indefinate mode)\n");
-				#endif
-				touchwake_disable_touch();
-			}
+#ifdef DEBUG_PRINT
+			pr_info("[TOUCHWAKE] Early suspend - disable touch immediately (TouchWake disabled when not charging)\n");
+#endif
+			touchwake_disable_touch();
 		}
 	} else {
-		#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 		pr_info("[TOUCHWAKE] Early suspend - disable touch immediately (TouchWake disabled)\n");
-		#endif
+#endif
 		touchwake_disable_touch();
 	}
 
@@ -155,9 +176,9 @@ static void touchwake_early_suspend(struct early_suspend * h)
 
 static void touchwake_late_resume(struct early_suspend * h)
 {
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Enter late resume\n");
-	#endif
+#endif
 
 	cancel_delayed_work(&touchoff_work);
 	flush_scheduled_work();
@@ -182,6 +203,9 @@ static struct early_suspend touchwake_suspend_data =
 
 static void touchwake_touchoff(struct work_struct * touchoff_work)
 {
+	pr_info("%s: %s +\n", __func__, "sys_sync");
+	sys_sync();
+	pr_info("%s: %s -\n", __func__, "sys_sync");
 	touchwake_disable_touch();
 	wake_unlock(&touchwake_wake_lock);
 
@@ -212,33 +236,6 @@ static void press_powerkey(struct work_struct * presspower_work)
 	return;
 }
 
-static ssize_t touchwake_charger_mode_read(struct device * dev, struct device_attribute * attr, char * buf)
-{
-	return sprintf(buf, "%u\n", (charger_mode ? 1 : 0));
-}
-
-static ssize_t touchwake_charger_mode_write(struct device * dev, struct device_attribute * attr, const char * buf, size_t size)
-{
-	unsigned int ret = -EINVAL;
-	unsigned int val;
-
-	ret = sscanf(buf, "%d", &val);
-
-    if (ret != 1)
-        return -EINVAL;
-
-	if (val == 0)
-		charger_mode = false;
-	else if (val == 1)
-		charger_mode = true;
-
-	#ifdef DEBUG_PRINT
-	pr_info("[TOUCHWAKE] %s: Charger mode set to %d\n", __FUNCTION__, charger_mode);
-	#endif
-	
-	return size;
-}
-
 static ssize_t touchwake_status_read(struct device * dev, struct device_attribute * attr, char * buf)
 {
 	return sprintf(buf, "%u\n", (touchwake_enabled ? 1 : 0));
@@ -252,24 +249,68 @@ static ssize_t touchwake_status_write(struct device * dev, struct device_attribu
 		pr_devel("%s: %u \n", __FUNCTION__, data);
 
 		if (data == 1) {
-			#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 			pr_info("[TOUCHWAKE] %s: TOUCHWAKE function enabled\n", __FUNCTION__);
-			#endif
+#endif
 			touchwake_enabled = true;
 		} else if (data == 0) {
-			#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 			pr_info("[TOUCHWAKE] %s: TOUCHWAKE function disabled\n", __FUNCTION__);
-			#endif
+#endif
 			touchwake_enabled = false;
-		#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 		} else {
 			pr_info("[TOUCHWAKE] %s: invalid input range %u\n", __FUNCTION__, data);
-		#endif
+#endif
 		}
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	} else 	{
 		pr_info("[TOUCHWAKE] %s: invalid input\n", __FUNCTION__);
-	#endif
+#endif
+	}
+
+	return size;
+}
+
+static ssize_t touchwake_keypower_read(struct device * dev, struct device_attribute * attr, char * buf)
+{
+	return sprintf(buf, "%u\n", (keypower_mode ? 1 : 0));
+}
+
+static ssize_t touchwake_keypower_write(struct device * dev, struct device_attribute * attr, const char * buf, size_t size)
+{
+	unsigned int ret = -EINVAL;
+	int val;
+
+	// read value from input buffer
+	ret = sscanf(buf, "%d", &val);
+
+	// check value and store if valid
+	if ((val == 0) ||  (val == 1))
+	{
+		keypower_mode = val;
+	}
+
+	return size;
+}
+
+static ssize_t touchwake_charging_read(struct device * dev, struct device_attribute * attr, char * buf)
+{
+	return sprintf(buf, "%u\n", (charging_mode ? 1 : 0));
+}
+
+static ssize_t touchwake_charging_write(struct device * dev, struct device_attribute * attr, const char * buf, size_t size)
+{
+	unsigned int ret = -EINVAL;
+	int val;
+
+	// read value from input buffer
+	ret = sscanf(buf, "%d", &val);
+
+	// check value and store if valid
+	if ((val == 0) ||  (val == 1))
+	{
+		charging_mode = val;
 	}
 
 	return size;
@@ -288,9 +329,6 @@ static ssize_t touchwake_knockon_write(struct device * dev, struct device_attrib
 	// read value from input buffer
 	ret = sscanf(buf, "%d", &val);
 
-    if (ret != 1)
-        return -EINVAL;
-
 	// check value and store if valid
 	if ((val == 0) ||  (val == 1))
 	{
@@ -302,7 +340,7 @@ static ssize_t touchwake_knockon_write(struct device * dev, struct device_attrib
 
 static ssize_t touchwake_delay_read(struct device * dev, struct device_attribute * attr, char * buf)
 {
-	return sprintf(buf, "%u\n", touchoff_delay);
+	return sprintf(buf, "%u\n", touchoff_delay / 1000);
 }
 
 static ssize_t touchwake_delay_write(struct device * dev, struct device_attribute * attr, const char * buf, size_t size)
@@ -310,41 +348,38 @@ static ssize_t touchwake_delay_write(struct device * dev, struct device_attribut
 	unsigned int data;
 
 	if(sscanf(buf, "%u\n", &data) == 1) {
-		touchoff_delay = data;
-		#ifdef DEBUG_PRINT
+		touchoff_delay = data * 1000;
+#ifdef DEBUG_PRINT
 		pr_info("[TOUCHWAKE] Delay set to %u\n", touchoff_delay); 
-		#endif
-	#ifdef DEBUG_PRINT
 	} else 	{
 		pr_info("[TOUCHWAKE] %s: invalid input\n", __FUNCTION__);
-	#endif
+#endif
 	}
 
 	return size;
 }
 
-static ssize_t knockon_delay_read(struct device * dev, struct device_attribute * attr, char * buf)
+static ssize_t touchwake_charging_delay_read(struct device * dev, struct device_attribute * attr, char * buf)
 {
-	return sprintf(buf, "%u\n", knockon_delay);
+	return sprintf(buf, "%u\n", charging_touchoff_delay / 1000);
 }
 
-static ssize_t knockon_delay_write(struct device * dev, struct device_attribute * attr, const char * buf, size_t size)
+static ssize_t touchwake_charging_delay_write(struct device * dev, struct device_attribute * attr, const char * buf, size_t size)
 {
 	unsigned int data;
 
 	if(sscanf(buf, "%u\n", &data) == 1) {
-		knockon_delay = data;
-		#ifdef DEBUG_PRINT
-		pr_info("[TOUCHWAKE] Knockon delay set to %u\n", knockon_delay); 
-		#endif
-	#ifdef DEBUG_PRINT
+		charging_touchoff_delay = data * 1000;
+#ifdef DEBUG_PRINT
+		pr_info("[TOUCHWAKE] Delay set to %u\n", charging_touchoff_delay); 
 	} else 	{
 		pr_info("[TOUCHWAKE] %s: invalid input\n", __FUNCTION__);
-	#endif
+#endif
 	}
 
 	return size;
 }
+
 static ssize_t touchwake_version(struct device * dev, struct device_attribute * attr, char * buf)
 {
 	return sprintf(buf, "%s\n", TOUCHWAKE_VERSION);
@@ -358,11 +393,12 @@ static ssize_t touchwake_debug(struct device * dev, struct device_attribute * at
 #endif
 
 static DEVICE_ATTR(enabled, S_IRUGO | S_IWUGO, touchwake_status_read, touchwake_status_write);
-static DEVICE_ATTR(delay, S_IRUGO | S_IWUGO, touchwake_delay_read, touchwake_delay_write);
 static DEVICE_ATTR(knockon, S_IRUGO | S_IWUGO, touchwake_knockon_read, touchwake_knockon_write);
-static DEVICE_ATTR(knockon_delay, S_IRUGO | S_IWUGO, knockon_delay_read, knockon_delay_write);
+static DEVICE_ATTR(delay, S_IRUGO | S_IWUGO, touchwake_delay_read, touchwake_delay_write);
+static DEVICE_ATTR(charging_delay, S_IRUGO | S_IWUGO, touchwake_charging_delay_read, touchwake_charging_delay_write);
+static DEVICE_ATTR(keypower_mode, S_IRUGO | S_IWUGO, touchwake_keypower_read, touchwake_keypower_write);
+static DEVICE_ATTR(charging_mode, S_IRUGO | S_IWUGO, touchwake_charging_read, touchwake_charging_write);
 static DEVICE_ATTR(version, S_IRUGO , touchwake_version, NULL);
-static DEVICE_ATTR(charger_mode, S_IRUGO | S_IWUGO, touchwake_charger_mode_read, touchwake_charger_mode_write);
 #ifdef DEBUG_PRINT
 static DEVICE_ATTR(debug, S_IRUGO , touchwake_debug, NULL);
 #endif
@@ -372,9 +408,10 @@ static struct attribute *touchwake_notification_attributes[] =
 	&dev_attr_enabled.attr,
 	&dev_attr_knockon.attr,
 	&dev_attr_delay.attr,
-	&dev_attr_knockon_delay.attr,
+	&dev_attr_keypower_mode.attr,
+	&dev_attr_charging_mode.attr,
+	&dev_attr_charging_delay.attr,
 	&dev_attr_version.attr,
-	&dev_attr_charger_mode.attr,
 #ifdef DEBUG_PRINT
 	&dev_attr_debug.attr,
 #endif
@@ -383,7 +420,7 @@ static struct attribute *touchwake_notification_attributes[] =
 
 static struct attribute_group touchwake_notification_group =
 {
-	.attrs  = touchwake_notification_attributes,
+	.attrs	= touchwake_notification_attributes,
 };
 
 static struct miscdevice touchwake_device =
@@ -393,22 +430,22 @@ static struct miscdevice touchwake_device =
 };
 
 void proximity_detected(void)
-{   
+{
 	prox_near = true;
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Proximity enabled\n");
-	#endif
+#endif
 
 	return;
 }
 EXPORT_SYMBOL(proximity_detected);
 
 void proximity_off(void)
-{   
+{
 	prox_near = false;
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Proximity disabled\n");
-	#endif
+#endif
 
 	return;
 }
@@ -416,12 +453,14 @@ EXPORT_SYMBOL(proximity_off);
 
 void powerkey_pressed(void)
 {
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Powerkey pressed\n");
-	#endif
+#endif
 
 	do_gettimeofday(&last_powerkeypress);
-	timed_out = false; // Yank555 : consider user is indeed turning off the device
+
+	if (!keypower_mode)
+		timed_out = false; // Yank555 : consider user is indeed turning off the device
 
 	return;
 }
@@ -429,9 +468,9 @@ EXPORT_SYMBOL(powerkey_pressed);
 
 void powerkey_released(void)
 {
-	#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Powerkey released\n");
-	#endif
+#endif
 
 	struct timeval now;
 	int time_pressed;
@@ -443,13 +482,11 @@ void powerkey_released(void)
 
 	if (unlikely(time_pressed > TIME_LONGPRESS || device_suspended)) {
 		timed_out = true; // Yank555 : OK, user is not turning off device, but long-pressing Powerkey, or turing on device, so back to normal
-		#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT
 		pr_info("[TOUCHWAKE] Powerkey longpress detected released\n");
-		#endif
-	#ifdef DEBUG_PRINT
 	} else {
 		pr_info("[TOUCHWAKE] Device being turned off\n");
-	#endif
+#endif
 	}
 
 	return;
@@ -457,10 +494,10 @@ void powerkey_released(void)
 EXPORT_SYMBOL(powerkey_released);
 
 void touch_press(void)
-{   
-	#ifdef DEBUG_PRINT
+{
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Touch press detected\n");
-	#endif
+#endif
 
 	if (knockon) {
 		if (knocked) {
@@ -469,7 +506,7 @@ void touch_press(void)
 				schedule_work(&presspower_work);
 		} else {
 			knocked = true;
-			schedule_delayed_work(&knockon_work, msecs_to_jiffies(knockon_delay));
+			schedule_delayed_work(&knockon_work, msecs_to_jiffies(KNOCKON_DELAY));
 		}
 	} else {
 		if (unlikely(device_suspended && touchwake_enabled && !prox_near && mutex_trylock(&lock)))
@@ -481,10 +518,10 @@ void touch_press(void)
 EXPORT_SYMBOL(touch_press);
 
 void set_powerkeydev(struct input_dev * input_device)
-{   
-	#ifdef DEBUG_PRINT
+{
+#ifdef DEBUG_PRINT
 	pr_info("[TOUCHWAKE] Powerkey device set to: %p\n", input_device);
-	#endif
+#endif
 
 	powerkey_device = input_device;
 

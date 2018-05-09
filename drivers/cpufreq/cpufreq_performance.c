@@ -15,12 +15,28 @@
 #include <linux/cpufreq.h>
 #include <linux/init.h>
 
+#include <linux/cpu.h>
+#include <linux/cpumask.h>
+
+static void cpu_up_work(struct work_struct *work)
+{
+	int cpu;
+
+	for_each_cpu_not(cpu, cpu_online_mask) {
+		if (cpu == 0)
+			continue;
+		cpu_up(cpu);
+	}
+}
+
+static DECLARE_WORK(performance_up_work, cpu_up_work);
 
 static int cpufreq_governor_performance(struct cpufreq_policy *policy,
 					unsigned int event)
 {
 	switch (event) {
 	case CPUFREQ_GOV_START:
+		schedule_work_on(0, &performance_up_work);
 	case CPUFREQ_GOV_LIMITS:
 		pr_debug("setting to %u kHz because of event %u\n",
 						policy->max, event);

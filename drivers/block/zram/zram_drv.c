@@ -20,8 +20,6 @@
 #define DEBUG
 #endif
 
-#define MAX_COMP_STREAMS	2
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/bio.h>
@@ -650,7 +648,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
 	}
 
 	zcomp_destroy(zram->comp);
-	zram->max_comp_streams = MAX_COMP_STREAMS;
+	zram->max_comp_streams = 1;
 
 	zram_meta_free(zram->meta);
 	zram->meta = NULL;
@@ -982,7 +980,7 @@ static int create_device(struct zram *zram, int device_id)
 	}
 	strlcpy(zram->compressor, default_compressor, sizeof(zram->compressor));
 	zram->meta = NULL;
-	zram->max_comp_streams = MAX_COMP_STREAMS;
+	zram->max_comp_streams = 1;
 	return 0;
 
 out_free_disk:

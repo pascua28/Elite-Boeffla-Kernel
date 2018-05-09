@@ -455,7 +455,7 @@ static struct clk exynos4212_init_clocks_off[] = {
 		.name		= "qec2c",
 		.enable		= exynos4_clk_ip_dmc_ctrl,
 		.ctrlbit	= (1 << 30),
-#ifndef CONFIG_SAMSUNG_C2C
+#ifndef CONFIG_EXYNOS_C2C
 	}, {
 		.name		= "c2c",
 		.devname	= "samsung-c2c",
@@ -1017,6 +1017,7 @@ static int exynos4212_vpll_set_rate(struct clk *clk, unsigned long rate)
 			vpll_con0 |= vpll_div_4212[i].mdiv << PLL36XX_MDIV_SHIFT;
 			vpll_con0 |= vpll_div_4212[i].sdiv << PLL36XX_SDIV_SHIFT;
 			vpll_con1 |= vpll_div_4212[i].k << 0;
+			vpll_con0 |= 1 << 31;
 			break;
 		}
 	}

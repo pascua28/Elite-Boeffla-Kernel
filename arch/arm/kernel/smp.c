@@ -66,6 +66,9 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	struct cpuinfo_arm *ci = &per_cpu(cpu_data, cpu);
 	struct task_struct *idle = ci->idle;
 	pgd_t *pgd;
+#if defined(CONFIG_MACH_Q1_BD)
+	static pgd_t *s_pgd[CONFIG_NR_CPUS];
+#endif
 	int ret;
 
 	/*
@@ -93,7 +96,12 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	 * of our "standard" page tables, with the addition of
 	 * a 1:1 mapping for the physical address of the kernel.
 	 */
+#if defined(CONFIG_MACH_Q1_BD)
+	s_pgd[cpu] = s_pgd[cpu] ?: pgd_alloc(&init_mm);
+	pgd = s_pgd[cpu];
+#else
 	pgd = pgd_alloc(&init_mm);
+#endif
 	if (!pgd)
 		return -ENOMEM;
 
@@ -146,7 +154,9 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		identity_mapping_del(pgd, __pa(_sdata), __pa(_edata));
 	}
 
+#if !defined(CONFIG_MACH_Q1_BD)
 	pgd_free(&init_mm, pgd);
+#endif
 
 	return ret;
 }
@@ -309,8 +319,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
-
-	printk("CPU%u: Booted secondary processor\n", cpu);
 
 	printk("CPU%u: Booted secondary processor\n", cpu);
 
@@ -559,13 +567,15 @@ static void percpu_timer_stop(void)
 
 static DEFINE_SPINLOCK(stop_lock);
 
+static struct pt_regs __percpu regs_before_stop;
 /*
  * ipi_cpu_stop - handle IPI from smp_send_stop()
  */
-static void ipi_cpu_stop(unsigned int cpu)
+static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 {
 	if (system_state == SYSTEM_BOOTING ||
 	    system_state == SYSTEM_RUNNING) {
+		per_cpu(regs_before_stop, cpu) = *regs;
 		spin_lock(&stop_lock);
 		printk(KERN_CRIT "CPU%u: stopping\n", cpu);
 		dump_stack();
@@ -674,12 +684,18 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-		ipi_cpu_stop(cpu);
+		ipi_cpu_stop(cpu, regs);
 		irq_exit();
 		break;
 
 	case IPI_CPU_BACKTRACE:
+#if defined(CONFIG_MACH_T0) || defined(CONFIG_MACH_M0)
+		irq_enter();
+#endif
 		ipi_cpu_backtrace(cpu, regs);
+#if defined(CONFIG_MACH_T0) || defined(CONFIG_MACH_M0)
+		irq_exit();
+#endif
 		break;
 
 	default:

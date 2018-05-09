@@ -188,6 +188,9 @@ if MISC_FILESYSTEMS
 source "fs/adfs/Kconfig"
 source "fs/affs/Kconfig"
 source "fs/ecryptfs/Kconfig"
+source "fs/sdcardfs/Kconfig"
+source "fs/sdcardfskk/Kconfig"
+source "fs/sdcardfslp/Kconfig"
 source "fs/hfs/Kconfig"
 source "fs/hfsplus/Kconfig"
 source "fs/befs/Kconfig"
@@ -275,6 +278,10 @@ endif
 
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
+
+config ASYNC_FSYNC
+	bool "asynchronous fsync"
+	default y
 
 config DYNAMIC_FSYNC
 	bool "dynamic file sync control"

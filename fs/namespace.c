@@ -2036,6 +2036,15 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	err = do_add_mount(mnt, path, mnt_flags);
 	if (err)
 		mntput(mnt);
+#ifdef CONFIG_ASYNC_FSYNC
+	if (!err && ((((!strcmp(type, "ext4")) || (!strcmp(type, "f2fs"))) &&
+		!strcmp(path->dentry->d_name.name, "data")) ||
+		(!strcmp(type, "fuse") &&
+		!strcmp(path->dentry->d_name.name, "emulated")))) {
+			mnt->mnt_sb->fsync_flags |= FLAG_ASYNC_FSYNC;
+			pr_info("namespace: enabled FLAG_ASYNC_FSYNC\n");
+		}
+#endif
 	return err;
 }
 
@@ -2318,9 +2327,10 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	if (retval)
 		goto dput_out;
 
-	/* Default to relatime unless overriden */
-	if (!(flags & MS_NOATIME))
-		mnt_flags |= MNT_RELATIME;
+	/* Default to noatime unless overriden */
+	if (!(flags & MS_RELATIME)) {
+		mnt_flags |= MNT_NOATIME;
+	}
 
 	/* Separate the per-mountpoint flags */
 	if (flags & MS_NOSUID)

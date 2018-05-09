@@ -24,10 +24,14 @@
 
 #define LOOP_CNT			10
 
+/* lock flag for exynos4412 */
 #define MIF_LOCK_FLAG			0
 #define INT_LOCK_FLAG			1
 #define G3D_LOCK_FLAG			2
 #define ARM_LOCK_FLAG			3
+
+/* lock flag for exynos4212 */
+#define PD_INT_LOCK_FLAG		2
 
 extern unsigned int exynos_result_of_asv;
 extern unsigned int exynos_armclk_max;
@@ -127,6 +131,10 @@ extern int exynos4210_asv_init(struct samsung_asv *asv_info);
 extern int exynos4x12_asv_init(struct samsung_asv *asv_info);
 extern int exynos5250_asv_init(struct samsung_asv *asv_info);
 void exynos4x12_set_abb_member(enum exynos4x12_abb_member abb_target, unsigned int abb_mode_value);
+#ifdef CONFIG_ABB_CONTROL
+extern void abb_control_init(void);
+extern void abb_target(enum exynos4x12_abb_member target, int new_freq);
+#endif
 
 #else
 

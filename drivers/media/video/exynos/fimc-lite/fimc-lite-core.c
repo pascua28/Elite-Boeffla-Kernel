@@ -122,7 +122,7 @@ static struct flite_fmt *find_format(u32 *pixelformat, u32 *mbus_code, int index
 }
 #endif
 
-struct flite_fmt const *find_flite_format(struct v4l2_mbus_framefmt *mf)
+inline struct flite_fmt const *find_flite_format(struct v4l2_mbus_framefmt *mf)
 {
 	int num_fmt = ARRAY_SIZE(flite_formats);
 
@@ -2063,8 +2063,10 @@ static int flite_probe(struct platform_device *pdev)
 #endif
 	mutex_init(&flite->lock);
 	flite->mdev = flite_get_capture_md(MDEV_CAPTURE);
-	if (IS_ERR_OR_NULL(flite->mdev))
+	if (IS_ERR_OR_NULL(flite->mdev)) {
+		ret = -ENODEV;
 		goto err_device_register;
+	}
 
 	flite_dbg("mdev = 0x%08x", (u32)flite->mdev);
 

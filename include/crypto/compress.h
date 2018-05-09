@@ -55,14 +55,14 @@ struct crypto_pcomp {
 };
 
 struct pcomp_alg {
-	int (*compress_setup)(struct crypto_pcomp *tfm, void *params,
+	int (*compress_setup)(struct crypto_pcomp *tfm, const void *params,
 			      unsigned int len);
 	int (*compress_init)(struct crypto_pcomp *tfm);
 	int (*compress_update)(struct crypto_pcomp *tfm,
 			       struct comp_request *req);
 	int (*compress_final)(struct crypto_pcomp *tfm,
 			      struct comp_request *req);
-	int (*decompress_setup)(struct crypto_pcomp *tfm, void *params,
+	int (*decompress_setup)(struct crypto_pcomp *tfm, const void *params,
 				unsigned int len);
 	int (*decompress_init)(struct crypto_pcomp *tfm);
 	int (*decompress_update)(struct crypto_pcomp *tfm,
@@ -97,7 +97,7 @@ static inline struct pcomp_alg *crypto_pcomp_alg(struct crypto_pcomp *tfm)
 }
 
 static inline int crypto_compress_setup(struct crypto_pcomp *tfm,
-					void *params, unsigned int len)
+					const void *params, unsigned int len)
 {
 #ifdef CONFIG_CRYPTO_FIPS
 	if (unlikely(in_fips_err()))
@@ -140,7 +140,7 @@ static inline int crypto_compress_final(struct crypto_pcomp *tfm,
 }
 
 static inline int crypto_decompress_setup(struct crypto_pcomp *tfm,
-					  void *params, unsigned int len)
+					  const void *params, unsigned int len)
 {
 #ifdef CONFIG_CRYPTO_FIPS
 	if (unlikely(in_fips_err()))

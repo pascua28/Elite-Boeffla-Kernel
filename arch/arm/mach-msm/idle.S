@@ -33,4 +33,4 @@ ENTRY(arch_idle)
 
 	mcr     p15, 0, r1, c1, c0, 0    /* restore d/i cache  */
 #endif
-	mov     pc, lr
+	ret     lr

@@ -31,4 +31,22 @@ config SAMSUNG_MHL_UNPOWERED
 	bool "Use source vbus for mhl dongle if no external power"
 	depends on (SAMSUNG_MHL || MHL_SII9234)
 	default n
+
+# [START] HELIXTECH: KT_SPIDER_FEATURE ====================================
+config SPIDER_MHL
+	bool "Support for KT Spider Feature"
+	default n
+	select INPUT_MOUSE
+	select MOUSE_SPIDERMHL
+	help
+	  Enable support for KT Spider Feature
+
+config SPIDER_MHL_DEBUG
+	bool "Debugging support for KT Spider Feature"
+	depends on SPIDER_MHL
+	default n
+	help
+	  Enable debugging support for KT Spider Feature
+# [END] HELIXTECH: KT_SPIDER_FEATURE ======================================
+
 endmenu
