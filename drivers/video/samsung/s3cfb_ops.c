@@ -38,7 +38,7 @@
 #include "logo_i9300.h"
 #endif
 #ifdef CONFIG_MACH_T0_EUR_OPEN
-#include "logo_n7100.h
+#include "logo_n7100.h"
 #endif
 #endif
 
