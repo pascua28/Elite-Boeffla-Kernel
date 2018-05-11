@@ -275,11 +275,6 @@
 /*
  * Configuration information
  */
-#define INPUT_POOL_WORDS 128
-#define OUTPUT_POOL_WORDS 32
-#define SEC_XFER_SIZE 512
-#define EXTRACT_SIZE 10
-
 #define INPUT_POOL_SHIFT	12
 #define INPUT_POOL_WORDS	(1 << (INPUT_POOL_SHIFT-5))
 #define OUTPUT_POOL_SHIFT	10
@@ -301,7 +296,6 @@
 #define ENTROPY_SHIFT 3
 #define ENTROPY_BITS(r) ((r)->entropy_count >> ENTROPY_SHIFT)
 
-
 /*
  * The minimum number of bits of entropy before we wake up a read on
  * /dev/random.  Should be enough to do a significant reseed.
@@ -319,8 +313,7 @@ static int random_write_wakeup_bits = 28 * OUTPUT_POOL_WORDS;
  * The minimum number of seconds between urandom pool reseeding.  We
  * do this to limit the amount of entropy that can be drained from the
  * input pool even if there are heavy demands on /dev/urandom.
-*/
-
+ */
 static int random_min_urandom_seed = 60;
 
 /*
@@ -370,9 +363,7 @@ static int random_min_urandom_seed = 60;
  */
 static struct poolinfo {
 	int poolbitshift, poolwords, poolbytes, poolbits, poolfracbits;
-
 #define S(x) ilog2(x)+5, (x), (x)*4, (x)*32, (x) << (ENTROPY_SHIFT+5)
-
 	int tap1, tap2, tap3, tap4, tap5;
 } poolinfo_table[] = {
 	/* was: x^128 + x^103 + x^76 + x^51 +x^25 + x + 1 */
