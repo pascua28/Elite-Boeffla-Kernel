@@ -23,19 +23,6 @@
 #define aid_180nit_110nit_F8_18th	0x42
 #define aid_180nit_110nit_F8_1st	aid_188nit_20nit_F8_1st
 #define aid_100nit_20nit_F8_1st	aid_188nit_20nit_F8_1st
-#define aid_108nit_F8_18th		0x04
-#define aid_106nit_F8_18th		0x1B
-#define aid_104nit_F8_18th		0x32
-#define aid_102nit_F8_18th		0x49
-#define aid_100nit_F8_18th		0x5E
-#define aid_90nit_F8_18th		0x77
-#define aid_80nit_F8_18th		0x88
-#define aid_70nit_F8_18th		0x90
-#define aid_60nit_F8_18th		0x97
-#define aid_50nit_F8_18th		0x9B
-#define aid_40nit_F8_18th		0x9E
-#define aid_30nit_F8_18th		0xA0
-#define aid_20nit_F8_18th		0xA2
 #define AOR40_BASE_188		201
 #define AOR40_BASE_186		214
 #define AOR40_BASE_184		234
@@ -48,11 +35,28 @@
 #define AOR40_BASE_130		200
 #define AOR40_BASE_120		186
 #define AOR40_BASE_110		171
-#define AOR40_BASE_108		110
-#define AOR40_BASE_106		110
-#define AOR40_BASE_104		110
-#define AOR40_BASE_102		110
 #define base_20to100			110
+
+unsigned int brightness_config;
+
+unsigned char aid_108nit_F8_18th = 0x38;
+unsigned char aid_106nit_F8_18th = 0x2F;
+unsigned char aid_104nit_F8_18th = 0x25;
+unsigned char aid_102nit_F8_18th = 0x1C;
+unsigned char aid_100nit_F8_18th = 0x12;
+unsigned char aid_90nit_F8_18th = 0x22;
+unsigned char aid_80nit_F8_18th = 0x32;
+unsigned char aid_70nit_F8_18th = 0x41;
+unsigned char aid_60nit_F8_18th = 0x50;
+unsigned char aid_50nit_F8_18th = 0x5E;
+unsigned char aid_40nit_F8_18th = 0x6C;
+unsigned char aid_30nit_F8_18th = 0x7A;
+unsigned char aid_20nit_F8_18th = 0x88;
+
+unsigned int AOR40_BASE_108 = 156;
+unsigned int AOR40_BASE_106 = 143;
+unsigned int AOR40_BASE_104 = 130;
+unsigned int AOR40_BASE_102 = 120;
 
 const struct rgb_offset_info aid_rgb_fix_table[] = {
 	{GAMMA_180CD, IV_15, CI_RED, 1}, {GAMMA_180CD, IV_15, CI_GREEN, -1}, {GAMMA_180CD, IV_15, CI_BLUE, 5},
@@ -79,70 +83,31 @@ const struct rgb_offset_info aid_rgb_fix_table[] = {
 	{GAMMA_20CD, IV_35, CI_RED, -15}, {GAMMA_20CD, IV_35, CI_GREEN, -12},
 };
 
-static unsigned char aid_command_20[] = {
-	aid_20nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_20[2];
 
-static unsigned char aid_command_30[] = {
-	aid_30nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_30[2];
 
-static unsigned char aid_command_40[] = {
-	aid_40nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_40[2];
 
-static unsigned char aid_command_50[] = {
-	aid_50nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_50[2];
 
-static unsigned char aid_command_60[] = {
-	aid_60nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_60[2];
 
-static unsigned char aid_command_70[] = {
-	aid_70nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_70[2];
 
-static unsigned char aid_command_80[] = {
-	aid_80nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_80[2];
 
-static unsigned char aid_command_90[] = {
-	aid_90nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_90[2];
 
-static unsigned char aid_command_100[] = {
-	aid_100nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_100[2];
 
-static unsigned char aid_command_102[] = {
-	aid_102nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_102[2];
 
-static unsigned char aid_command_104[] = {
-	aid_104nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_104[2];
 
-static unsigned char aid_command_106[] = {
-	aid_106nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_106[2];
 
-static unsigned char aid_command_108[] = {
-	aid_108nit_F8_18th,
-	aid_100nit_20nit_F8_1st,
-};
+static unsigned char aid_command_108[2];
 
 static unsigned char aid_command_110[] = {
 	aid_180nit_110nit_F8_18th,
