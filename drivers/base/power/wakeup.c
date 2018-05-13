@@ -17,6 +17,21 @@
 
 #include "power.h"
 
+static bool enable_l2_hsic = true;
+module_param(enable_l2_hsic, bool, 0664);
+
+static bool enable_wlan_ctrl_wake = true;
+module_param(enable_wlan_ctrl_wake, bool, 0664);
+
+static bool enable_wlan_rx_wake = true;
+module_param(enable_wlan_rx_wake, bool, 0664);
+
+static bool enable_wlan_wake = true;
+module_param(enable_wlan_wake, bool, 0664);
+
+static bool enable_wlan_wd_wake = true;
+module_param(enable_wlan_wd_wake, bool, 0664);
+
 #define TIMEOUT		50
 
 /*
@@ -401,6 +416,21 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
  */
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
+	if (!enable_l2_hsic && !strcmp(ws->name, "l2_hsic"))
+	return;
+
+	if (!enable_wlan_ctrl_wake && !strcmp(ws->name, "wlan_ctrl_wake"))
+	return;
+
+	if (!enable_wlan_rx_wake && !strcmp(ws->name, "wlan_rx_wake"))
+	return;
+
+	if (!enable_wlan_wake && !strcmp(ws->name, "wlan_wake"))
+	return;
+
+	if (!enable_wlan_wd_wake && !strcmp(ws->name, "wlan_wd_wake"))
+	return;
+
 	unsigned int cec;
 
 	/*
