@@ -35,10 +35,10 @@
 
 #ifdef CONFIG_CUSTOM_LOGO
 #ifdef CONFIG_MACH_M0
-#include "logo_i9300.h"
+#include "logo_m0.h"
 #endif
-#ifdef CONFIG_MACH_T0_EUR_OPEN
-#include "logo_n7100.h"
+#ifdef CONFIG_MACH_T0
+#include "logo_t0.h"
 #endif
 #endif
 
