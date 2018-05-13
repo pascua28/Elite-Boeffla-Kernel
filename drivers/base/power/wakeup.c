@@ -485,6 +485,8 @@ EXPORT_SYMBOL_GPL(pm_stay_awake);
  */
 static void wakeup_source_deactivate(struct wakeup_source *ws)
 {
+	unsigned int cec;
+
 	ktime_t duration;
 	ktime_t now;
 
