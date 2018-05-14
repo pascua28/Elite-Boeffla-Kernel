@@ -754,7 +754,7 @@ bool pm_get_wakeup_count(unsigned int *count)
  */
 bool pm_save_wakeup_count(unsigned int count)
 {
-	unsigned int cnt, inpr, cec;
+	unsigned int cnt, inpr;
 
 	events_check_enabled = false;
 	spin_lock_irq(&events_lock);
