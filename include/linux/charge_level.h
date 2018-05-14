@@ -20,7 +20,7 @@ extern int ignore_unstable_power;
 extern int ignore_safety_margin;
 
 #ifdef CONFIG_MACH_T0
-#define AC_CHARGE_LEVEL_DEFAULT 1700
+#define AC_CHARGE_LEVEL_DEFAULT 1900
 #else
 #define AC_CHARGE_LEVEL_DEFAULT 1100
 #endif
