@@ -380,11 +380,11 @@ fi
 
 if [ "param_charge_rates" == "$1" ]; then
 	# AC charge min/max/steps
-	echo "0;2000;5;"
+	echo "0;2000;100;"
 	# USB charge min/max/steps
-	echo "0;1000;5;"
+	echo "0;1000;100;"
 	# Wireless charge min/max/steps
-	echo "0;1000;5"
+	echo "0;1000;100"
 	exit 0
 fi
 
