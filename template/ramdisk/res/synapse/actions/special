@@ -1,0 +1,13 @@
+if [[ -e $1 ]]; then
+if [[ ! -z $2 ]]; then
+[ "$2" == 1 ] && echo Y > $1;
+
+[ "$2" == 0 ] && echo N > $1;
+
+fi;
+
+[ `cat $1` == Y ] && echo 1;
+
+[ `cat $1` == N ] && echo 0;
+
+fi;

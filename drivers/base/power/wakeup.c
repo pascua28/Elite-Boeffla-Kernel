@@ -416,6 +416,8 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
  */
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
+	unsigned int cec;
+
 	if (!enable_l2_hsic && !strcmp(ws->name, "l2_hsic"))
 	return;
 
@@ -430,8 +432,6 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 
 	if (!enable_wlan_wd_wake && !strcmp(ws->name, "wlan_wd_wake"))
 	return;
-
-	unsigned int cec;
 
 	/*
 	 * active wakeup source should bring the system

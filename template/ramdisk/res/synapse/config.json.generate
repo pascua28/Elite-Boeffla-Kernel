@@ -264,6 +264,54 @@ WARNING!!!! This is a very advanced setting"
                 }
     }}
 
+		]
+	},
+
+	{
+			name:Wakelock Blocker,
+			elements:[
+				{ SDescription:{
+					description:"Block common kernel wakelocks as found by BetterBatteryStats. Disabling wakelocks results in longer idle battery life but may cause some undesired behavior. Disable them at your own discretion."
+				}},
+				{ SSpacer:{
+					height:1
+				}},
+
+    { SCheckBox:{
+        title:"",
+	label:"l2_hsic wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_l2_hsic",
+    }},
+
+    { SCheckBox:{
+        title:"",
+	label:"wlan_ctrl_wake wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_wlan_ctrl_wake",
+    }},
+
+    { SCheckBox:{
+        title:"",
+	label:"wlan_rx_wake wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_wlan_rx_wake",
+    }},
+
+    { SCheckBox:{
+        title:"",
+	label:"wlan_wake wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_wlan_wake",
+    }},
+
+    { SCheckBox:{
+        title:"",
+	label:"wlan_wd_wake wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_wlan_wd_wake",
+    }}
+
         ]
     }
 
