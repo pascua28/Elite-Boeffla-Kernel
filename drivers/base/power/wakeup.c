@@ -438,6 +438,7 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
  * core of the event by incrementing the counter of of wakeup events being
  * processed.
  */
+static void wakeup_source_deactivate(struct wakeup_source *ws);
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
@@ -446,20 +447,30 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 			"unregistered wakeup source\n"))
 		return;
 
-	if (!enable_l2_hsic && !strcmp(ws->name, "l2_hsic"))
+	if (!enable_l2_hsic && !strcmp(ws->name, "l2_hsic")) {
+	wakeup_source_deactivate(ws);
 	return;
+	}
 
-	if (!enable_wlan_ctrl_wake && !strcmp(ws->name, "wlan_ctrl_wake"))
+	if (!enable_wlan_ctrl_wake && !strcmp(ws->name, "wlan_ctrl_wake")) {
+	wakeup_source_deactivate(ws);
 	return;
+	}
 
-	if (!enable_wlan_rx_wake && !strcmp(ws->name, "wlan_rx_wake"))
+	if (!enable_wlan_rx_wake && !strcmp(ws->name, "wlan_rx_wake")) {
+	wakeup_source_deactivate(ws);
 	return;
+	}
 
-	if (!enable_wlan_wake && !strcmp(ws->name, "wlan_wake"))
+	if (!enable_wlan_wake && !strcmp(ws->name, "wlan_wake")) {
+	wakeup_source_deactivate(ws);
 	return;
+	}
 
-	if (!enable_wlan_wd_wake && !strcmp(ws->name, "wlan_wd_wake"))
+	if (!enable_wlan_wd_wake && !strcmp(ws->name, "wlan_wd_wake")) {
+	wakeup_source_deactivate(ws);
 	return;
+	}
 
 	/*
 	 * active wakeup source should bring the system
