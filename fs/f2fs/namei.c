@@ -89,14 +89,7 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 	size_t slen = strlen(s);
 	size_t sublen = strlen(sub);
 
-	/*
-	 * filename format of multimedia file should be defined as:
-	 * "filename + '.' + extension".
-	 */
-	if (slen < sublen + 2)
-		return 0;
-
-	if (s[slen - sublen - 1] != '.')
+	if (sublen > slen)
 		return 0;
 
 	return !strncasecmp(s + slen - sublen, sub, sublen);
