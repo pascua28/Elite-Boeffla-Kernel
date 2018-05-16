@@ -15,7 +15,7 @@ config NO_HZ
 
 config NO_HZ_EXTENDED
        bool "Full dynticks system"
-       depends on NO_HZ && RCU_USER_QS && VIRT_CPU_ACCOUNTING_GEN && RCU_NOCB_CPU && SMP
+       depends on NO_HZ && SMP
        select CONTEXT_TRACKING_FORCE
        help
          Adaptively try to shutdown the tick whenever possible, even when
