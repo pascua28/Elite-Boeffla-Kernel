@@ -4399,11 +4399,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* DHD_ENABLE_LPC */
 	uint power_mode;
 
-	if (!wifi_low_power)
-		power_mode = 2;
-	else
-		power_mode = 0;
-
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = CUSTOM_GLOM_SETTING;
 #if defined(CUSTOMER_HW2) && defined(USE_WL_CREDALL)
@@ -4499,6 +4494,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	dhd->suspend_bcn_li_dtim = CUSTOM_SUSPEND_BCN_LI_DTIM;
 	DHD_TRACE(("Enter %s\n", __FUNCTION__));
 	dhd->op_mode = 0;
+
+	if (!wifi_low_power)
+		power_mode = 2;
+	else
+		power_mode = 0;
+
 #ifdef CUSTOMER_HW4
 	if (!dhd_validate_chipid(dhd)) {
 		DHD_ERROR(("%s: CONFIG_BCMXXX and CHIP ID(%x) is mismatched\n",
