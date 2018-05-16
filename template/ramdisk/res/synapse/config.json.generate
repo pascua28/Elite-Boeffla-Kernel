@@ -243,7 +243,7 @@ WARNING!!!! This is a very advanced setting"
 	},
 
 	{
-			name:CPU,
+			name:Misc,
 			elements:[
 
     { SOptionList:{
@@ -262,19 +262,33 @@ WARNING!!!! This is a very advanced setting"
             500000:500MHz,
             400000:400MHz,
                 }
-    }}
+    }},
 
-		]
-	},
-
-	{
-			name:Wakelock Blocker,
-			elements:[
-				{ SDescription:{
-					description:"Block common kernel wakelocks as found by BetterBatteryStats. Disabling wakelocks results in longer idle battery life but may cause some undesired behavior. Disable them at your own discretion."
-				}},
 				{ SSpacer:{
 					height:1
+				}},
+
+				{ SPane:{
+					title:"Brightness mode"
+				}},
+
+    { SCheckBox:{
+        title:"",
+	label:"Extra low brightness mode",
+        default:0,
+        action:"generic /sys/devices/platform/s5p-dsim.0/s6e8aa0/backlight/panel/brightness_config",
+    }},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"Wakelock"
+				}},
+
+				{ SDescription:{
+					description:"Wakelock blocker. Block common kernel wakelocks as found by BetterBatteryStats. Disabling wakelocks results in longer idle battery life but may cause some undesired behavior. Disable them at your own discretion."
 				}},
 
     { SCheckBox:{
@@ -311,6 +325,7 @@ WARNING!!!! This is a very advanced setting"
         default:1,
         action:"special /sys/module/wakeup/parameters/enable_wlan_wd_wake",
     }}
+
 
         ]
     }
