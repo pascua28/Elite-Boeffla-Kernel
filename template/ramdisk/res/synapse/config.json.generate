@@ -284,6 +284,22 @@ WARNING!!!! This is a very advanced setting"
 				}},
 
 				{ SPane:{
+					title:"WiFi power mode"
+				}},
+
+    { SCheckBox:{
+        title:"",
+	label:"WiFi low power mode",
+        default:0,
+        action:"special /sys/module/dhd/parameters/wifi_low_power",
+    }},
+
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
 					title:"Wakelock"
 				}},
 
