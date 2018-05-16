@@ -912,6 +912,9 @@ void dhd_enable_packet_filter(int value, dhd_pub_t *dhd)
 #endif /* PKT_FILTER_SUPPORT */
 }
 
+bool wifi_low_power = false;
+module_param(wifi_low_power, bool, 0644);
+
 static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 {
 #ifndef SUPPORT_PM2_ONLY
@@ -1037,7 +1040,11 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 #endif /* DYNAMIC_SWOOB_DURATION */
 
 #ifndef SUPPORT_PM2_ONLY
-				power_mode = PM_FAST;
+				if (!wifi_low_power)
+					power_mode = 2;
+				else
+					power_mode = 0;
+
 				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				                 sizeof(power_mode), TRUE, 0);
 #endif /* SUPPORT_PM2_ONLY */
@@ -4390,7 +4397,13 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef DHD_ENABLE_LPC
 	uint32 lpc = 1;
 #endif /* DHD_ENABLE_LPC */
-	uint power_mode = PM_FAST;
+	uint power_mode;
+
+	if (!wifi_low_power)
+		power_mode = 2;
+	else
+		power_mode = 0;
+
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = CUSTOM_GLOM_SETTING;
 #if defined(CUSTOMER_HW2) && defined(USE_WL_CREDALL)
