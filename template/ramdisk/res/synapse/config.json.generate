@@ -243,7 +243,7 @@ WARNING!!!! This is a very advanced setting"
 	},
 
 	{
-			name:CPU,
+			name:Misc,
 			elements:[
 
     { SOptionList:{
@@ -262,7 +262,86 @@ WARNING!!!! This is a very advanced setting"
             500000:500MHz,
             400000:400MHz,
                 }
+    }},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"Brightness mode"
+				}},
+
+    { SCheckBox:{
+        title:"",
+	label:"Extra low brightness mode",
+        default:0,
+        action:"generic /sys/devices/platform/s5p-dsim.0/s6e8aa0/backlight/panel/brightness_config",
+    }},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"WiFi power mode"
+				}},
+
+    { SCheckBox:{
+        title:"",
+	label:"WiFi low power mode",
+        default:0,
+        action:"special /sys/module/dhd/parameters/wifi_low_power",
+    }},
+
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"Wakelock"
+				}},
+
+				{ SDescription:{
+					description:"Wakelock blocker. Block common kernel wakelocks as found by BetterBatteryStats. Disabling wakelocks results in longer idle battery life but may cause some undesired behavior. Disable them at your own discretion."
+				}},
+
+    { SCheckBox:{
+        title:"",
+	label:"l2_hsic wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_l2_hsic",
+    }},
+
+    { SCheckBox:{
+        title:"",
+	label:"wlan_ctrl_wake wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_wlan_ctrl_wake",
+    }},
+
+    { SCheckBox:{
+        title:"",
+	label:"wlan_rx_wake wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_wlan_rx_wake",
+    }},
+
+    { SCheckBox:{
+        title:"",
+	label:"wlan_wake wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_wlan_wake",
+    }},
+
+    { SCheckBox:{
+        title:"",
+	label:"wlan_wd_wake wakelock",
+        default:1,
+        action:"special /sys/module/wakeup/parameters/enable_wlan_wd_wake",
     }}
+
 
         ]
     }
