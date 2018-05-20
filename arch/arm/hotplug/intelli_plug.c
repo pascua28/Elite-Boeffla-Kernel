@@ -162,7 +162,7 @@ static void apply_down_lock(unsigned int cpu)
 	struct down_lock *dl = &per_cpu(lock_info, cpu);
 
 	dl->locked = 1;
-	queue_delayed_work_on(0, intelliplug_wq, &dl->lock_rem,
+	queue_delayed_work_on(0, system_freezable_power_efficient_wq, &dl->lock_rem,
 			      msecs_to_jiffies(down_lock_dur));
 }
 
@@ -279,7 +279,7 @@ static void intelli_plug_work_fn(struct work_struct *work)
 	queue_work_on(0, intelliplug_wq, &up_down_work);
 
 	if (intelli_plug_active)
-		queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
+		queue_delayed_work_on(0, system_freezable_power_efficient_wq, &intelli_plug_work,
 					msecs_to_jiffies(def_sampling_ms));
 }
 
@@ -343,7 +343,7 @@ static void __ref intelli_plug_resume(void)
 
 	/* Resume hotplug workqueue if required */
 	if (required_reschedule)
-		queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
+		queue_delayed_work_on(0, system_freezable_power_efficient_wq, &intelli_plug_work,
 				      msecs_to_jiffies(RESUME_SAMPLING_MS));
 }
 
@@ -467,7 +467,7 @@ static int __ref intelli_plug_start(void)
 	int cpu, ret = 0;
 	struct down_lock *dl;
 
-	intelliplug_wq = alloc_workqueue("intelliplug", WQ_HIGHPRI | WQ_POWER_EFFICIENT | WQ_FREEZABLE, 0);
+	intelliplug_wq = alloc_workqueue("intelliplug", WQ_HIGHPRI | WQ_FREEZABLE, 0);
 	if (!intelliplug_wq) {
 		pr_err("%s: Failed to allocate hotplug workqueue\n",
 		       INTELLI_PLUG);
@@ -502,7 +502,7 @@ static int __ref intelli_plug_start(void)
 		apply_down_lock(cpu);
 	}
 
-	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
+	queue_delayed_work_on(0, system_freezable_power_efficient_wq, &intelli_plug_work,
 			      msecs_to_jiffies(START_DELAY_MS));
 
 	return ret;
