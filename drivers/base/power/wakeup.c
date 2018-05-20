@@ -18,6 +18,23 @@
 
 #define TIMEOUT		50
 
+static bool enable_l2_hsic = true;
+module_param(enable_l2_hsic, bool, 0664);
+
+static bool enable_wlan_ctrl_wake = true;
+module_param(enable_wlan_ctrl_wake, bool, 0664);
+
+static bool enable_wlan_rx_wake = true;
+module_param(enable_wlan_rx_wake, bool, 0664);
+
+static bool enable_wlan_wake = true;
+module_param(enable_wlan_wake, bool, 0664);
+
+static bool enable_wlan_wd_wake = true;
+module_param(enable_wlan_wd_wake, bool, 0664);
+
+static void wakeup_source_deactivate(struct wakeup_source *ws);
+
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
@@ -368,6 +385,32 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
  */
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
+
+	if (!enable_l2_hsic && !strcmp(ws->name, "l2_hsic")) {
+	wakeup_source_deactivate(ws);
+	return;
+	}
+
+	if (!enable_wlan_ctrl_wake && !strcmp(ws->name, "wlan_ctrl_wake")) {
+	wakeup_source_deactivate(ws);
+	return;
+	}
+
+	if (!enable_wlan_rx_wake && !strcmp(ws->name, "wlan_rx_wake")) {
+	wakeup_source_deactivate(ws);
+	return;
+	}
+
+	if (!enable_wlan_wake && !strcmp(ws->name, "wlan_wake")) {
+	wakeup_source_deactivate(ws);
+	return;
+	}
+
+	if (!enable_wlan_wd_wake && !strcmp(ws->name, "wlan_wd_wake")) {
+	wakeup_source_deactivate(ws);
+	return;
+	}
+
 	/*
 	 * active wakeup source should bring the system
 	 * out of PM_SUSPEND_FREEZE state
