@@ -707,6 +707,7 @@ extern unsigned int intelli_plug_active;
 extern bool msm_enabled;
 #endif
 
+#if defined (CONFIG_INTELLI_PLUG) || defined(CONFIG_MSM_HOTPLUG)
 static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
 				unsigned long code, void *data)
 {
@@ -774,10 +775,13 @@ static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
 
 	return NOTIFY_DONE;
 }
+#endif
 
+#if defined(CONFIG_INTELLI_PLUG) || defined(CONFIG_MSM_HOTPLUG)
 static struct notifier_block exynos_cpufreq_policy_notifier = {
 	.notifier_call = exynos_cpufreq_policy_notifier_call,
 };
+#endif
 
 
 static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
@@ -902,8 +906,10 @@ static int __init exynos_cpufreq_init(void)
 
 	register_pm_notifier(&exynos_cpufreq_notifier);
 	register_reboot_notifier(&exynos_cpufreq_reboot_notifier);
+#if defined (CONFIG_INTELLI_PLUG) || defined(CONFIG_MSM_HOTPLUG)
 	cpufreq_register_notifier(&exynos_cpufreq_policy_notifier,
 						CPUFREQ_POLICY_NOTIFIER);
+#endif
 
 	exynos_cpufreq_init_done = true;
 
