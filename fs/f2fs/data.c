@@ -454,12 +454,14 @@ static struct extent_node *__lookup_extent_tree(struct extent_tree *et,
 	while (node) {
 		en = rb_entry(node, struct extent_node, rb_node);
 
-		if (fofs < en->ei.fofs)
+		if (fofs < en->ei.fofs) {
 			node = node->rb_left;
-		else if (fofs >= en->ei.fofs + en->ei.len)
+		} else if (fofs >= en->ei.fofs + en->ei.len) {
 			node = node->rb_right;
-		else
+		} else {
+			et->cached_en = en;
 			return en;
+		}
 	}
 	return NULL;
 }
@@ -624,7 +626,6 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 		spin_lock(&sbi->extent_lock);
 		if (!list_empty(&en->list))
 			list_move_tail(&en->list, &sbi->extent_list);
-		et->cached_en = en;
 		spin_unlock(&sbi->extent_lock);
 		stat_inc_read_hit(sbi->sb);
 	}
@@ -674,7 +675,7 @@ static void f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 		endofs = dei.fofs + dei.len - 1;
 		if (endofs - fofs >= F2FS_MIN_EXTENT_LEN) {
 			set_extent_info(&ei, fofs + 1,
-				fofs - dei.fofs + dei.blk + 1, endofs - fofs);
+				fofs - dei.fofs + dei.blk, endofs - fofs);
 			en2 = __insert_extent_tree(sbi, et, &ei, NULL);
 		}
 	}
@@ -899,9 +900,9 @@ void f2fs_update_extent_cache(struct dnode_of_data *dn)
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
 
-	/* we should call update_extent_info() to update on-disk extent */
 	if (test_opt(F2FS_I_SB(dn->inode), EXTENT_CACHE))
-		f2fs_update_extent_tree(dn->inode, fofs, dn->data_blkaddr);
+		return f2fs_update_extent_tree(dn->inode, fofs,
+							dn->data_blkaddr);
 
 	if (update_extent_info(dn->inode, fofs, dn->data_blkaddr))
 		sync_inode_page(dn);

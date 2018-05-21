@@ -566,16 +566,18 @@ enum {
 };
 
 struct flush_cmd {
+	struct flush_cmd *next;
 	struct completion wait;
-	struct llist_node llnode;
 	int ret;
 };
 
 struct flush_cmd_control {
 	struct task_struct *f2fs_issue_flush;	/* flush thread */
 	wait_queue_head_t flush_wait_queue;	/* waiting queue for wake-up */
-	struct llist_head issue_list;		/* list for command issue */
-	struct llist_node *dispatch_list;	/* list for command dispatch */
+	struct flush_cmd *issue_list;		/* list for command issue */
+	struct flush_cmd *dispatch_list;	/* list for command dispatch */
+	spinlock_t issue_lock;			/* for issue list lock */
+	struct flush_cmd *issue_tail;		/* list tail of issue list */
 };
 
 struct f2fs_sm_info {
@@ -1041,8 +1043,7 @@ static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
 
 static inline void inode_dec_dirty_pages(struct inode *inode)
 {
-	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode) &&
-			!S_ISLNK(inode->i_mode))
+	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode))
 		return;
 
 	atomic_dec(&F2FS_I(inode)->dirty_pages);
@@ -1345,7 +1346,6 @@ enum {
 	FI_INC_LINK,		/* need to increment i_nlink */
 	FI_ACL_MODE,		/* indicate acl mode */
 	FI_NO_ALLOC,		/* should not allocate any blocks */
-	FI_FREE_NID,		/* free allocated nide */
 	FI_UPDATE_DIR,		/* should update inode block for consistency */
 	FI_DELAY_IPUT,		/* used for the recovery */
 	FI_NO_EXTENT,		/* not to use the extent cache */
@@ -1592,7 +1592,8 @@ struct dentry *f2fs_get_parent(struct dentry *child);
 extern unsigned char f2fs_filetype_table[F2FS_FT_MAX];
 void set_de_type(struct f2fs_dir_entry *, umode_t);
 struct f2fs_dir_entry *find_target_dentry(struct f2fs_filename *,
-			f2fs_hash_t, int *, struct f2fs_dentry_ptr *);
+			f2fs_hash_t, int *, struct f2fs_dentry_ptr *,
+			unsigned int flags);
 bool f2fs_fill_dentries(struct file *, void *, filldir_t,
 			struct f2fs_dentry_ptr *, unsigned int, unsigned int, struct f2fs_str *);
 void do_make_empty_dir(struct inode *, struct inode *,
@@ -1603,7 +1604,7 @@ void update_parent_metadata(struct inode *, struct inode *, unsigned int);
 int room_for_filename(const void *, int, int);
 void f2fs_drop_nlink(struct inode *, struct inode *, struct page *);
 struct f2fs_dir_entry *f2fs_find_entry(struct inode *, struct qstr *,
-							struct page **);
+					struct page **, unsigned int flags);
 struct f2fs_dir_entry *f2fs_parent_dir(struct inode *, struct page **);
 ino_t f2fs_inode_by_name(struct inode *, struct qstr *);
 void f2fs_set_link(struct inode *, struct f2fs_dir_entry *,
@@ -1941,7 +1942,7 @@ int f2fs_convert_inline_inode(struct inode *);
 int f2fs_write_inline_data(struct inode *, struct page *);
 bool recover_inline_data(struct inode *, struct page *);
 struct f2fs_dir_entry *find_in_inline_dir(struct inode *,
-				struct f2fs_filename *, struct page **);
+			struct f2fs_filename *, struct page **, unsigned int flags);
 struct f2fs_dir_entry *f2fs_parent_inline_dir(struct inode *, struct page **);
 int make_empty_inline_dir(struct inode *inode, struct inode *, struct page *);
 int f2fs_add_inline_entry(struct inode *, const struct qstr *, struct inode *,
