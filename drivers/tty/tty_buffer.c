@@ -342,8 +342,6 @@ EXPORT_SYMBOL(tty_insert_flip_string_flags);
  *	Takes any pending buffers and transfers their ownership to the
  *	ldisc side of the queue. It then schedules those characters for
  *	processing by the line discipline.
- *	Note that this function can only be used when the low_latency flag
- *	is unset. Otherwise the workqueue won't be flushed.
  *
  *	Locking: Takes tty->buf.lock
  */
@@ -516,8 +514,7 @@ static void flush_to_ldisc(struct work_struct *work)
  */
 void tty_flush_to_ldisc(struct tty_struct *tty)
 {
-	if (!tty->low_latency)
-		flush_work(&tty->buf.work);
+	flush_work(&tty->buf.work);
 }
 
 /**
