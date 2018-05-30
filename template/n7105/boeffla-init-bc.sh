@@ -107,7 +107,6 @@
 	cat /sys/kernel/charge_levels/charge_level_wireless > /dev/bk_orig_charge_level_wireless
 	cat /sys/module/lowmemorykiller/parameters/minfree > /dev/bk_orig_minfree
 	/sbin/busybox lsmod > /dev/bk_orig_modules
-	cat /proc/sys/vm/swappiness > /dev/bk_orig_swappiness
 	cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor > /dev/bk_orig_scaling_governor
 	cat /sys/block/mmcblk0/queue/scheduler > /dev/bk_orig_mmcblk0_scheduler
 	cat /sys/block/mmcblk1/queue/scheduler > /dev/bk_orig_mmcblk1_scheduler
