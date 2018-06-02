@@ -669,7 +669,7 @@ static inline int __zs_cpu_up(struct mapping_area *area)
 	 */
 	if (area->vm)
 		return 0;
-	area->vm = alloc_vm_area(PAGE_SIZE * 2);
+	area->vm = alloc_vm_area(PAGE_SIZE * 2, NULL);
 	if (!area->vm)
 		return -ENOMEM;
 	return 0;
