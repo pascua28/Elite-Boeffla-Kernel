@@ -102,16 +102,6 @@ static int timeline_compare(struct sync_pt *a, struct sync_pt *b)
 	}
 }
 
-static void timeline_free_pt(struct sync_pt *pt)
-{
-	struct mali_sync_pt *mpt = to_mali_sync_pt(pt);
-
-	if (mpt->timer.function == mali_sync_timed_pt_timeout)
-	{
-		del_timer_sync(&mpt->timer);
-	}
-}
-
 static void timeline_print_tl(struct seq_file *s, struct sync_timeline *sync_timeline)
 {
 	struct mali_sync_timeline *mtl = to_mali_sync_timeline(sync_timeline);
@@ -129,10 +119,7 @@ static void timeline_print_pt(struct seq_file *s, struct sync_pt *sync_pt)
 
 static struct sync_timeline_ops mali_timeline_ops = {
 	.driver_name    = "Mali",
-	.dup            = timeline_dup,
 	.has_signaled   = timeline_has_signaled,
-	.compare        = timeline_compare,
-	.free_pt        = timeline_free_pt,
 	.print_obj      = timeline_print_tl,
 	.print_pt       = timeline_print_pt
 };

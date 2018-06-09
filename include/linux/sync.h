@@ -29,17 +29,10 @@ struct sync_fence;
 /**
  * struct sync_timeline_ops - sync object implementation ops
  * @driver_name:	name of the implentation
- * @dup:		duplicate a sync_pt
  * @has_signaled:	returns:
  *			  1 if pt has signaled
  *			  0 if pt has not signaled
  *			 <0 on error
- * @compare:		returns:
- *			  1 if b will signal before a
- *			  0 if a and b will signal at the same time
- *			 -1 if a will signabl before b
- * @free_pt:		called before sync_pt is freed
- * @release_obj:	called before sync_timeline is freed
  * @print_obj:		print aditional debug information about sync_timeline.
  *			  should not print a newline
  * @print_pt:		print aditional debug information about sync_pt.
@@ -53,19 +46,7 @@ struct sync_timeline_ops {
 	const char *driver_name;
 
 	/* required */
-	struct sync_pt *(*dup)(struct sync_pt *pt);
-
-	/* required */
 	int (*has_signaled)(struct sync_pt *pt);
-
-	/* required */
-	int (*compare)(struct sync_pt *a, struct sync_pt *b);
-
-	/* optional */
-	void (*free_pt)(struct sync_pt *sync_pt);
-
-	/* optional */
-	void (*release_obj)(struct sync_timeline *sync_timeline);
 
 	/* optional */
 	void (*print_obj)(struct seq_file *s,

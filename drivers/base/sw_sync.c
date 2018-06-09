@@ -24,14 +24,6 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 
-static int sw_sync_cmp(u32 a, u32 b)
-{
-        if (a == b)
-                return 0;
-
-        return ((s32)a - (s32)b) < 0 ? -1 : 1;
-}
-
 struct sync_pt *sw_sync_pt_create(struct sw_sync_timeline *obj, u32 value)
 {
         struct sw_sync_pt *pt;
@@ -45,30 +37,13 @@ struct sync_pt *sw_sync_pt_create(struct sw_sync_timeline *obj, u32 value)
 }
 EXPORT_SYMBOL(sw_sync_pt_create);
 
-static struct sync_pt *sw_sync_pt_dup(struct sync_pt *sync_pt)
-{
-        struct sw_sync_pt *pt = (struct sw_sync_pt *) sync_pt;
-        struct sw_sync_timeline *obj =
-                (struct sw_sync_timeline *)sync_pt->parent;
-
-        return (struct sync_pt *) sw_sync_pt_create(obj, pt->value);
-}
-
 static int sw_sync_pt_has_signaled(struct sync_pt *sync_pt)
 {
         struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
         struct sw_sync_timeline *obj =
                 (struct sw_sync_timeline *)sync_pt->parent;
 
-        return sw_sync_cmp(obj->value, pt->value) >= 0;
-}
-
-static int sw_sync_pt_compare(struct sync_pt *a, struct sync_pt *b)
-{
-        struct sw_sync_pt *pt_a = (struct sw_sync_pt *)a;
-        struct sw_sync_pt *pt_b = (struct sw_sync_pt *)b;
-
-        return sw_sync_cmp(pt_a->value, pt_b->value);
+	return (pt->value > obj->value) ? 0 : 1;
 }
 
 static void sw_sync_print_obj(struct seq_file *s,
@@ -103,9 +78,7 @@ static int sw_sync_fill_driver_data(struct sync_pt *sync_pt,
 
 struct sync_timeline_ops sw_sync_timeline_ops = {
         .driver_name = "sw_sync",
-        .dup = sw_sync_pt_dup,
         .has_signaled = sw_sync_pt_has_signaled,
-        .compare = sw_sync_pt_compare,
 	.print_obj = sw_sync_print_obj,
 	.print_pt = sw_sync_print_pt,
         .fill_driver_data = sw_sync_fill_driver_data,
