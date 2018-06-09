@@ -78,6 +78,9 @@ static void sync_timeline_free(struct kref *kref)
         list_del(&obj->sync_timeline_list);
         spin_unlock_irqrestore(&sync_timeline_list_lock, flags);
 
+        if (obj->ops->release_obj)
+                obj->ops->release_obj(obj);
+
         kfree(obj);
 }
 
@@ -176,6 +179,9 @@ EXPORT_SYMBOL(sync_pt_create);
 
 void sync_pt_free(struct sync_pt *pt)
 {
+        if (pt->parent->ops->free_pt)
+                pt->parent->ops->free_pt(pt);
+
         sync_timeline_remove_pt(pt);
 
         kref_put(&pt->parent->kref, sync_timeline_free);
@@ -199,6 +205,11 @@ static int _sync_pt_has_signaled(struct sync_pt *pt)
                 pt->timestamp = ktime_get();
 
         return pt->status;
+}
+
+static struct sync_pt *sync_pt_dup(struct sync_pt *pt)
+{
+        return pt->parent->ops->dup(pt);
 }
 
 /* Adds a sync pt to the active queue.  Called when added to a fence */
@@ -293,6 +304,16 @@ static int sync_fence_copy_pts(struct sync_fence *dst, struct sync_fence *src)
 	struct list_head *pos;
 
 	list_for_each(pos, &src->pt_list_head) {
+		struct sync_pt *orig_pt =
+			container_of(pos, struct sync_pt, pt_list);
+		struct sync_pt *new_pt = sync_pt_dup(orig_pt);
+
+		if (new_pt == NULL)
+			return -ENOMEM;
+
+		new_pt->fence = dst;
+		list_add(&new_pt->pt_list, &dst->pt_list_head);
+		sync_pt_activate(new_pt);
 	}
 
 	return 0;
@@ -315,10 +336,32 @@ static int sync_fence_merge_pts(struct sync_fence *dst, struct sync_fence *src)
 			 * the later of the two
 			 */
 			if (dst_pt->parent == src_pt->parent) {
+				if (dst_pt->parent->ops->compare(dst_pt, src_pt) == -1) {
+					struct sync_pt *new_pt =
+						sync_pt_dup(src_pt);
+					if (new_pt == NULL)
+						return -ENOMEM;
+
+					new_pt->fence = dst;
+					list_replace(&dst_pt->pt_list,
+						     &new_pt->pt_list);
+					sync_pt_activate(new_pt);
 					sync_pt_free(dst_pt);
+				}
 				collapsed = true;
 				break;
 			}
+		}
+
+		if (!collapsed) {
+			struct sync_pt *new_pt = sync_pt_dup(src_pt);
+
+			if (new_pt == NULL)
+				return -ENOMEM;
+
+			new_pt->fence = dst;
+			list_add(&new_pt->pt_list, &dst->pt_list_head);
+			sync_pt_activate(new_pt);
 		}
 	}
 
