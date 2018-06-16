@@ -30,7 +30,6 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/kernel_stat.h>
-#include <linux/earlysuspend.h>
 #include <asm/cputime.h>
 
 static int active_count;
@@ -56,9 +55,6 @@ struct cpufreq_interactive_cpuinfo {
 };
 
 static DEFINE_PER_CPU(struct cpufreq_interactive_cpuinfo, cpuinfo);
-
-/* boolean for determining screen on/off state */
-static bool suspended = false;
 
 /* realtime thread handles frequency scaling */
 static struct task_struct *speedchange_task;
@@ -401,15 +397,13 @@ static void cpufreq_interactive_timer(unsigned long data)
 	boosted = boost_val || now < boostpulse_endtime;
 
 	if (cpu_load >= go_hispeed_load || boosted) {
-		if (pcpu->policy->cpu == 0 && !suspended) {
-			if (pcpu->target_freq < hispeed_freq) {
-				new_freq = hispeed_freq;
-			} else {
-				new_freq = choose_freq(pcpu, loadadjfreq);
+		if (pcpu->target_freq < hispeed_freq) {
+			new_freq = hispeed_freq;
+		} else {
+			new_freq = choose_freq(pcpu, loadadjfreq);
 
-				if (new_freq < hispeed_freq)
-					new_freq = hispeed_freq;
-			}
+			if (new_freq < hispeed_freq)
+				new_freq = hispeed_freq;
 		}
 	} else {
 		new_freq = choose_freq(pcpu, loadadjfreq);
@@ -1223,25 +1217,6 @@ static void cpufreq_interactive_nop_timer(unsigned long data)
 {
 }
 
-static void interactive_early_suspend(struct early_suspend *handler)
-{
-	suspended = true;
-	schedule_work_on(0, &interactive_down_work);
-	return;
-}
-
-static void interactive_late_resume(struct early_suspend *handler)
-{
-	suspended = false;
-	schedule_work_on(0, &interactive_up_work);
-	return;
-}
-
-static struct early_suspend interactive_suspend = {
-	.suspend = interactive_early_suspend,
-	.resume = interactive_late_resume,
-};
-
 static int __init cpufreq_interactive_init(void)
 {
 	unsigned int i;
@@ -1260,8 +1235,6 @@ static int __init cpufreq_interactive_init(void)
 		spin_lock_init(&pcpu->target_freq_lock);
 		init_rwsem(&pcpu->enable_sem);
 	}
-
-	register_early_suspend(&interactive_suspend);
 
 	spin_lock_init(&target_loads_lock);
 	spin_lock_init(&speedchange_cpumask_lock);
@@ -1290,7 +1263,6 @@ module_init(cpufreq_interactive_init);
 
 static void __exit cpufreq_interactive_exit(void)
 {
-	unregister_early_suspend(&interactive_suspend);
 	cpufreq_unregister_governor(&cpufreq_gov_interactive);
 	kthread_stop(speedchange_task);
 	put_task_struct(speedchange_task);
