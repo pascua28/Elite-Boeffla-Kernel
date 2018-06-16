@@ -104,7 +104,7 @@ static enum {
 	ENABLE_IDLE = 0x0,
 	ENABLE_AFTR = 0x1,
 	ENABLE_LPA  = 0x2
-} enable_mask = CPUDILE_ENABLE_MASK;
+} enable_mask = 3;
 module_param_named(enable_mask, enable_mask, uint, 0644);
 
 #define ENABLE_LOWPWRMASK (ENABLE_AFTR | ENABLE_LPA)
