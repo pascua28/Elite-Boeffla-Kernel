@@ -265,7 +265,7 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 		err |= restore_crunch_context(&aux->crunch);
 #endif
 #ifdef CONFIG_IWMMXT
-	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
+	if (err == 0 && test_thread_flag_relaxed(TIF_USING_IWMMXT))
 		err |= restore_iwmmxt_context(&aux->iwmmxt);
 #endif
 #ifdef CONFIG_VFP
@@ -376,7 +376,7 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 		err |= preserve_crunch_context(&aux->crunch);
 #endif
 #ifdef CONFIG_IWMMXT
-	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
+	if (err == 0 && test_thread_flag_relaxed(TIF_USING_IWMMXT))
 		err |= preserve_iwmmxt_context(&aux->iwmmxt);
 #endif
 #ifdef CONFIG_VFP
@@ -675,7 +675,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 			}
 		}
 
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		if (test_thread_flag_relaxed(TIF_RESTORE_SIGMASK))
 			oldset = &current->saved_sigmask;
 		else
 			oldset = &current->blocked;
@@ -686,7 +686,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 			 * and will be restored by sigreturn, so we can simply
 			 * clear the TIF_RESTORE_SIGMASK flag.
 			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			if (test_thread_flag_relaxed(TIF_RESTORE_SIGMASK))
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
 		}
 		return;
@@ -727,7 +727,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		/* If there's no signal to deliver, we just put the saved sigmask
 		 * back.
 		 */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		if (test_thread_flag_relaxed(TIF_RESTORE_SIGMASK)) {
 			clear_thread_flag(TIF_RESTORE_SIGMASK);
 			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 		}
