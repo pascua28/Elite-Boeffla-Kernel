@@ -10,6 +10,7 @@
 #define _LINUX_THREAD_INFO_H
 
 #include <linux/types.h>
+#include <asm/relaxed.h>
 
 struct timespec;
 struct compat_timespec;
