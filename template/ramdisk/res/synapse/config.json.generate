@@ -300,6 +300,26 @@ WARNING!!!! This is a very advanced setting"
 				}},
 
 				{ SPane:{
+					title:"Use software CRC for MMC"
+				}},
+
+				{ SDescription:{
+					description:"CRC is a mechanism aiming to prevent data corruption when enabled. Disabling it will give up to 30% performance gain"
+				}},
+
+    { SCheckBox:{
+        title:"",
+	label:"Software CRC",
+        default:1,
+        action:"special /sys/module/mmc_core/parameters/use_spi_crc",
+    }},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+
+				{ SPane:{
 					title:"Wakelock"
 				}},
 
