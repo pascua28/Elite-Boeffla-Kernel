@@ -319,7 +319,7 @@ static int ptrace_getwmmxregs(struct task_struct *tsk, void __user *ufp)
 {
 	struct thread_info *thread = task_thread_info(tsk);
 
-	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
+	if (!test_ti_thread_flag_relaxed(thread, TIF_USING_IWMMXT))
 		return -ENODATA;
 	iwmmxt_task_disable(thread);  /* force it to ram */
 	return copy_to_user(ufp, &thread->fpstate.iwmmxt, IWMMXT_SIZE)
@@ -333,7 +333,7 @@ static int ptrace_setwmmxregs(struct task_struct *tsk, void __user *ufp)
 {
 	struct thread_info *thread = task_thread_info(tsk);
 
-	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
+	if (!test_ti_thread_flag_relaxed(thread, TIF_USING_IWMMXT))
 		return -EACCES;
 	iwmmxt_task_release(thread);  /* force a reload */
 	return copy_from_user(&thread->fpstate.iwmmxt, ufp, IWMMXT_SIZE)
