@@ -5,6 +5,155 @@ cat << CTAG
 sections:[
 
 	{
+			name:Power,
+			elements:[
+
+				{ SPane:{
+					title:"Charger Current"
+				}},
+
+   { SLiveLabel:{
+	title:"",
+	refresh:500,
+	action:"charger"
+	}},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"Charging hard volt"
+				}},
+
+    { SOptionList:{
+        title:"",
+	description: "Charging hard volt is the voltage applied to the battery when charging. Lowering the voltage may prolong battery lifespan while higher voltage will speed up charging. Recommended to increase the voltage if you have a generic battery with voltage higher than 3.8V.",
+        default: $(cat /sys/devices/platform/samsung-battery/batt_chrg_hard_volt),
+        action:"generic /sys/devices/platform/samsung-battery/batt_chrg_hard_volt",
+        values: {
+            1:4.2V,
+            2:4.35V,
+            3:4.40V,
+                }
+    }},
+
+				{ SPane:{
+					title:"Charging Current"
+				}},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SDescription:{
+					description:"Charging mode is divided into two; generic USB mode (PC) and AC adapter mode. You can control both input current and charge current here. Input current is the amount of power that flows into your device. Charge current is the amount of power that flows into your battery for charging. So, input current must be equal or higher than charge current. Setting charge current higher than 2000mA may lead into battery failure, overheating or meltdown."
+				}},
+
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"AC Current"
+				}},
+
+				{ SDescription:{
+					description:"Control input, charge current when connected to AC adapter, or USB with D+, D- shorted."
+				}},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SSeekBar:{
+					title:"AC Input Current",
+					max:$(cat /sys/module/charge_control/parameters/max_charge_current), min:500, unit:" mA", step:50,
+					default:$(cat /sys/devices/platform/samsung-battery/dcp_ac_input_curr),
+					action:"generic /sys/devices/platform/samsung-battery/dcp_ac_input_curr"
+				}},
+
+				{ SSeekBar:{
+					title:"AC Charge Current",
+					max:$(cat /sys/module/charge_control/parameters/max_charge_current), min:0, unit:" mA", step:50,
+					default:$(cat /sys/devices/platform/samsung-battery/dcp_ac_chrg_curr),
+					action:"generic /sys/devices/platform/samsung-battery/dcp_ac_chrg_curr"
+				}},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"USB Current"
+				}},
+
+				{ SDescription:{
+					description:"Control input, charge current when connected to PC over USB. You can set both values to 0 for transferring data not using PC power."
+				}},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SSeekBar:{
+					title:"USB Input Current",
+					max:$(cat /sys/module/charge_control/parameters/max_usb_current), min:0, unit:" mA", step:25,
+					default:$(cat /sys/devices/platform/samsung-battery/sdp_input_curr),
+					action:"generic /sys/devices/platform/samsung-battery/sdp_input_curr"
+				}},
+
+				{ SSeekBar:{
+					title:"USB Charge Current",
+					max:$(cat /sys/module/charge_control/parameters/max_usb_current), min:0, unit:" mA", step:25,
+					default:$(cat /sys/devices/platform/samsung-battery/sdp_chrg_curr),
+					action:"generic /sys/devices/platform/samsung-battery/sdp_chrg_curr"
+				}},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"Ignore safety measures"
+				}},
+
+				{ SDescription:{
+					description:"The charger logic makes additional adjustments to the set up currents limits resulting in different live limits being applied. The actual resultant max input limit is decribed in /sys/devices/platform/samsung-battery/power_supply/battery/current_max"
+				}},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+    { SCheckBox:{
+        title:"The charger chip is capable of detecting instabilities in the power supplied to the chip, it dynamically adjusts input currents until it reaches a stable power readout - at this point it reduces it further by an additional 100mA step as a safety margin. This ignores that margin.",
+	label:"Ignore 100mA step safety margin",
+        default:$(cat /sys/devices/platform/samsung-battery/ignore_stable_margin),
+        action:"generic /sys/devices/platform/samsung-battery/ignore_stable_margin"
+    }},
+
+				{ SSpacer:{
+					height:1
+				}},
+
+    { SCheckBox:{
+        title:"This completely disables the unstable power detection. WARNING: USE AT YOUR OWN RISK.",
+	label:"Ignore unstable power detection",
+        default:$(cat /sys/devices/platform/samsung-battery/ignore_unstable_power),
+        action:"generic /sys/devices/platform/samsung-battery/ignore_unstable_power"
+    }}
+
+        ]
+    },
+
+
+	{
 			name:MIF/INT,
 			elements:[
 				{ SDescription:{
