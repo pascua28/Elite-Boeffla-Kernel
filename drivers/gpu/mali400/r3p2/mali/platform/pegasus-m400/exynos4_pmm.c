@@ -316,7 +316,6 @@ void mali_regulator_set_voltage(int min_uV, int max_uV)
 		_mali_osk_lock_signal(mali_dvfs_lock, _MALI_OSK_LOCKMODE_RW);
 		return;
 	}
-	MALI_PRINT(("= regulator_set_voltage: %d, %d \n",min_uV, max_uV));
 	regulator_set_voltage(g3d_regulator, min_uV, max_uV);
 	mali_gpu_vol = regulator_get_voltage(g3d_regulator);
 	MALI_DEBUG_PRINT(1, ("Mali voltage: %d\n", mali_gpu_vol));
