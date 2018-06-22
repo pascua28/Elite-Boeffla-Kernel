@@ -17,7 +17,7 @@ endif
 endif
 
 AFLAGS_head.o := -DTEXT_OFFSET=$(TEXT_OFFSET)
-AFLAGS_head.o += -Wa,-march=armv7-a$(plus_sec)
+AFLAGS_head.o += -Wa,-mcpu=cortex-a9 -mtune=cortex-a9 -march=armv7-a
 # change@wtl.rsengott
 # FIPS_KERNEL_RAM_BASE is start of kernel text in RAM
 ifeq ($(CONFIG_CRYPTO_FIPS),y)
@@ -25,10 +25,10 @@ AFLAGS_head.o += -DFIPS_KERNEL_RAM_BASE=0x40008000
 endif
 HEAD	= head.o
 
-AFLAGS_misc.o +=-Wa,-march=armv7-a$(plus_sec)
+AFLAGS_misc.o +=-Wa,-mcpu=cortex-a9 -mtune=cortex-a9 -march=armv7-a
 MISC	+= misc.o
 
-AFLAGS_decompress.o += -Wa,-march=armv7-a$(plus_sec)
+AFLAGS_decompress.o += -Wa,-mcpu=cortex-a9 -mtune=cortex-a9 -march=armv7-a
 DECOMPRESS = decompress.o
 
 FONTC	= $(srctree)/drivers/video/console/font_acorn_8x8.c
