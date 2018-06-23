@@ -111,7 +111,6 @@ config HIBERNATION
 	select HIBERNATE_CALLBACKS
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
-	select CRC32
 	---help---
 	  Enable the suspend to disk (STD) functionality, which is usually
 	  called "hibernation" in user interfaces.  STD checkpoints the
@@ -169,9 +168,6 @@ config FAST_RESUME
 	  software_resume() function which triggers hibernation restore is
 	  called faster on booting time by introducing new initcalls. This has
 	  benefit for fast booting on hibernation
-
-config ARCH_SAVE_PAGE_KEYS
-	bool
 
 config PM_STD_PARTITION
 	string "Default resume partition"
@@ -332,9 +328,9 @@ config PM_OPP
 	  implementations a ready to use framework to manage OPPs.
 	  For more information, read <file:Documentation/power/opp.txt>
 
-config PM_CLK
+config PM_RUNTIME_CLK
 	def_bool y
-	depends on PM && HAVE_CLK
+	depends on PM_RUNTIME && HAVE_CLK
 
 config WQ_POWER_EFFICIENT_DEFAULT
 	bool "Enable workqueue power-efficient mode by default"
@@ -362,11 +358,6 @@ config SUSPEND_TIME
 	  Prints the time spent in suspend in the kernel log, and
 	  keeps statistics on the time spent in suspend in
 	  /sys/kernel/debug/suspend_time
-	depends on PM_RUNTIME && HAVE_CLK
-
-config PM_GENERIC_DOMAINS
-	bool
-	depends on PM
 
 config PM_GENERIC_DOMAINS_RUNTIME
 	def_bool y

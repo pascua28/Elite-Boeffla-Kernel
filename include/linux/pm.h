@@ -419,31 +419,7 @@ enum rpm_request {
 	RPM_REQ_RESUME,
 };
 
-/* Per-device PM QoS constraints data struct state */
-enum dev_pm_qos_state {
-	DEV_PM_QOS_NO_DEVICE,		/* No device present */
-	DEV_PM_QOS_DEVICE_PRESENT,	/* Device present, data not allocated */
-	DEV_PM_QOS_ALLOCATED,		/* Device present, data allocated */
-};
-
 struct wakeup_source;
-
-struct pm_domain_data {
-	struct list_head list_node;
-	struct device *dev;
-	bool need_restore;
-};
-
-struct pm_subsys_data {
-	spinlock_t lock;
-	unsigned int refcount;
-#ifdef CONFIG_PM_CLK
-	struct list_head clock_list;
-#endif
-#ifdef CONFIG_PM_GENERIC_DOMAINS
-	struct pm_domain_data domain_data;
-#endif
-};
 
 struct dev_pm_info {
 	pm_message_t		power_state;
@@ -485,22 +461,18 @@ struct dev_pm_info {
 	unsigned long		active_jiffies;
 	unsigned long		suspended_jiffies;
 	unsigned long		accounting_timestamp;
+	void			*subsys_data;  /* Owned by the subsystem. */
 #endif
-	struct pm_subsys_data	*subsys_data;  /* Owned by the subsystem. */
-	struct pm_qos_constraints *constraints;
-	enum dev_pm_qos_state	constraints_state;
 };
 
 extern void update_pm_runtime_accounting(struct device *dev);
-extern int dev_pm_get_subsys_data(struct device *dev);
-extern int dev_pm_put_subsys_data(struct device *dev);
 
 /*
  * Power domains provide callbacks that are executed during system suspend,
  * hibernation, system resume and during runtime PM transitions along with
  * subsystem-level and driver-level callbacks.
  */
-struct dev_pm_domain {
+struct dev_power_domain {
 	struct dev_pm_ops	ops;
 };
 
@@ -581,17 +553,11 @@ extern void __suspend_report_result(const char *function, void *fn, int ret);
 extern int device_pm_wait_for_dev(struct device *sub, struct device *dev);
 
 extern int pm_generic_prepare(struct device *dev);
-extern int pm_generic_suspend_noirq(struct device *dev);
 extern int pm_generic_suspend(struct device *dev);
-extern int pm_generic_resume_noirq(struct device *dev);
 extern int pm_generic_resume(struct device *dev);
-extern int pm_generic_freeze_noirq(struct device *dev);
 extern int pm_generic_freeze(struct device *dev);
-extern int pm_generic_thaw_noirq(struct device *dev);
 extern int pm_generic_thaw(struct device *dev);
-extern int pm_generic_restore_noirq(struct device *dev);
 extern int pm_generic_restore(struct device *dev);
-extern int pm_generic_poweroff_noirq(struct device *dev);
 extern int pm_generic_poweroff(struct device *dev);
 extern void pm_generic_complete(struct device *dev);
 

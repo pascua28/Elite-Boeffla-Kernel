@@ -22,7 +22,7 @@
 #include <linux/tick.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
-#include <linux/pm_qos.h>
+#include <linux/pm_qos_params.h>
 
 /*
  * dbs is used in this file as a shortform for demandbased switching

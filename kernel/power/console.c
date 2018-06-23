@@ -1,5 +1,5 @@
 /*
- * Functions for saving/restoring console.
+ * drivers/power/process.c - Functions for saving/restoring console.
  *
  * Originally from swsusp.
  */
@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include "power.h"
 
+#if defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
 #define SUSPEND_CONSOLE	(MAX_NR_CONSOLES-1)
 
 static int orig_fgconsole, orig_kmsg;
@@ -31,3 +32,4 @@ void pm_restore_console(void)
 		vt_kmsg_redirect(orig_kmsg);
 	}
 }
+#endif

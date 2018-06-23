@@ -29,7 +29,7 @@
 #include <linux/opp.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
-#include <linux/pm_qos.h>
+#include <linux/pm_qos_params.h>
 
 #include <mach/busfreq_exynos4.h>
 

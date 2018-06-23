@@ -28,7 +28,7 @@
 #include <linux/delay.h>
 
 #include <asm/cacheflush.h>
-#include <linux/pm_qos.h>
+#include <linux/pm_qos_params.h>
 
 #include "fimc.h"
 
@@ -36,7 +36,7 @@
 extern fimc_is;
 #endif
 
-static struct pm_qos_request bus_qos_pm_qos_req;
+static struct pm_qos_request_list bus_qos_pm_qos_req;
 
 static const struct v4l2_fmtdesc capture_fmts[] = {
 	{

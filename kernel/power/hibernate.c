@@ -31,14 +31,14 @@
 
 #include "power.h"
 
-static int nocompress;
-static int noresume;
-static int resume_wait;
-static int resume_delay;
+
+static int nocompress = 0;
+int noresume;
+static int resume_wait = 0;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
-int in_suspend __nosavedata;
+int in_suspend __nosavedata = 0;
 
 enum {
 	HIBERNATION_INVALID,
@@ -469,7 +469,7 @@ static int resume_target_kernel(bool platform_mode)
  * @platform_mode: If set, use platform driver to prepare for the transition.
  *
  * This routine must be called with pm_mutex held.  If it is successful, control
- * reappears in the restored target kernel in hibernation_snapshot().
+ * reappears in the restored target kernel in hibernation_snaphot().
  */
 int hibernation_restore(int platform_mode)
 {
@@ -660,9 +660,6 @@ int hibernate(void)
 			flags |= SF_PLATFORM_MODE;
 		if (nocompress)
 			flags |= SF_NOCOMPRESS_MODE;
-		else
-		        flags |= SF_CRC32_MODE;
-
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write(flags);
 		swsusp_free();
@@ -737,12 +734,6 @@ static int software_resume(void)
 	}
 
 	pr_debug("PM: Checking hibernation image partition %s\n", resume_file);
-
-	if (resume_delay) {
-		printk(KERN_INFO "Waiting %dsec before reading resume device...\n",
-			resume_delay);
-		ssleep(resume_delay);
-	}
 
 	/* Check if the device is there */
 	swsusp_resume_device = name_to_dev_t(resume_file);
@@ -1139,15 +1130,8 @@ static int __init resumewait_setup(char *str)
 	return 1;
 }
 
-static int __init resumedelay_setup(char *str)
-{
-	resume_delay = simple_strtoul(str, NULL, 0);
-	return 1;
-}
-
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
 __setup("hibernate=", hibernate_setup);
 __setup("resumewait=", resumewait_setup);
-__setup("resumedelay=", resumedelay_setup);
