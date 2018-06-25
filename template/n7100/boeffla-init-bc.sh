@@ -120,10 +120,6 @@
 		echo $(date) "No startup configuration found, enable all default settings"  >> $BOEFFLA_LOGFILE
 	fi
 	
-# Switch to fq_codel on mobile data and wlan
-	tc qdisc add dev rmnet0 root fq_codel
-	tc qdisc add dev wlan0 root fq_codel
-
 # Turn off debugging for certain modules
 	echo 0 > /sys/module/ump/parameters/ump_debug_level
 	echo 0 > /sys/module/mali/parameters/mali_debug_level
