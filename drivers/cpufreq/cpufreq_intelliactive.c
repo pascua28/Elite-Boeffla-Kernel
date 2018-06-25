@@ -1286,17 +1286,6 @@ static int cpufreq_interactive_idle_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static void cpu_up_work(struct work_struct *work)
-{
-	int cpu;
-
-	for_each_cpu_not(cpu, cpu_online_mask) {
-		if (cpu == 0)
-			continue;
-		cpu_up(cpu);
-	}
-}
-
 static struct notifier_block cpufreq_interactive_idle_nb = {
 	.notifier_call = cpufreq_interactive_idle_notifier,
 };

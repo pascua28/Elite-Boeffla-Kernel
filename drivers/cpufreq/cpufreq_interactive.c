@@ -1048,31 +1048,6 @@ static int cpufreq_interactive_idle_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static void cpu_up_work(struct work_struct *work)
-{
-	int cpu;
-
-	for_each_cpu_not(cpu, cpu_online_mask) {
-		if (cpu == 0)
-			continue;
-		cpu_up(cpu);
-	}
-}
-
-static void cpu_down_work(struct work_struct *work)
-{
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		if (cpu == 0)
-			continue;
-		cpu_down(cpu);
-	}
-}
-
-static DECLARE_WORK(interactive_up_work, cpu_up_work);
-static DECLARE_WORK(interactive_down_work, cpu_down_work);
-
 static struct notifier_block cpufreq_interactive_idle_nb = {
 	.notifier_call = cpufreq_interactive_idle_notifier,
 };
@@ -1131,8 +1106,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			return rc;
 		}
 
-		schedule_work_on(0, &interactive_up_work);
-
 		idle_notifier_register(&cpufreq_interactive_idle_nb);
 		cpufreq_register_notifier(
 			&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
@@ -1154,8 +1127,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			mutex_unlock(&gov_lock);
 			return 0;
 		}
-
-		schedule_work_on(0, &interactive_down_work);
 
 		cpufreq_unregister_notifier(
 			&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
