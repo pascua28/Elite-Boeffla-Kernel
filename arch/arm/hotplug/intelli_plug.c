@@ -389,20 +389,6 @@ static void intelli_plug_suspend(struct early_suspend *handler)
 	}
 }
 
-static void wakeup_boost(void)
-{
-	unsigned int cpu;
-	struct cpufreq_policy *policy;
-	struct ip_cpu_info *l_ip_info;
-
-	for_each_online_cpu(cpu) {
-		policy = cpufreq_cpu_get(0);
-		l_ip_info = &per_cpu(ip_info, 0);
-		policy->cur = l_ip_info->cur_max;
-		cpufreq_update_policy(cpu);
-	}
-}
-
 static void __ref intelli_plug_resume(struct early_suspend *handler)
 {
 
@@ -419,12 +405,12 @@ static void __ref intelli_plug_resume(struct early_suspend *handler)
 			if (cpu == 0)
 				continue;
 			cpu_up(cpu);
-		}
 
-		wakeup_boost();
+		queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
+		msecs_to_jiffies(1000));
+
+		}
 	}
-	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
-		msecs_to_jiffies(10));
 }
 #endif
 
