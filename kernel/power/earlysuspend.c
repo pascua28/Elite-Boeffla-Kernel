@@ -49,7 +49,7 @@ enum {
 static int state;
 
 #ifdef CONFIG_SPEEDUP_KEYRESUME
-	struct sched_param earlysuspend_s = { .sched_priority = 66 };
+	struct sched_param earlysuspend_s = { .sched_priority = 99 };
 	struct sched_param earlysuspend_v = { .sched_priority = 0 };
 	int earlysuspend_old_prio = 0;
 	int earlysuspend_old_policy = 0;
