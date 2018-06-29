@@ -167,7 +167,7 @@ static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall,
        return idle_time;
 }
 
-static bool io_is_busy = true;
+static bool io_is_busy;
 
 static int update_average_load(unsigned int cpu)
 {
