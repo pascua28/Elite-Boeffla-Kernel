@@ -1878,7 +1878,9 @@ static struct notifier_block __refdata cpufreq_cpu_notifier = {
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static void screenoff_freq(bool screenoff)
+bool screenoff;
+
+static void screenoff_freq(struct work_struct *work)
 {
 	struct cpufreq_policy *policy;
 	unsigned int cpu;
@@ -1896,22 +1898,28 @@ static void screenoff_freq(bool screenoff)
 			if (cpu == 0) {
 			old_max_freq = policy->max;
 			}
-			policy->user_policy.max = screenoff_max;
+			policy->max = screenoff_max;
+			policy->cpuinfo.max_freq = screenoff_max;
 		} else {
-			policy->user_policy.max =old_max_freq;
+			policy->max = old_max_freq;
+			policy->cpuinfo.max_freq = old_max_freq;
 		}
 		cpufreq_update_policy(cpu);
 	}
 }
 
+static DECLARE_WORK(screenoff_freq_work, screenoff_freq);
+
 static void cpu_freq_suspend(struct early_suspend *handler)
 {
-    screenoff_freq(true);
+    screenoff = true;
+    schedule_work_on(0, &screenoff_freq_work);
 }
 
 static void cpu_freq_resume(struct early_suspend *handler)
 {
-    screenoff_freq(false);
+    screenoff = false;
+    schedule_work_on(0, &screenoff_freq_work);
 }
 
 static struct early_suspend cpu_freq_early_suspend_handler = {
