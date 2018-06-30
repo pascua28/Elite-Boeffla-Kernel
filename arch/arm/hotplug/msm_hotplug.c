@@ -540,17 +540,10 @@ static void __ref msm_hotplug_suspend(void)
 
 		/* Put sibling cores to sleep */
 		for_each_online_cpu(cpu) {
-			if (cpu == 0)
-				continue;
-			cpu_down(cpu);
+			if (cpu != 0)
+				cpu_down(cpu);
 		}
 
-		/*
-		 * Enabled core 1,2 so we will have 0-2 online
-		 * when screen is OFF to reduce system lags and reboots.
-		 */
-		cpu_up(1);
-		cpu_up(2);
 
 		if (debug >= 2)
 			printk("%s: suspended.\n", MSM_HOTPLUG);
