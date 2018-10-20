@@ -67,5 +67,5 @@ void __init reserve_ebda_region(void)
 	lowmem = min(lowmem, LOWMEM_CAP); /* Absolute cap */
 
 	/* reserve all memory between lowmem and the 1MB mark */
-	memblock_reserve(lowmem, 0x100000 - lowmem);
+	memblock_x86_reserve_range(lowmem, 0x100000, "* BIOS reserved");
 }

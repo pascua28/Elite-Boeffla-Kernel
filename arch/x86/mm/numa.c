@@ -223,10 +223,10 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
 	} else {
 		nd_pa = memblock_x86_find_in_range_node(nid, nd_low, nd_high,
 						nd_size, SMP_CACHE_BYTES);
-		if (!nd_pa)
+		if (nd_pa == MEMBLOCK_ERROR)
 			nd_pa = memblock_find_in_range(nd_low, nd_high,
 						nd_size, SMP_CACHE_BYTES);
-		if (!nd_pa) {
+		if (nd_pa == MEMBLOCK_ERROR) {
 			pr_err("Cannot find %zu bytes in node %d\n",
 			       nd_size, nid);
 			return;
@@ -368,7 +368,8 @@ void __init numa_reset_distance(void)
 
 	/* numa_distance could be 1LU marking allocation failure, test cnt */
 	if (numa_distance_cnt)
-		memblock_free(__pa(numa_distance), size);
+		memblock_x86_free_range(__pa(numa_distance),
+					__pa(numa_distance) + size);
 	numa_distance_cnt = 0;
 	numa_distance = NULL;	/* enable table creation */
 }
@@ -391,13 +392,13 @@ static int __init numa_alloc_distance(void)
 
 	phys = memblock_find_in_range(0, PFN_PHYS(max_pfn_mapped),
 				      size, PAGE_SIZE);
-	if (!phys) {
+	if (phys == MEMBLOCK_ERROR) {
 		pr_warning("NUMA: Warning: can't allocate distance table!\n");
 		/* don't retry until explicitly reset */
 		numa_distance = (void *)1LU;
 		return -ENOMEM;
 	}
-	memblock_reserve(phys, size);
+	memblock_x86_reserve_range(phys, phys + size, "NUMA DIST");
 
 	numa_distance = __va(phys);
 	numa_distance_cnt = cnt;

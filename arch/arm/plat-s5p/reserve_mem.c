@@ -76,7 +76,7 @@ void __init s5p_cma_region_reserve(struct cma_region *regions_normal,
 					reg->size, reg->alignment);
 		}
 
-		if (paddr) {
+		if (paddr != MEMBLOCK_ERROR) {
 			if (memblock_reserve(paddr, reg->size)) {
 				pr_err("S5P/CMA: Failed to reserve '%s'\n",
 								reg->name);

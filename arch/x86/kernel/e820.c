@@ -745,7 +745,7 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 
 	for (start = startt; ; start += size) {
 		start = memblock_x86_find_in_range_size(start, &size, align);
-		if (!start)
+		if (start == MEMBLOCK_ERROR)
 			return 0;
 		if (size >= sizet)
 			break;
@@ -1089,7 +1089,7 @@ void __init memblock_x86_fill(void)
 	 * We are safe to enable resizing, beause memblock_x86_fill()
 	 * is rather later for x86
 	 */
-	memblock_allow_resize();
+	memblock_can_resize = 1;
 
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
@@ -1104,6 +1104,7 @@ void __init memblock_x86_fill(void)
 		memblock_add(ei->addr, ei->size);
 	}
 
+	memblock_analyze();
 	memblock_dump_all();
 }
 

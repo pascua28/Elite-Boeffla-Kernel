@@ -86,7 +86,7 @@ static void __init find_early_table_space(struct map_range *mr, int nr_range)
 	good_end = max_pfn_mapped << PAGE_SHIFT;
 
 	base = memblock_find_in_range(start, good_end, tables, PAGE_SIZE);
-	if (!base)
+	if (base == MEMBLOCK_ERROR)
 		panic("Cannot find space for the kernel page tables");
 
 	pgt_buf_start = base >> PAGE_SHIFT;
@@ -100,7 +100,7 @@ static void __init find_early_table_space(struct map_range *mr, int nr_range)
 
 void __init native_pagetable_reserve(u64 start, u64 end)
 {
-	memblock_reserve(start, end - start);
+	memblock_x86_reserve_range(start, end, "PGTABLE");
 }
 
 #ifdef CONFIG_X86_32
@@ -293,8 +293,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	 * pgt_buf_end) and free the other ones (pgt_buf_end - pgt_buf_top)
 	 * so that they can be reused for other purposes.
 	 *
-	 * On native it just means calling memblock_reserve, on Xen it also
-	 * means marking RW the pagetable pages that we allocated before
+	 * On native it just means calling memblock_x86_reserve_range, on Xen it
+	 * also means marking RW the pagetable pages that we allocated before
 	 * but that haven't been used.
 	 *
 	 * In fact on xen we mark RO the whole range pgt_buf_start -
