@@ -1293,6 +1293,7 @@ static int cpufreq_interactive_idle_notifier(struct notifier_block *nb,
 }
 
 extern bool is_incall;
+#ifndef CONFIG_INTELLI_PLUG
 static void cpu_up_work(struct work_struct *work)
 {
 	int cpu;
@@ -1320,6 +1321,7 @@ static void cpu_down_work(struct work_struct *work)
 
 static DECLARE_WORK(interactive_up_work, cpu_up_work);
 static DECLARE_WORK(interactive_down_work, cpu_down_work);
+#endif
 
 static struct notifier_block cpufreq_interactive_idle_nb = {
 	.notifier_call = cpufreq_interactive_idle_notifier,
@@ -1381,7 +1383,9 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 			return rc;
 		}
 
+#ifndef CONFIG_INTELLI_PLUG
 		schedule_work_on(0, &interactive_up_work);
+#endif
 
 		idle_notifier_register(&cpufreq_interactive_idle_nb);
 		cpufreq_register_notifier(
@@ -1406,7 +1410,9 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 			return 0;
 		}
 
+#ifndef CONFIG_INTELLI_PLUG
 		schedule_work_on(0, &interactive_down_work);
+#endif
 
 		cpufreq_unregister_notifier(
 			&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
@@ -1471,14 +1477,18 @@ static void cpufreq_interactive_nop_timer(unsigned long data)
 static void interactive_early_suspend(struct early_suspend *handler)
 {
 	suspended = true;
+#ifndef CONFIG_INTELLI_PLUG
 	schedule_work_on(0, &interactive_down_work);
+#endif
 	return;
 }
 
 static void interactive_late_resume(struct early_suspend *handler)
 {
 	suspended = false;
+#ifndef CONFIG_INTELLI_PLUG
 	schedule_work_on(0, &interactive_up_work);
+#endif
 	return;
 }
 
