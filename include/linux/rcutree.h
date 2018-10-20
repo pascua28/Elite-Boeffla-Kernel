@@ -67,8 +67,6 @@ static inline void synchronize_rcu_bh_expedited(void)
 }
 
 extern void rcu_barrier(void);
-extern void rcu_barrier_bh(void);
-extern void rcu_barrier_sched(void);
 
 extern unsigned long rcutorture_testseq;
 extern unsigned long rcutorture_vernum;

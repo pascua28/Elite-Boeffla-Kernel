@@ -548,7 +548,7 @@ do {									\
 #endif
 
 #ifdef CONFIG_PROVE_RCU
-void lockdep_rcu_suspicious(const char *file, const int line, const char *s);
+extern void lockdep_rcu_dereference(const char *file, const int line);
 #endif
 
 #endif /* __LINUX_LOCKDEP_H */
