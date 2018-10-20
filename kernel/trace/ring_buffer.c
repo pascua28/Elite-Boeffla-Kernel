@@ -488,14 +488,12 @@ struct ring_buffer_per_cpu {
 	struct buffer_page		*reader_page;
 	unsigned long			lost_events;
 	unsigned long			last_overrun;
-	local_t				entries_bytes;
 	local_t				commit_overrun;
 	local_t				overrun;
 	local_t				entries;
 	local_t				committing;
 	local_t				commits;
 	unsigned long			read;
-	unsigned long			read_bytes;
 	u64				write_stamp;
 	u64				read_stamp;
 };
@@ -999,14 +997,13 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 			     unsigned nr_pages)
 {
 	struct buffer_page *bpage, *tmp;
+	unsigned long addr;
 	LIST_HEAD(pages);
 	unsigned i;
 
 	WARN_ON(!nr_pages);
 
 	for (i = 0; i < nr_pages; i++) {
-		struct page *page;
-
 		bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
 				    GFP_KERNEL, cpu_to_node(cpu_buffer->cpu));
 		if (!bpage)
@@ -1016,11 +1013,10 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 
 		list_add(&bpage->list, &pages);
 
-		page = alloc_pages_node(cpu_to_node(cpu_buffer->cpu),
-					GFP_KERNEL, 0);
-		if (!page)
+		addr = __get_free_page(GFP_KERNEL);
+		if (!addr)
 			goto free_pages;
-		bpage->page = page_address(page);
+		bpage->page = (void *)addr;
 		rb_init_page(bpage->page);
 	}
 
@@ -1049,7 +1045,7 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct buffer_page *bpage;
-	struct page *page;
+	unsigned long addr;
 	int ret;
 
 	cpu_buffer = kzalloc_node(ALIGN(sizeof(*cpu_buffer), cache_line_size()),
@@ -1071,10 +1067,10 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 	rb_check_bpage(cpu_buffer, bpage);
 
 	cpu_buffer->reader_page = bpage;
-	page = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, 0);
-	if (!page)
+	addr = __get_free_page(GFP_KERNEL);
+	if (!addr)
 		goto fail_free_reader;
-	bpage->page = page_address(page);
+	bpage->page = (void *)addr;
 	rb_init_page(bpage->page);
 
 	INIT_LIST_HEAD(&cpu_buffer->reader_page->list);
@@ -1318,6 +1314,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	unsigned nr_pages, rm_pages, new_pages;
 	struct buffer_page *bpage, *tmp;
 	unsigned long buffer_size;
+	unsigned long addr;
 	LIST_HEAD(pages);
 	int i, cpu;
 
@@ -1378,17 +1375,16 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 
 	for_each_buffer_cpu(buffer, cpu) {
 		for (i = 0; i < new_pages; i++) {
-			struct page *page;
 			bpage = kzalloc_node(ALIGN(sizeof(*bpage),
 						  cache_line_size()),
 					    GFP_KERNEL, cpu_to_node(cpu));
 			if (!bpage)
 				goto free_pages;
 			list_add(&bpage->list, &pages);
-			page = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, 0);
-			if (!page)
+			addr = __get_free_page(GFP_KERNEL);
+			if (!addr)
 				goto free_pages;
-			bpage->page = page_address(page);
+			bpage->page = (void *)addr;
 			rb_init_page(bpage->page);
 		}
 	}
@@ -1698,7 +1694,6 @@ rb_handle_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 		 * the counters.
 		 */
 		local_add(entries, &cpu_buffer->overrun);
-		local_sub(BUF_PAGE_SIZE, &cpu_buffer->entries_bytes);
 
 		/*
 		 * The entries will be zeroed out when we move the
@@ -1853,9 +1848,6 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 
 	event = __rb_page_index(tail_page, tail);
 	kmemcheck_annotate_bitfield(event, bitfield);
-
-	/* account for padding bytes */
-	local_add(BUF_PAGE_SIZE - tail, &cpu_buffer->entries_bytes);
 
 	/*
 	 * Save the original length to the meta data.
@@ -2048,9 +2040,6 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	if (!tail)
 		tail_page->page->time_stamp = ts;
 
-	/* account for these added bytes */
-	local_add(length, &cpu_buffer->entries_bytes);
-
 	return event;
 }
 
@@ -2073,7 +2062,6 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 	if (bpage->page == (void *)addr && rb_page_write(bpage) == old_index) {
 		unsigned long write_mask =
 			local_read(&bpage->write) & ~RB_WRITE_MASK;
-		unsigned long event_length = rb_event_length(event);
 		/*
 		 * This is on the tail page. It is possible that
 		 * a write could come in and move the tail page
@@ -2083,11 +2071,8 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 		old_index += write_mask;
 		new_index += write_mask;
 		index = local_cmpxchg(&bpage->write, old_index, new_index);
-		if (index == old_index) {
-			/* update counters */
-			local_sub(event_length, &cpu_buffer->entries_bytes);
+		if (index == old_index)
 			return 1;
-		}
 	}
 
 	/* could not discard */
@@ -2660,58 +2645,6 @@ rb_num_of_entries(struct ring_buffer_per_cpu *cpu_buffer)
 	return local_read(&cpu_buffer->entries) -
 		(local_read(&cpu_buffer->overrun) + cpu_buffer->read);
 }
-
-/**
- * ring_buffer_oldest_event_ts - get the oldest event timestamp from the buffer
- * @buffer: The ring buffer
- * @cpu: The per CPU buffer to read from.
- */
-unsigned long ring_buffer_oldest_event_ts(struct ring_buffer *buffer, int cpu)
-{
-	unsigned long flags;
-	struct ring_buffer_per_cpu *cpu_buffer;
-	struct buffer_page *bpage;
-	unsigned long ret;
-
-	if (!cpumask_test_cpu(cpu, buffer->cpumask))
-		return 0;
-
-	cpu_buffer = buffer->buffers[cpu];
-	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
-	/*
-	 * if the tail is on reader_page, oldest time stamp is on the reader
-	 * page
-	 */
-	if (cpu_buffer->tail_page == cpu_buffer->reader_page)
-		bpage = cpu_buffer->reader_page;
-	else
-		bpage = rb_set_head_page(cpu_buffer);
-	ret = bpage->page->time_stamp;
-	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(ring_buffer_oldest_event_ts);
-
-/**
- * ring_buffer_bytes_cpu - get the number of bytes consumed in a cpu buffer
- * @buffer: The ring buffer
- * @cpu: The per CPU buffer to read from.
- */
-unsigned long ring_buffer_bytes_cpu(struct ring_buffer *buffer, int cpu)
-{
-	struct ring_buffer_per_cpu *cpu_buffer;
-	unsigned long ret;
-
-	if (!cpumask_test_cpu(cpu, buffer->cpumask))
-		return 0;
-
-	cpu_buffer = buffer->buffers[cpu];
-	ret = local_read(&cpu_buffer->entries_bytes) - cpu_buffer->read_bytes;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(ring_buffer_bytes_cpu);
 
 /**
  * ring_buffer_entries_cpu - get the number of entries in a cpu buffer
@@ -3582,13 +3515,11 @@ rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer)
 	cpu_buffer->reader_page->read = 0;
 
 	local_set(&cpu_buffer->commit_overrun, 0);
-	local_set(&cpu_buffer->entries_bytes, 0);
 	local_set(&cpu_buffer->overrun, 0);
 	local_set(&cpu_buffer->entries, 0);
 	local_set(&cpu_buffer->committing, 0);
 	local_set(&cpu_buffer->commits, 0);
 	cpu_buffer->read = 0;
-	cpu_buffer->read_bytes = 0;
 
 	cpu_buffer->write_stamp = 0;
 	cpu_buffer->read_stamp = 0;
@@ -3801,16 +3732,16 @@ EXPORT_SYMBOL_GPL(ring_buffer_swap_cpu);
  * Returns:
  *  The page allocated, or NULL on error.
  */
-void *ring_buffer_alloc_read_page(struct ring_buffer *buffer, int cpu)
+void *ring_buffer_alloc_read_page(struct ring_buffer *buffer)
 {
 	struct buffer_data_page *bpage;
-	struct page *page;
+	unsigned long addr;
 
-	page = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, 0);
-	if (!page)
+	addr = __get_free_page(GFP_KERNEL);
+	if (!addr)
 		return NULL;
 
-	bpage = page_address(page);
+	bpage = (void *)addr;
 
 	rb_init_page(bpage);
 
@@ -3974,7 +3905,6 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	} else {
 		/* update the entry counter */
 		cpu_buffer->read += rb_page_entries(reader);
-		cpu_buffer->read_bytes += BUF_PAGE_SIZE;
 
 		/* swap the pages */
 		rb_init_page(bpage);
@@ -4050,11 +3980,20 @@ rb_simple_write(struct file *filp, const char __user *ubuf,
 		size_t cnt, loff_t *ppos)
 {
 	unsigned long *p = filp->private_data;
+	char buf[64];
 	unsigned long val;
 	int ret;
 
-	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
-	if (ret)
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
 		return ret;
 
 	if (val)
