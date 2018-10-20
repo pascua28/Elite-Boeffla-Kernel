@@ -69,6 +69,22 @@ static DEFINE_SPINLOCK(sel_netnode_lock);
 static struct sel_netnode_bkt sel_netnode_hash[SEL_NETNODE_HASH_SIZE];
 
 /**
+ * sel_netnode_free - Frees a node entry
+ * @p: the entry's RCU field
+ *
+ * Description:
+ * This function is designed to be used as a callback to the call_rcu()
+ * function so that memory allocated to a hash table node entry can be
+ * released safely.
+ *
+ */
+static void sel_netnode_free(struct rcu_head *p)
+{
+	struct sel_netnode *node = container_of(p, struct sel_netnode, rcu);
+	kfree(node);
+}
+
+/**
  * sel_netnode_hashfn_ipv4 - IPv4 hashing function for the node table
  * @addr: IPv4 address
  *
@@ -178,7 +194,7 @@ static void sel_netnode_insert(struct sel_netnode *node)
 						  lockdep_is_held(&sel_netnode_lock)),
 			struct sel_netnode, list);
 		list_del_rcu(&tail->list);
-		kfree_rcu(tail, rcu);
+		call_rcu(&tail->rcu, sel_netnode_free);
 	} else
 		sel_netnode_hash[idx].size++;
 }
@@ -291,7 +307,7 @@ static void sel_netnode_flush(void)
 		list_for_each_entry_safe(node, node_tmp,
 					 &sel_netnode_hash[idx].list, list) {
 				list_del_rcu(&node->list);
-				kfree_rcu(node, rcu);
+				call_rcu(&node->rcu, sel_netnode_free);
 		}
 		sel_netnode_hash[idx].size = 0;
 	}
