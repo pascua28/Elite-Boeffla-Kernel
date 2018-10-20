@@ -87,7 +87,6 @@
  */
 
 #include	<linux/slab.h>
-#include	"slab.h"
 #include	<linux/mm.h>
 #include	<linux/poison.h>
 #include	<linux/swap.h>
@@ -121,8 +120,6 @@
 #include	<asm/cacheflush.h>
 #include	<asm/tlbflush.h>
 #include	<asm/page.h>
-
-#include <trace/events/kmem.h>
 
 /*
  * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
@@ -425,13 +422,18 @@ static void kmem_list3_init(struct kmem_list3 *parent)
  * cachep->obj_offset - BYTES_PER_WORD .. cachep->obj_offset - 1:
  * 		redzone word.
  * cachep->obj_offset: The real object.
- * cachep->size - 2* BYTES_PER_WORD: redzone word [BYTES_PER_WORD long]
- * cachep->size - 1* BYTES_PER_WORD: last caller address
+ * cachep->buffer_size - 2* BYTES_PER_WORD: redzone word [BYTES_PER_WORD long]
+ * cachep->buffer_size - 1* BYTES_PER_WORD: last caller address
  *					[BYTES_PER_WORD long]
  */
 static int obj_offset(struct kmem_cache *cachep)
 {
 	return cachep->obj_offset;
+}
+
+static int obj_size(struct kmem_cache *cachep)
+{
+	return cachep->obj_size;
 }
 
 static unsigned long long *dbg_redzone1(struct kmem_cache *cachep, void *objp)
@@ -445,22 +447,23 @@ static unsigned long long *dbg_redzone2(struct kmem_cache *cachep, void *objp)
 {
 	BUG_ON(!(cachep->flags & SLAB_RED_ZONE));
 	if (cachep->flags & SLAB_STORE_USER)
-		return (unsigned long long *)(objp + cachep->size -
+		return (unsigned long long *)(objp + cachep->buffer_size -
 					      sizeof(unsigned long long) -
 					      REDZONE_ALIGN);
-	return (unsigned long long *) (objp + cachep->size -
+	return (unsigned long long *) (objp + cachep->buffer_size -
 				       sizeof(unsigned long long));
 }
 
 static void **dbg_userword(struct kmem_cache *cachep, void *objp)
 {
 	BUG_ON(!(cachep->flags & SLAB_STORE_USER));
-	return (void **)(objp + cachep->size - BYTES_PER_WORD);
+	return (void **)(objp + cachep->buffer_size - BYTES_PER_WORD);
 }
 
 #else
 
 #define obj_offset(x)			0
+#define obj_size(cachep)		(cachep->buffer_size)
 #define dbg_redzone1(cachep, objp)	({BUG(); (unsigned long long *)NULL;})
 #define dbg_redzone2(cachep, objp)	({BUG(); (unsigned long long *)NULL;})
 #define dbg_userword(cachep, objp)	({BUG(); (void **)NULL;})
@@ -470,51 +473,68 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
 #ifdef CONFIG_TRACING
 size_t slab_buffer_size(struct kmem_cache *cachep)
 {
-	return cachep->size;
+	return cachep->buffer_size;
 }
 EXPORT_SYMBOL(slab_buffer_size);
 #endif
 
 /*
- * Do not go above this order unless 0 objects fit into the slab or
- * overridden on the command line.
+ * Do not go above this order unless 0 objects fit into the slab.
  */
-#define	SLAB_MAX_ORDER_HI	1
-#define	SLAB_MAX_ORDER_LO	0
-static int slab_max_order = SLAB_MAX_ORDER_LO;
-static bool slab_max_order_set __initdata;
+#define	BREAK_GFP_ORDER_HI	1
+#define	BREAK_GFP_ORDER_LO	0
+static int slab_break_gfp_order = BREAK_GFP_ORDER_LO;
+
+/*
+ * Functions for storing/retrieving the cachep and or slab from the page
+ * allocator.  These are used to find the slab an obj belongs to.  With kfree(),
+ * these are used to find the cache which an obj belongs to.
+ */
+static inline void page_set_cache(struct page *page, struct kmem_cache *cache)
+{
+	page->lru.next = (struct list_head *)cache;
+}
 
 static inline struct kmem_cache *page_get_cache(struct page *page)
 {
 	page = compound_head(page);
 	BUG_ON(!PageSlab(page));
-	return page->slab_cache;
+	return (struct kmem_cache *)page->lru.next;
+}
+
+static inline void page_set_slab(struct page *page, struct slab *slab)
+{
+	page->lru.prev = (struct list_head *)slab;
+}
+
+static inline struct slab *page_get_slab(struct page *page)
+{
+	BUG_ON(!PageSlab(page));
+	return (struct slab *)page->lru.prev;
 }
 
 static inline struct kmem_cache *virt_to_cache(const void *obj)
 {
 	struct page *page = virt_to_head_page(obj);
-	return page->slab_cache;
+	return page_get_cache(page);
 }
 
 static inline struct slab *virt_to_slab(const void *obj)
 {
 	struct page *page = virt_to_head_page(obj);
-
-	VM_BUG_ON(!PageSlab(page));
-	return page->slab_page;
+	return page_get_slab(page);
 }
 
 static inline void *index_to_obj(struct kmem_cache *cache, struct slab *slab,
 				 unsigned int idx)
 {
-	return slab->s_mem + cache->size * idx;
+	return slab->s_mem + cache->buffer_size * idx;
 }
 
 /*
- * We want to avoid an expensive divide : (offset / cache->size)
- *   Using the fact that size is a constant for a particular cache,
- *   we can replace (offset / cache->size) by
+ * We want to avoid an expensive divide : (offset / cache->buffer_size)
+ *   Using the fact that buffer_size is a constant for a particular cache,
+ *   we can replace (offset / cache->buffer_size) by
  *   reciprocal_divide(offset, cache->reciprocal_buffer_size)
  */
 static inline unsigned int obj_to_index(const struct kmem_cache *cache,
@@ -554,17 +574,35 @@ static struct arraycache_init initarray_generic =
     { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
 
 /* internal cache of cache description objs */
-static struct kmem_list3 *cache_cache_nodelists[MAX_NUMNODES];
 static struct kmem_cache cache_cache = {
-	.nodelists = cache_cache_nodelists,
 	.batchcount = 1,
 	.limit = BOOT_CPUCACHE_ENTRIES,
 	.shared = 1,
-	.size = sizeof(struct kmem_cache),
+	.buffer_size = sizeof(struct kmem_cache),
 	.name = "kmem_cache",
 };
 
 #define BAD_ALIEN_MAGIC 0x01020304ul
+
+/*
+ * chicken and egg problem: delay the per-cpu array allocation
+ * until the general caches are up.
+ */
+static enum {
+	NONE,
+	PARTIAL_AC,
+	PARTIAL_L3,
+	EARLY,
+	FULL
+} g_cpucache_up;
+
+/*
+ * used by boot code to determine if it can use slab based allocator
+ */
+int slab_is_available(void)
+{
+	return g_cpucache_up >= EARLY;
+}
 
 #ifdef CONFIG_LOCKDEP
 
@@ -582,67 +620,37 @@ static struct kmem_cache cache_cache = {
 static struct lock_class_key on_slab_l3_key;
 static struct lock_class_key on_slab_alc_key;
 
-static struct lock_class_key debugobj_l3_key;
-static struct lock_class_key debugobj_alc_key;
-
-static void slab_set_lock_classes(struct kmem_cache *cachep,
-		struct lock_class_key *l3_key, struct lock_class_key *alc_key,
-		int q)
-{
-	struct array_cache **alc;
-	struct kmem_list3 *l3;
-	int r;
-
-	l3 = cachep->nodelists[q];
-	if (!l3)
-		return;
-
-	lockdep_set_class(&l3->list_lock, l3_key);
-	alc = l3->alien;
-	/*
-	 * FIXME: This check for BAD_ALIEN_MAGIC
-	 * should go away when common slab code is taught to
-	 * work even without alien caches.
-	 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
-	 * for alloc_alien_cache,
-	 */
-	if (!alc || (unsigned long)alc == BAD_ALIEN_MAGIC)
-		return;
-	for_each_node(r) {
-		if (alc[r])
-			lockdep_set_class(&alc[r]->lock, alc_key);
-	}
-}
-
-static void slab_set_debugobj_lock_classes_node(struct kmem_cache *cachep, int node)
-{
-	slab_set_lock_classes(cachep, &debugobj_l3_key, &debugobj_alc_key, node);
-}
-
-static void slab_set_debugobj_lock_classes(struct kmem_cache *cachep)
-{
-	int node;
-
-	for_each_online_node(node)
-		slab_set_debugobj_lock_classes_node(cachep, node);
-}
-
 static void init_node_lock_keys(int q)
 {
 	struct cache_sizes *s = malloc_sizes;
 
-	if (slab_state < UP)
+	if (g_cpucache_up != FULL)
 		return;
 
 	for (s = malloc_sizes; s->cs_size != ULONG_MAX; s++) {
+		struct array_cache **alc;
 		struct kmem_list3 *l3;
+		int r;
 
 		l3 = s->cs_cachep->nodelists[q];
 		if (!l3 || OFF_SLAB(s->cs_cachep))
 			continue;
-
-		slab_set_lock_classes(s->cs_cachep, &on_slab_l3_key,
-				&on_slab_alc_key, q);
+		lockdep_set_class(&l3->list_lock, &on_slab_l3_key);
+		alc = l3->alien;
+		/*
+		 * FIXME: This check for BAD_ALIEN_MAGIC
+		 * should go away when common slab code is taught to
+		 * work even without alien caches.
+		 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
+		 * for alloc_alien_cache,
+		 */
+		if (!alc || (unsigned long)alc == BAD_ALIEN_MAGIC)
+			continue;
+		for_each_node(r) {
+			if (alc[r])
+				lockdep_set_class(&alc[r]->lock,
+					&on_slab_alc_key);
+		}
 	}
 }
 
@@ -659,14 +667,6 @@ static void init_node_lock_keys(int q)
 }
 
 static inline void init_lock_keys(void)
-{
-}
-
-static void slab_set_debugobj_lock_classes_node(struct kmem_cache *cachep, int node)
-{
-}
-
-static void slab_set_debugobj_lock_classes(struct kmem_cache *cachep)
 {
 }
 #endif
@@ -810,17 +810,6 @@ static int __init noaliencache_setup(char *s)
 	return 1;
 }
 __setup("noaliencache", noaliencache_setup);
-
-static int __init slab_max_order_setup(char *str)
-{
-	get_option(&str, &slab_max_order);
-	slab_max_order = slab_max_order < 0 ? 0 :
-				min(slab_max_order, MAX_ORDER - 1);
-	slab_max_order_set = true;
-
-	return 1;
-}
-__setup("slab_max_order=", slab_max_order_setup);
 
 #ifdef CONFIG_NUMA
 /*
@@ -1108,7 +1097,7 @@ static int init_cache_nodelists_node(int node)
 	struct kmem_list3 *l3;
 	const int memsize = sizeof(struct kmem_list3);
 
-	list_for_each_entry(cachep, &cache_chain, list) {
+	list_for_each_entry(cachep, &cache_chain, next) {
 		/*
 		 * Set up the size64 kmemlist for cpu before we can
 		 * begin anything. Make sure some other cpu on this
@@ -1146,7 +1135,7 @@ static void __cpuinit cpuup_canceled(long cpu)
 	int node = cpu_to_mem(cpu);
 	const struct cpumask *mask = cpumask_of_node(node);
 
-	list_for_each_entry(cachep, &cache_chain, list) {
+	list_for_each_entry(cachep, &cache_chain, next) {
 		struct array_cache *nc;
 		struct array_cache *shared;
 		struct array_cache **alien;
@@ -1196,7 +1185,7 @@ free_array_cache:
 	 * the respective cache's slabs,  now we can go ahead and
 	 * shrink each nodelist to its limit.
 	 */
-	list_for_each_entry(cachep, &cache_chain, list) {
+	list_for_each_entry(cachep, &cache_chain, next) {
 		l3 = cachep->nodelists[node];
 		if (!l3)
 			continue;
@@ -1225,7 +1214,7 @@ static int __cpuinit cpuup_prepare(long cpu)
 	 * Now we can go ahead with allocating the shared arrays and
 	 * array caches
 	 */
-	list_for_each_entry(cachep, &cache_chain, list) {
+	list_for_each_entry(cachep, &cache_chain, next) {
 		struct array_cache *nc;
 		struct array_cache *shared = NULL;
 		struct array_cache **alien = NULL;
@@ -1273,8 +1262,6 @@ static int __cpuinit cpuup_prepare(long cpu)
 		spin_unlock_irq(&l3->list_lock);
 		kfree(shared);
 		free_alien_cache(alien);
-		if (cachep->flags & SLAB_DEBUG_OBJECTS)
-			slab_set_debugobj_lock_classes_node(cachep, node);
 	}
 	init_node_lock_keys(node);
 
@@ -1357,7 +1344,7 @@ static int __meminit drain_cache_nodelists_node(int node)
 	struct kmem_cache *cachep;
 	int ret = 0;
 
-	list_for_each_entry(cachep, &cache_chain, list) {
+	list_for_each_entry(cachep, &cache_chain, next) {
 		struct kmem_list3 *l3;
 
 		l3 = cachep->nodelists[node];
@@ -1470,11 +1457,10 @@ void __init kmem_cache_init(void)
 
 	/*
 	 * Fragmentation resistance on low memory - only use bigger
-	 * page orders on machines with more than 32MB of memory if
-	 * not overridden on the command line.
+	 * page orders on machines with more than 32MB of memory.
 	 */
-	if (!slab_max_order_set && totalram_pages > (32 << 20) >> PAGE_SHIFT)
-		slab_max_order = SLAB_MAX_ORDER_HI;
+	if (totalram_pages > (32 << 20) >> PAGE_SHIFT)
+		slab_break_gfp_order = BREAK_GFP_ORDER_HI;
 
 	/* Bootstrap is tricky, because several objects are allocated
 	 * from caches that do not exist yet:
@@ -1500,24 +1486,27 @@ void __init kmem_cache_init(void)
 
 	/* 1) create the cache_cache */
 	INIT_LIST_HEAD(&cache_chain);
-	list_add(&cache_cache.list, &cache_chain);
+	list_add(&cache_cache.next, &cache_chain);
 	cache_cache.colour_off = cache_line_size();
 	cache_cache.array[smp_processor_id()] = &initarray_cache.cache;
 	cache_cache.nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
 
 	/*
-	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
+	 * struct kmem_cache size depends on nr_node_ids, which
+	 * can be less than MAX_NUMNODES.
 	 */
-	cache_cache.size = offsetof(struct kmem_cache, array[nr_cpu_ids]) +
-				  nr_node_ids * sizeof(struct kmem_list3 *);
-	cache_cache.object_size = cache_cache.size;
-	cache_cache.size = ALIGN(cache_cache.size,
+	cache_cache.buffer_size = offsetof(struct kmem_cache, nodelists) +
+				 nr_node_ids * sizeof(struct kmem_list3 *);
+#if DEBUG
+	cache_cache.obj_size = cache_cache.buffer_size;
+#endif
+	cache_cache.buffer_size = ALIGN(cache_cache.buffer_size,
 					cache_line_size());
 	cache_cache.reciprocal_buffer_size =
-		reciprocal_value(cache_cache.size);
+		reciprocal_value(cache_cache.buffer_size);
 
 	for (order = 0; order < MAX_ORDER; order++) {
-		cache_estimate(order, cache_cache.size,
+		cache_estimate(order, cache_cache.buffer_size,
 			cache_line_size(), 0, &left_over, &cache_cache.num);
 		if (cache_cache.num)
 			break;
@@ -1538,7 +1527,7 @@ void __init kmem_cache_init(void)
 	 * bug.
 	 */
 
-	sizes[INDEX_AC].cs_cachep = __kmem_cache_create(names[INDEX_AC].name,
+	sizes[INDEX_AC].cs_cachep = kmem_cache_create(names[INDEX_AC].name,
 					sizes[INDEX_AC].cs_size,
 					ARCH_KMALLOC_MINALIGN,
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
@@ -1546,7 +1535,7 @@ void __init kmem_cache_init(void)
 
 	if (INDEX_AC != INDEX_L3) {
 		sizes[INDEX_L3].cs_cachep =
-			__kmem_cache_create(names[INDEX_L3].name,
+			kmem_cache_create(names[INDEX_L3].name,
 				sizes[INDEX_L3].cs_size,
 				ARCH_KMALLOC_MINALIGN,
 				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
@@ -1564,14 +1553,14 @@ void __init kmem_cache_init(void)
 		 * allow tighter packing of the smaller caches.
 		 */
 		if (!sizes->cs_cachep) {
-			sizes->cs_cachep = __kmem_cache_create(names->name,
+			sizes->cs_cachep = kmem_cache_create(names->name,
 					sizes->cs_size,
 					ARCH_KMALLOC_MINALIGN,
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
 					NULL);
 		}
 #ifdef CONFIG_ZONE_DMA
-		sizes->cs_dmacachep = __kmem_cache_create(
+		sizes->cs_dmacachep = kmem_cache_create(
 					names->name_dma,
 					sizes->cs_size,
 					ARCH_KMALLOC_MINALIGN,
@@ -1629,27 +1618,25 @@ void __init kmem_cache_init(void)
 		}
 	}
 
-	slab_state = UP;
+	g_cpucache_up = EARLY;
 }
 
 void __init kmem_cache_init_late(void)
 {
 	struct kmem_cache *cachep;
 
-	slab_state = UP;
-
-	/* Annotate slab for lockdep -- annotate the malloc caches */
-	init_lock_keys();
-
 	/* 6) resize the head arrays to their final sizes */
 	mutex_lock(&cache_chain_mutex);
-	list_for_each_entry(cachep, &cache_chain, list)
+	list_for_each_entry(cachep, &cache_chain, next)
 		if (enable_cpucache(cachep, GFP_NOWAIT))
 			BUG();
 	mutex_unlock(&cache_chain_mutex);
 
 	/* Done! */
-	slab_state = FULL;
+	g_cpucache_up = FULL;
+
+	/* Annotate slab for lockdep -- annotate the malloc caches */
+	init_lock_keys();
 
 	/*
 	 * Register a cpu startup notifier callback that initializes
@@ -1680,58 +1667,9 @@ static int __init cpucache_init(void)
 	 */
 	for_each_online_cpu(cpu)
 		start_cpu_timer(cpu);
-
-	/* Done! */
-	slab_state = FULL;
 	return 0;
 }
 __initcall(cpucache_init);
-
-static noinline void
-slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
-{
-	struct kmem_list3 *l3;
-	struct slab *slabp;
-	unsigned long flags;
-	int node;
-
-	printk(KERN_WARNING
-		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
-		nodeid, gfpflags);
-	printk(KERN_WARNING "  cache: %s, object size: %d, order: %d\n",
-		cachep->name, cachep->size, cachep->gfporder);
-
-	for_each_online_node(node) {
-		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
-		unsigned long active_slabs = 0, num_slabs = 0;
-
-		l3 = cachep->nodelists[node];
-		if (!l3)
-			continue;
-
-		spin_lock_irqsave(&l3->list_lock, flags);
-		list_for_each_entry(slabp, &l3->slabs_full, list) {
-			active_objs += cachep->num;
-			active_slabs++;
-		}
-		list_for_each_entry(slabp, &l3->slabs_partial, list) {
-			active_objs += slabp->inuse;
-			active_slabs++;
-		}
-		list_for_each_entry(slabp, &l3->slabs_free, list)
-			num_slabs++;
-
-		free_objects += l3->free_objects;
-		spin_unlock_irqrestore(&l3->list_lock, flags);
-
-		num_slabs += active_slabs;
-		num_objs = num_slabs * cachep->num;
-		printk(KERN_WARNING
-			"  node %d: slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
-			node, active_slabs, num_slabs, active_objs, num_objs,
-			free_objects);
-	}
-}
 
 /*
  * Interface to system's page allocator. No need to hold the cache-lock.
@@ -1754,16 +1692,13 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	flags |= __GFP_COMP;
 #endif
 
-	flags |= cachep->allocflags;
+	flags |= cachep->gfpflags;
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
 		flags |= __GFP_RECLAIMABLE;
 
 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
-	if (!page) {
-		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
-			slab_out_of_memory(cachep, flags, nodeid);
+	if (!page)
 		return NULL;
-	}
 
 	nr_pages = (1 << cachep->gfporder);
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
@@ -1830,7 +1765,7 @@ static void kmem_rcu_free(struct rcu_head *head)
 static void store_stackinfo(struct kmem_cache *cachep, unsigned long *addr,
 			    unsigned long caller)
 {
-	int size = cachep->object_size;
+	int size = obj_size(cachep);
 
 	addr = (unsigned long *)&((char *)addr)[obj_offset(cachep)];
 
@@ -1862,7 +1797,7 @@ static void store_stackinfo(struct kmem_cache *cachep, unsigned long *addr,
 
 static void poison_obj(struct kmem_cache *cachep, void *addr, unsigned char val)
 {
-	int size = cachep->object_size;
+	int size = obj_size(cachep);
 	addr = &((char *)addr)[obj_offset(cachep)];
 
 	memset(addr, val, size);
@@ -1875,15 +1810,15 @@ static void dump_line(char *data, int offset, int limit)
 	unsigned char error = 0;
 	int bad_count = 0;
 
-	printk(KERN_ERR "%03x: ", offset);
+	printk(KERN_ERR "%03x:", offset);
 	for (i = 0; i < limit; i++) {
 		if (data[offset + i] != POISON_FREE) {
 			error = data[offset + i];
 			bad_count++;
 		}
+		printk(" %02x", (unsigned char)data[offset + i]);
 	}
-	print_hex_dump(KERN_CONT, "", 0, 16, 1,
-			&data[offset], limit, 1);
+	printk("\n");
 
 	if (bad_count == 1) {
 		error ^= POISON_FREE;
@@ -1922,7 +1857,7 @@ static void print_objinfo(struct kmem_cache *cachep, void *objp, int lines)
 		printk("\n");
 	}
 	realobj = (char *)objp + obj_offset(cachep);
-	size = cachep->object_size;
+	size = obj_size(cachep);
 	for (i = 0; i < size && lines; i += 16, lines--) {
 		int limit;
 		limit = 16;
@@ -1939,7 +1874,7 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
 	int lines = 0;
 
 	realobj = (char *)objp + obj_offset(cachep);
-	size = cachep->object_size;
+	size = obj_size(cachep);
 
 	for (i = 0; i < size; i++) {
 		char exp = POISON_FREE;
@@ -1951,8 +1886,8 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
 			/* Print header */
 			if (lines == 0) {
 				printk(KERN_ERR
-					"Slab corruption (%s): %s start=%p, len=%d\n",
-					print_tainted(), cachep->name, realobj, size);
+					"Slab corruption: %s start=%p, len=%d\n",
+					cachep->name, realobj, size);
 				print_objinfo(cachep, objp, 0);
 			}
 			/* Hexdump the affected line */
@@ -2003,10 +1938,10 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep, struct slab *slab
 
 		if (cachep->flags & SLAB_POISON) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
-			if (cachep->size % PAGE_SIZE == 0 &&
+			if (cachep->buffer_size % PAGE_SIZE == 0 &&
 					OFF_SLAB(cachep))
 				kernel_map_pages(virt_to_page(objp),
-					cachep->size / PAGE_SIZE, 1);
+					cachep->buffer_size / PAGE_SIZE, 1);
 			else
 				check_poison_obj(cachep, objp);
 #else
@@ -2136,7 +2071,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 		 * Large number of objects is good, but very large slabs are
 		 * currently bad for the gfp()s.
 		 */
-		if (gfporder >= slab_max_order)
+		if (gfporder >= slab_break_gfp_order)
 			break;
 
 		/*
@@ -2150,10 +2085,10 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 
 static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 {
-	if (slab_state >= FULL)
+	if (g_cpucache_up == FULL)
 		return enable_cpucache(cachep, gfp);
 
-	if (slab_state == DOWN) {
+	if (g_cpucache_up == NONE) {
 		/*
 		 * Note: the first kmem_cache_create must create the cache
 		 * that's used by kmalloc(24), otherwise the creation of
@@ -2168,16 +2103,16 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 		 */
 		set_up_list3s(cachep, SIZE_AC);
 		if (INDEX_AC == INDEX_L3)
-			slab_state = PARTIAL_L3;
+			g_cpucache_up = PARTIAL_L3;
 		else
-			slab_state = PARTIAL_ARRAYCACHE;
+			g_cpucache_up = PARTIAL_AC;
 	} else {
 		cachep->array[smp_processor_id()] =
 			kmalloc(sizeof(struct arraycache_init), gfp);
 
-		if (slab_state == PARTIAL_ARRAYCACHE) {
+		if (g_cpucache_up == PARTIAL_AC) {
 			set_up_list3s(cachep, SIZE_L3);
-			slab_state = PARTIAL_L3;
+			g_cpucache_up = PARTIAL_L3;
 		} else {
 			int node;
 			for_each_online_node(node) {
@@ -2203,7 +2138,7 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 }
 
 /**
- * __kmem_cache_create - Create a cache.
+ * kmem_cache_create - Create a cache.
  * @name: A string which is used in /proc/slabinfo to identify this cache.
  * @size: The size of objects to be created in this cache.
  * @align: The required alignment for the objects.
@@ -2230,7 +2165,7 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
  * as davem.
  */
 struct kmem_cache *
-__kmem_cache_create (const char *name, size_t size, size_t align,
+kmem_cache_create (const char *name, size_t size, size_t align,
 	unsigned long flags, void (*ctor)(void *))
 {
 	size_t left_over, slab_size, ralign;
@@ -2256,7 +2191,7 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 		mutex_lock(&cache_chain_mutex);
 	}
 
-	list_for_each_entry(pc, &cache_chain, list) {
+	list_for_each_entry(pc, &cache_chain, next) {
 		char tmp;
 		int res;
 
@@ -2269,7 +2204,7 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 		if (res) {
 			printk(KERN_ERR
 			       "SLAB: cache with size %d has lost its name\n",
-			       pc->size);
+			       pc->buffer_size);
 			continue;
 		}
 
@@ -2371,12 +2306,10 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 	/* Get cache's description obj. */
 	cachep = kmem_cache_zalloc(&cache_cache, gfp);
 	if (!cachep)
-		return NULL;
+		goto oops;
 
-	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
-	cachep->object_size = size;
-	cachep->align = align;
 #if DEBUG
+	cachep->obj_size = size;
 
 	/*
 	 * Both debugging options require word-alignment which is calculated
@@ -2399,7 +2332,7 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 	}
 #if FORCED_DEBUG && defined(CONFIG_DEBUG_PAGEALLOC)
 	if (size >= malloc_sizes[INDEX_L3 + 1].cs_size
-	    && cachep->object_size > cache_line_size() && ALIGN(size, align) < PAGE_SIZE) {
+	    && cachep->obj_size > cache_line_size() && ALIGN(size, align) < PAGE_SIZE) {
 		cachep->obj_offset += PAGE_SIZE - ALIGN(size, align);
 		size = PAGE_SIZE;
 	}
@@ -2428,7 +2361,8 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 		printk(KERN_ERR
 		       "kmem_cache_create: couldn't create cache %s.\n", name);
 		kmem_cache_free(&cache_cache, cachep);
-		return NULL;
+		cachep = NULL;
+		goto oops;
 	}
 	slab_size = ALIGN(cachep->num * sizeof(kmem_bufctl_t)
 			  + sizeof(struct slab), align);
@@ -2464,10 +2398,10 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 	cachep->colour = left_over / cachep->colour_off;
 	cachep->slab_size = slab_size;
 	cachep->flags = flags;
-	cachep->allocflags = 0;
+	cachep->gfpflags = 0;
 	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
-		cachep->allocflags |= GFP_DMA;
-	cachep->size = size;
+		cachep->gfpflags |= GFP_DMA;
+	cachep->buffer_size = size;
 	cachep->reciprocal_buffer_size = reciprocal_value(size);
 
 	if (flags & CFLGS_OFF_SLAB) {
@@ -2486,28 +2420,23 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 
 	if (setup_cpu_cache(cachep, gfp)) {
 		__kmem_cache_destroy(cachep);
-		return NULL;
-	}
-
-	if (flags & SLAB_DEBUG_OBJECTS) {
-		/*
-		 * Would deadlock through slab_destroy()->call_rcu()->
-		 * debug_object_activate()->kmem_cache_alloc().
-		 */
-		WARN_ON_ONCE(flags & SLAB_DESTROY_BY_RCU);
-
-		slab_set_debugobj_lock_classes(cachep);
+		cachep = NULL;
+		goto oops;
 	}
 
 	/* cache setup completed, link it into the list */
-	list_add(&cachep->list, &cache_chain);
+	list_add(&cachep->next, &cache_chain);
 oops:
+	if (!cachep && (flags & SLAB_PANIC))
+		panic("kmem_cache_create(): failed to create slab `%s'\n",
+		      name);
 	if (slab_is_available()) {
 		mutex_unlock(&cache_chain_mutex);
 		put_online_cpus();
 	}
 	return cachep;
 }
+EXPORT_SYMBOL(kmem_cache_create);
 
 #if DEBUG
 static void check_irq_off(void)
@@ -2691,10 +2620,10 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
 	/*
 	 * the chain is never empty, cache_cache is never destroyed
 	 */
-	list_del(&cachep->list);
+	list_del(&cachep->next);
 	if (__cache_shrink(cachep)) {
 		slab_error(cachep, "Can't free all objects");
-		list_add(&cachep->list, &cache_chain);
+		list_add(&cachep->next, &cache_chain);
 		mutex_unlock(&cache_chain_mutex);
 		put_online_cpus();
 		return;
@@ -2791,10 +2720,10 @@ static void cache_init_objs(struct kmem_cache *cachep,
 				slab_error(cachep, "constructor overwrote the"
 					   " start of an object");
 		}
-		if ((cachep->size % PAGE_SIZE) == 0 &&
+		if ((cachep->buffer_size % PAGE_SIZE) == 0 &&
 			    OFF_SLAB(cachep) && cachep->flags & SLAB_POISON)
 			kernel_map_pages(virt_to_page(objp),
-					 cachep->size / PAGE_SIZE, 0);
+					 cachep->buffer_size / PAGE_SIZE, 0);
 #else
 		if (cachep->ctor)
 			cachep->ctor(objp);
@@ -2808,9 +2737,9 @@ static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
 {
 	if (CONFIG_ZONE_DMA_FLAG) {
 		if (flags & GFP_DMA)
-			BUG_ON(!(cachep->allocflags & GFP_DMA));
+			BUG_ON(!(cachep->gfpflags & GFP_DMA));
 		else
-			BUG_ON(cachep->allocflags & GFP_DMA);
+			BUG_ON(cachep->gfpflags & GFP_DMA);
 	}
 }
 
@@ -2869,8 +2798,8 @@ static void slab_map_pages(struct kmem_cache *cache, struct slab *slab,
 		nr_pages <<= cache->gfporder;
 
 	do {
-		page->slab_cache = cache;
-		page->slab_page = slab;
+		page_set_cache(page, cache);
+		page_set_slab(page, slab);
 		page++;
 	} while (--nr_pages);
 }
@@ -3008,7 +2937,7 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 	kfree_debugcheck(objp);
 	page = virt_to_head_page(objp);
 
-	slabp = page->slab_page;
+	slabp = page_get_slab(page);
 
 	if (cachep->flags & SLAB_RED_ZONE) {
 		verify_redzone_free(cachep, objp);
@@ -3028,10 +2957,10 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 #endif
 	if (cachep->flags & SLAB_POISON) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
-		if ((cachep->size % PAGE_SIZE)==0 && OFF_SLAB(cachep)) {
+		if ((cachep->buffer_size % PAGE_SIZE)==0 && OFF_SLAB(cachep)) {
 			store_stackinfo(cachep, objp, (unsigned long)caller);
 			kernel_map_pages(virt_to_page(objp),
-					 cachep->size / PAGE_SIZE, 0);
+					 cachep->buffer_size / PAGE_SIZE, 0);
 		} else {
 			poison_obj(cachep, objp, POISON_FREE);
 		}
@@ -3056,12 +2985,16 @@ static void check_slabp(struct kmem_cache *cachep, struct slab *slabp)
 	if (entries != cachep->num - slabp->inuse) {
 bad:
 		printk(KERN_ERR "slab: Internal list corruption detected in "
-			"cache '%s'(%d), slabp %p(%d). Tainted(%s). Hexdump:\n",
-			cachep->name, cachep->num, slabp, slabp->inuse,
-			print_tainted());
-		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 1, slabp,
-			sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t),
-			1);
+				"cache '%s'(%d), slabp %p(%d). Hexdump:\n",
+			cachep->name, cachep->num, slabp, slabp->inuse);
+		for (i = 0;
+		     i < sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t);
+		     i++) {
+			if (i % 16 == 0)
+				printk("\n%03x:", i);
+			printk(" %02x", ((unsigned char *)slabp)[i]);
+		}
+		printk("\n");
 		BUG();
 	}
 }
@@ -3181,9 +3114,9 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 		return objp;
 	if (cachep->flags & SLAB_POISON) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
-		if ((cachep->size % PAGE_SIZE) == 0 && OFF_SLAB(cachep))
+		if ((cachep->buffer_size % PAGE_SIZE) == 0 && OFF_SLAB(cachep))
 			kernel_map_pages(virt_to_page(objp),
-					 cachep->size / PAGE_SIZE, 1);
+					 cachep->buffer_size / PAGE_SIZE, 1);
 		else
 			check_poison_obj(cachep, objp);
 #else
@@ -3212,19 +3145,20 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 		struct slab *slabp;
 		unsigned objnr;
 
-		slabp = virt_to_head_page(objp)->slab_page;
-		objnr = (unsigned)(objp - slabp->s_mem) / cachep->size;
+		slabp = page_get_slab(virt_to_head_page(objp));
+		objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
 		slab_bufctl(slabp)[objnr] = BUFCTL_ACTIVE;
 	}
 #endif
 	objp += obj_offset(cachep);
 	if (cachep->ctor && cachep->flags & SLAB_POISON)
 		cachep->ctor(objp);
-	if (ARCH_SLAB_MINALIGN &&
-	    ((unsigned long)objp & (ARCH_SLAB_MINALIGN-1))) {
+#if ARCH_SLAB_MINALIGN
+	if ((u32)objp & (ARCH_SLAB_MINALIGN-1)) {
 		printk(KERN_ERR "0x%p: not aligned to ARCH_SLAB_MINALIGN=%d\n",
-		       objp, (int)ARCH_SLAB_MINALIGN);
+		       objp, ARCH_SLAB_MINALIGN);
 	}
+#endif
 	return objp;
 }
 #else
@@ -3236,7 +3170,7 @@ static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
 	if (cachep == &cache_cache)
 		return false;
 
-	return should_failslab(cachep->object_size, flags, cachep->flags);
+	return should_failslab(obj_size(cachep), flags, cachep->flags);
 }
 
 static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
@@ -3287,7 +3221,7 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
 		nid_alloc = cpuset_slab_spread_node();
 	else if (current->mempolicy)
-		nid_alloc = slab_node();
+		nid_alloc = slab_node(current->mempolicy);
 	if (nid_alloc != nid_here)
 		return ____cache_alloc_node(cachep, flags, nid_alloc);
 	return NULL;
@@ -3319,7 +3253,7 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 
 retry_cpuset:
 	cpuset_mems_cookie = get_mems_allowed();
-	zonelist = node_zonelist(slab_node(), flags);
+	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
 
 retry:
 	/*
@@ -3471,7 +3405,7 @@ __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
 	cache_alloc_debugcheck_before(cachep, flags);
 	local_irq_save(save_flags);
 
-	if (nodeid == NUMA_NO_NODE)
+	if (nodeid == -1)
 		nodeid = slab_node;
 
 	if (unlikely(!cachep->nodelists[nodeid])) {
@@ -3496,14 +3430,14 @@ __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
   out:
 	local_irq_restore(save_flags);
 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
-	kmemleak_alloc_recursive(ptr, cachep->object_size, 1, cachep->flags,
+	kmemleak_alloc_recursive(ptr, obj_size(cachep), 1, cachep->flags,
 				 flags);
 
 	if (likely(ptr))
-		kmemcheck_slab_alloc(cachep, flags, ptr, cachep->object_size);
+		kmemcheck_slab_alloc(cachep, flags, ptr, obj_size(cachep));
 
 	if (unlikely((flags & __GFP_ZERO) && ptr))
-		memset(ptr, 0, cachep->object_size);
+		memset(ptr, 0, obj_size(cachep));
 
 	return ptr;
 }
@@ -3558,15 +3492,15 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
 	objp = __do_cache_alloc(cachep, flags);
 	local_irq_restore(save_flags);
 	objp = cache_alloc_debugcheck_after(cachep, flags, objp, caller);
-	kmemleak_alloc_recursive(objp, cachep->object_size, 1, cachep->flags,
+	kmemleak_alloc_recursive(objp, obj_size(cachep), 1, cachep->flags,
 				 flags);
 	prefetchw(objp);
 
 	if (likely(objp))
-		kmemcheck_slab_alloc(cachep, flags, objp, cachep->object_size);
+		kmemcheck_slab_alloc(cachep, flags, objp, obj_size(cachep));
 
 	if (unlikely((flags & __GFP_ZERO) && objp))
-		memset(objp, 0, cachep->object_size);
+		memset(objp, 0, obj_size(cachep));
 
 	return objp;
 }
@@ -3682,7 +3616,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
 	kmemleak_free_recursive(objp, cachep->flags);
 	objp = cache_free_debugcheck(cachep, objp, caller);
 
-	kmemcheck_slab_free(cachep, objp, cachep->object_size);
+	kmemcheck_slab_free(cachep, objp, obj_size(cachep));
 
 	/*
 	 * Skip calling cache_free_alien() when the platform is not numa.
@@ -3696,12 +3630,13 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
 
 	if (likely(ac->avail < ac->limit)) {
 		STATS_INC_FREEHIT(cachep);
+		ac->entry[ac->avail++] = objp;
+		return;
 	} else {
 		STATS_INC_FREEMISS(cachep);
 		cache_flusharray(cachep, ac);
+		ac->entry[ac->avail++] = objp;
 	}
-
-	ac->entry[ac->avail++] = objp;
 }
 
 /**
@@ -3717,7 +3652,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	void *ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
 
 	trace_kmem_cache_alloc(_RET_IP_, ret,
-			       cachep->object_size, cachep->size, flags);
+			       obj_size(cachep), cachep->buffer_size, flags);
 
 	return ret;
 }
@@ -3745,7 +3680,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 				       __builtin_return_address(0));
 
 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
-				    cachep->object_size, cachep->size,
+				    obj_size(cachep), cachep->buffer_size,
 				    flags, nodeid);
 
 	return ret;
@@ -3827,7 +3762,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 	ret = __cache_alloc(cachep, flags, caller);
 
 	trace_kmalloc((unsigned long) caller, ret,
-		      size, cachep->size, flags);
+		      size, cachep->buffer_size, flags);
 
 	return ret;
 }
@@ -3867,9 +3802,9 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	debug_check_no_locks_freed(objp, cachep->object_size);
+	debug_check_no_locks_freed(objp, obj_size(cachep));
 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
-		debug_check_no_obj_freed(objp, cachep->object_size);
+		debug_check_no_obj_freed(objp, obj_size(cachep));
 	__cache_free(cachep, objp, __builtin_return_address(0));
 	local_irq_restore(flags);
 
@@ -3898,9 +3833,8 @@ void kfree(const void *objp)
 	local_irq_save(flags);
 	kfree_debugcheck(objp);
 	c = virt_to_cache(objp);
-	debug_check_no_locks_freed(objp, c->object_size);
-
-	debug_check_no_obj_freed(objp, c->object_size);
+	debug_check_no_locks_freed(objp, obj_size(c));
+	debug_check_no_obj_freed(objp, obj_size(c));
 	__cache_free(c, (void *)objp, __builtin_return_address(0));
 	local_irq_restore(flags);
 }
@@ -3908,7 +3842,7 @@ EXPORT_SYMBOL(kfree);
 
 unsigned int kmem_cache_size(struct kmem_cache *cachep)
 {
-	return cachep->object_size;
+	return obj_size(cachep);
 }
 EXPORT_SYMBOL(kmem_cache_size);
 
@@ -3982,7 +3916,7 @@ static int alloc_kmemlist(struct kmem_cache *cachep, gfp_t gfp)
 	return 0;
 
 fail:
-	if (!cachep->list.next) {
+	if (!cachep->next.next) {
 		/* Cache is not active yet. Roll back what we did */
 		node--;
 		while (node >= 0) {
@@ -4002,7 +3936,7 @@ fail:
 
 struct ccupdate_struct {
 	struct kmem_cache *cachep;
-	struct array_cache *new[0];
+	struct array_cache *new[NR_CPUS];
 };
 
 static void do_ccupdate_local(void *info)
@@ -4024,8 +3958,7 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	struct ccupdate_struct *new;
 	int i;
 
-	new = kzalloc(sizeof(*new) + nr_cpu_ids * sizeof(struct array_cache *),
-		      gfp);
+	new = kzalloc(sizeof(*new), gfp);
 	if (!new)
 		return -ENOMEM;
 
@@ -4076,13 +4009,13 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 	 * The numbers are guessed, we should auto-tune as described by
 	 * Bonwick.
 	 */
-	if (cachep->size > 131072)
+	if (cachep->buffer_size > 131072)
 		limit = 1;
-	else if (cachep->size > PAGE_SIZE)
+	else if (cachep->buffer_size > PAGE_SIZE)
 		limit = 8;
-	else if (cachep->size > 1024)
+	else if (cachep->buffer_size > 1024)
 		limit = 24;
-	else if (cachep->size > 256)
+	else if (cachep->buffer_size > 256)
 		limit = 54;
 	else
 		limit = 120;
@@ -4097,7 +4030,7 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 	 * to a larger limit. Thus disabled by default.
 	 */
 	shared = 0;
-	if (cachep->size <= PAGE_SIZE && num_possible_cpus() > 1)
+	if (cachep->buffer_size <= PAGE_SIZE && num_possible_cpus() > 1)
 		shared = 8;
 
 #if DEBUG
@@ -4167,7 +4100,7 @@ static void cache_reap(struct work_struct *w)
 		/* Give up. Setup the next iteration. */
 		goto out;
 
-	list_for_each_entry(searchp, &cache_chain, list) {
+	list_for_each_entry(searchp, &cache_chain, next) {
 		check_irq_on();
 
 		/*
@@ -4260,7 +4193,7 @@ static void s_stop(struct seq_file *m, void *p)
 
 static int s_show(struct seq_file *m, void *p)
 {
-	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, list);
+	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, next);
 	struct slab *slabp;
 	unsigned long active_objs;
 	unsigned long num_objs;
@@ -4316,7 +4249,7 @@ static int s_show(struct seq_file *m, void *p)
 		printk(KERN_ERR "slab: cache %s error: %s\n", name, error);
 
 	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
-		   name, active_objs, num_objs, cachep->size,
+		   name, active_objs, num_objs, cachep->buffer_size,
 		   cachep->num, (1 << cachep->gfporder));
 	seq_printf(m, " : tunables %4u %4u %4u",
 		   cachep->limit, cachep->batchcount, cachep->shared);
@@ -4408,7 +4341,7 @@ static ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 	/* Find the cache in the chain of caches. */
 	mutex_lock(&cache_chain_mutex);
 	res = -EINVAL;
-	list_for_each_entry(cachep, &cache_chain, list) {
+	list_for_each_entry(cachep, &cache_chain, next) {
 		if (!strcmp(cachep->name, kbuf)) {
 			if (limit < 1 || batchcount < 1 ||
 					batchcount > limit || shared < 0) {
@@ -4484,7 +4417,7 @@ static void handle_slab(unsigned long *n, struct kmem_cache *c, struct slab *s)
 	int i;
 	if (n[0] == n[1])
 		return;
-	for (i = 0, p = s->s_mem; i < c->num; i++, p += c->size) {
+	for (i = 0, p = s->s_mem; i < c->num; i++, p += c->buffer_size) {
 		if (slab_bufctl(s)[i] != BUFCTL_ACTIVE)
 			continue;
 		if (!add_caller(n, (unsigned long)*dbg_userword(c, p)))
@@ -4510,7 +4443,7 @@ static void show_symbol(struct seq_file *m, unsigned long address)
 
 static int leaks_show(struct seq_file *m, void *p)
 {
-	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, list);
+	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, next);
 	struct slab *slabp;
 	struct kmem_list3 *l3;
 	const char *name;
@@ -4629,6 +4562,6 @@ size_t ksize(const void *objp)
 	if (unlikely(objp == ZERO_SIZE_PTR))
 		return 0;
 
-	return virt_to_cache(objp)->object_size;
+	return obj_size(virt_to_cache(objp));
 }
 EXPORT_SYMBOL(ksize);
