@@ -984,7 +984,7 @@ static int max77693_get_online_type(struct max77693_charger_data *chg_data)
 {
 	int m_typ;
 	int state = 0;
-	pr_debug("%s\n", __func__);
+	pr_info("%s\n", __func__);
 
 	m_typ = max77693_get_cable_type(chg_data);
 
@@ -992,7 +992,7 @@ static int max77693_get_online_type(struct max77693_charger_data *chg_data)
 		(chg_data->cable_sub_type << ONLINE_TYPE_SUB_SHIFT) |
 		(chg_data->cable_pwr_type << ONLINE_TYPE_PWR_SHIFT));
 
-	pr_debug("%s: online(0x%08x)\n", __func__, state);
+	pr_info("%s: online(0x%08x)\n", __func__, state);
 
 	return state;
 }
@@ -1335,7 +1335,7 @@ static void max77693_softreg_work(struct work_struct *work)
 		cancel_delayed_work(&chg_data->update_work);
 
 		/* schedule softreg wq */
-		//wake_lock(&chg_data->softreg_wake_lock);
+		wake_lock(&chg_data->softreg_wake_lock);
 		schedule_delayed_work(&chg_data->softreg_work,
 				msecs_to_jiffies(SW_REG_STEP_DELAY));
 	} else {
@@ -1520,7 +1520,7 @@ static irqreturn_t max77693_bypass_irq(int irq, void *data)
 		pr_err("%s: chgin regulation loop is active\n", __func__);
 		if (chg_data->cable_type != POWER_SUPPLY_TYPE_WIRELESS) {
 			/* software regulation */
-			//wake_lock(&chg_data->softreg_wake_lock);
+			wake_lock(&chg_data->softreg_wake_lock);
 			schedule_delayed_work(&chg_data->softreg_work,
 					msecs_to_jiffies(SW_REG_START_DELAY));
 		} else
@@ -1624,7 +1624,7 @@ static irqreturn_t max77693_charger_irq(int irq, void *data)
 		max77693_reduce_input(chg_data, SW_REG_CURR_STEP_MA);
 
 		/* software regulation */
-		//wake_lock(&chg_data->softreg_wake_lock);
+		wake_lock(&chg_data->softreg_wake_lock);
 		schedule_delayed_work(&chg_data->softreg_work,
 				msecs_to_jiffies(SW_REG_STEP_DELAY));
 	}
