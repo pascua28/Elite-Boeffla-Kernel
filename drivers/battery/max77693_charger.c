@@ -41,6 +41,13 @@
 #endif
 #endif
 
+
+#ifdef CONFIG_CHARGE_LEVEL
+#include "linux/charge_level.h" 
+int ignore_unstable_power = IGNORE_UNSTABLE_POWER_DEFAULT;
+int ignore_safety_margin = IGNORE_SAFETY_MARGIN_DEFAULT;
+#endif
+
 /* MAX77693 Registers(defined @max77693-private.h) */
 
 /* MAX77693_CHG_REG_CHG_INT */
@@ -483,12 +490,14 @@ void max77693_set_input_current(struct max77693_charger_data *chg_data,
 
 	/* Set input current limit */
 	if (chg_data->soft_reg_state) {
+		charge_info_level = chg_data->soft_reg_current;
 		pr_info("%s: now in soft regulation loop: %d\n", __func__,
 						chg_data->soft_reg_current);
 		in_curr = max77693_get_input_current(chg_data);
 		if (in_curr == chg_data->soft_reg_current) {
 			pr_debug("%s: same input current: %dmA\n",
 						__func__, in_curr);
+			charge_info_level = chg_data->soft_reg_current;			
 			mutex_unlock(&chg_data->ops_lock);
 			return;
 		}
@@ -1191,12 +1200,14 @@ static void max77693_reduce_input(struct max77693_charger_data *chg_data,
 	if (chg_data->soft_reg_current < curr) {
 		pr_err("%s: recude curr(%d) is under now curr(%d)\n", __func__,
 					curr, chg_data->soft_reg_current);
+		charge_info_level = chg_data->soft_reg_current;			
 		return;
 	}
 
 	chg_data->soft_reg_current -= curr;
 	chg_data->soft_reg_current = max(chg_data->soft_reg_current,
 						SW_REG_CURR_MIN_MA);
+	charge_info_level = chg_data->soft_reg_current;
 	pr_info("%s: %dmA to %dmA\n", __func__,
 			reg_data * 20, chg_data->soft_reg_current);
 
@@ -1314,13 +1325,15 @@ static void max77693_softreg_work(struct work_struct *work)
 				int_ok, chgin_dtls, chg_dtls,
 				byp_dtls, mu_st2, in_curr);
 
+#ifdef CONFIG_CHARGE_LEVEL
+	if ((0 == ignore_unstable_power) && ((in_curr > SW_REG_CURR_STEP_MA) && (chg_dtls != 0x8) &&
+		((byp_dtls & MAX77693_BYP_DTLS3) ||
+		((chgin_dtls != 0x3) && (vbvolt == 0x1))))) {
+#else
 	if ((in_curr > SW_REG_CURR_STEP_MA) && (chg_dtls != 0x8) &&
 		((byp_dtls & MAX77693_BYP_DTLS3) ||
-		((chgin_dtls != 0x3) && (vbvolt == 0x1)))
-#ifdef CONFIG_BATTERY_MAX77693_CHARGER_CONTROL
-		&& !charge_control_is_flag(CHRG_CTRL_IGNORE_UNSTABLE)
+		((chgin_dtls != 0x3) && (vbvolt == 0x1)))) {
 #endif
-		) {
 		pr_info("%s: unstable power\n", __func__);
 
 		/* set soft regulation progress */
@@ -1352,11 +1365,11 @@ static void max77693_softreg_work(struct work_struct *work)
 		}
 
 		/* for margin */
-		if (chg_data->soft_reg_ing == true
-#ifdef CONFIG_BATTERY_MAX77693_CHARGER_CONTROL
-		     && !charge_control_is_flag(CHRG_CTRL_IGNORE_MARGIN)
+#ifdef CONFIG_CHARGE_LEVEL
+		if ((0 == ignore_safety_margin) && (chg_data->soft_reg_ing == true)) {
+#else
+		if (chg_data->soft_reg_ing == true) {
 #endif
-		   ) {
 			pr_info("%s: stable power, reduce 1 more step "
 						"for margin\n", __func__);
 			max77693_reduce_input(chg_data, SW_REG_CURR_STEP_MA);
@@ -1608,12 +1621,13 @@ static irqreturn_t max77693_charger_irq(int irq, void *data)
 						chg_dtls, bat_dtls, mu_st2);
 
 #if defined(USE_CHGIN_INTR)
+#ifdef CONFIG_CHARGE_LEVEL
+	if ((0 == ignore_unstable_power) && (((chgin_dtls == 0x0) || (chgin_dtls == 0x1)) &&
+			(vbvolt == 0x1) && (chg_dtls != 0x8))) {
+#else
 	if (((chgin_dtls == 0x0) || (chgin_dtls == 0x1)) &&
-			(vbvolt == 0x1) && (chg_dtls != 0x8)
-#ifdef CONFIG_BATTERY_MAX77693_CHARGER_CONTROL
-		&& !charge_control_is_flag(CHRG_CTRL_IGNORE_UNSTABLE)
+			(vbvolt == 0x1) && (chg_dtls != 0x8)) {
 #endif
-		) {
 		pr_info("%s: abnormal power state: chgin(%d), vb(%d), chg(%d)\n",
 					__func__, chgin_dtls, vbvolt, chg_dtls);
 
@@ -1806,9 +1820,6 @@ static __devinit int max77693_charger_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chg_data);
 	chg_data->max77693 = max77693;
-#ifdef CONFIG_BATTERY_MAX77693_CHARGER_CONTROL
-	charger_control_set_charger(max77693);
-#endif
 
 	mutex_init(&chg_data->irq_lock);
 	mutex_init(&chg_data->ops_lock);
