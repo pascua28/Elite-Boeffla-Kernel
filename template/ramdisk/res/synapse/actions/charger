@@ -1,8 +1,0 @@
-CURR=`cat /sys/devices/platform/samsung-battery/power_supply/battery/current_max`;
-UNIT="mA";
-
-if [ "$CURR" = "0" ] ; then
-	echo "No charger connected!";
-else
-	echo "$CURR$UNIT";
-fi
