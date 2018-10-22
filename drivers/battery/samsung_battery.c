@@ -45,9 +45,6 @@
 #include <linux/stmpe811-adc.h>
 #endif
 
-extern int ac_input_level;
-extern int ac_charge_level;
-
 unsigned int charge_info_cable_type = POWER_SUPPLY_TYPE_BATTERY;
 
 static char *supply_list[] = {
@@ -1112,7 +1109,7 @@ static void battery_charge_control(struct battery_info *info,
 		goto charge_current_con;
 
 	/* input current limit */
-	in_curr = MIN(in_curr, ac_input_level);
+	in_curr = MIN(in_curr, info->pdata->in_curr_limit);
 
 	/* check charge input before and after */
 	if (info->input_current == ((in_curr / 20) * 20)) {
@@ -1608,8 +1605,8 @@ charge_ok:
 	case POWER_SUPPLY_TYPE_MAINS:
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
-		battery_charge_control(info, ac_charge_level,
-						ac_input_level);
+		battery_charge_control(info, info->pdata->chg_curr_ta,
+						info->pdata->in_curr_limit);
 		break;
 	case POWER_SUPPLY_TYPE_USB:
 		if (!info->pdata->suspend_chging)
@@ -1624,9 +1621,9 @@ charge_ok:
 	case POWER_SUPPLY_TYPE_USB_CDP:
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
-		battery_charge_control(info, ac_charge_level,
+		battery_charge_control(info, info->pdata->chg_curr_cdp,
 #ifdef CONFIG_BATTERY_MAX77693_CHARGER_CONTROL
-						ac_input_level);
+						info->pdata->in_curr_cdp);
 #else
 						info->pdata->chg_curr_cdp);
 #endif

@@ -22,14 +22,7 @@
 #include <linux/battery/samsung_battery.h>
 
 #define MIN_SAFETY_CURR				0
-
-#ifdef CONFIG_MACH_T0
 #define MAX_SAFETY_CURR				2000
-#else
-#define MAX_SAFETY_CURR				1600
-#endif
-
-#define MAX_USB_CURR				1000
 
 #define MIN_SOFT_VOLT				3600000
 #define MAX_SOFT_VOLT				4500000
@@ -38,21 +31,6 @@
 #define MAX77693_CHG_CV_PRM_4_20V		0x16
 #define MAX77693_CHG_CV_PRM_4_35V		0x1D
 #define MAX77693_CHG_CV_PRM_4_40V		0x1F
-
-//default charge current
-#ifdef CONFIG_MACH_T0
-int ac_input_level = 1700;
-int ac_charge_level = 1700;
-#else
-int ac_input_level = 1000;
-int ac_charge_level = 1000;
-#endif
-
-int max_charge_current = MAX_SAFETY_CURR;
-module_param(max_charge_current, int, 0444);
-
-int max_usb_current = MAX_USB_CURR;
-module_param(max_usb_current, int, 0444);
 
 static ssize_t show_charge_property(struct device *dev,
 				    struct device_attribute *attr, char *buf);
@@ -140,17 +118,17 @@ static ssize_t show_charge_property(struct device *dev,
 	
 	switch (offset) {
 		case DCP_AC_INPUT_CURR:
-			return sprintf(buf, "%d", ac_input_level);
+			return sprintf(buf, "%d", info->pdata->in_curr_limit);
 		case DCP_AC_CHRG_CURR:
-			return sprintf(buf, "%d", ac_charge_level);
+			return sprintf(buf, "%d", info->pdata->chg_curr_ta);
 		case SDP_CHRG_CURR:
 			return sprintf(buf, "%d", info->pdata->chg_curr_usb);
 		case SDP_INPUT_CURR:
 			return sprintf(buf, "%d", info->pdata->in_curr_usb);
 		case CDP_CHRG_CURR:
-			return sprintf(buf, "%d", ac_charge_level);
+			return sprintf(buf, "%d", info->pdata->chg_curr_cdp);
 		case CDP_INPUT_CURR:
-			return sprintf(buf, "%d", ac_input_level);
+			return sprintf(buf, "%d", info->pdata->in_curr_cdp);
 		case BATT_CHRG_HARD_VOLT:
 			return sprintf(buf, "%d", batt_chrg_volt);
 		case BATT_CHRG_SOFT_VOLT:
@@ -182,27 +160,27 @@ static ssize_t store_charge_property(struct device *dev,
 	switch (offset) {
 		case DCP_AC_INPUT_CURR:
 			sanitize_min_max(val, MIN_SAFETY_CURR, MAX_SAFETY_CURR);
-			ac_input_level = val;
+			info->pdata->in_curr_limit = val;
 			break;
 		case DCP_AC_CHRG_CURR:
 			sanitize_min_max(val, MIN_SAFETY_CURR, MAX_SAFETY_CURR);
-			ac_charge_level = val;
+			info->pdata->chg_curr_ta = val;
 			break;
 		case SDP_CHRG_CURR:
-			sanitize_min_max(val, MIN_SAFETY_CURR, MAX_USB_CURR);
+			sanitize_min_max(val, MIN_SAFETY_CURR, MAX_SAFETY_CURR);
 			info->pdata->chg_curr_usb = val;
 			break;
 		case SDP_INPUT_CURR:
-			sanitize_min_max(val, MIN_SAFETY_CURR, MAX_USB_CURR);
+			sanitize_min_max(val, MIN_SAFETY_CURR, MAX_SAFETY_CURR);
 			info->pdata->in_curr_usb = val;
 			break;
 		case CDP_CHRG_CURR:
 			sanitize_min_max(val, MIN_SAFETY_CURR, MAX_SAFETY_CURR);
-			ac_charge_level = val;
+			info->pdata->chg_curr_cdp = val;
 			break;
 		case CDP_INPUT_CURR:
 			sanitize_min_max(val, MIN_SAFETY_CURR, MAX_SAFETY_CURR);
-			ac_input_level = val;
+			info->pdata->in_curr_cdp = val;
 			break;
 		case BATT_CHRG_HARD_VOLT:
 			update_battery_charge_voltage(val);
