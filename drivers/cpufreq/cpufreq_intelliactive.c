@@ -1292,7 +1292,7 @@ static int cpufreq_interactive_idle_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-extern bool is_incall;
+extern bool is_call;
 #ifndef CONFIG_INTELLI_PLUG
 static void cpu_up_work(struct work_struct *work)
 {
@@ -1309,7 +1309,7 @@ static void cpu_down_work(struct work_struct *work)
 {
 	int cpu;
 
-	if (is_incall)
+	if (is_call)
 		return;
 
 	for_each_online_cpu(cpu) {

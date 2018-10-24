@@ -95,7 +95,7 @@ static int mic_level_call;		// microphone sensivity for call only
 static unsigned int debug_register;		// current register to show in debug register interface
 
 // internal state variables
-static bool is_call;			// is currently a call active?
+bool is_call;			// is currently a call active?
 static bool is_headphone;		// is headphone connected?
 static bool is_fmradio;			// is stock fm radio app active?
 static bool is_eq;				// is an equalizer (headphone or speaker tuning) active?
@@ -107,21 +107,6 @@ static int regdump_bank;		// current bank configured for register dump
 static unsigned int regcache[REGDUMP_BANKS * REGDUMP_REGISTERS + 1];	// register cache to highlight changes in dump
 
 static int mic_level;			// internal mic level
-
-#if defined(CONFIG_INTELLI_PLUG)
-// define variables for incall hook
-static void wm8994_incall_hook(void);
-static void incall_boost(struct work_struct *work);
-static DECLARE_WORK(incall_boost_work, incall_boost);
-struct workqueue_struct *incall_boost_queue;
-static bool is_incall = false;
-static bool prev_incall_state = false;
-static bool bootdone = false;
-#define INCALL_BOOST_FREQ 1000000
-extern unsigned int intelli_plug_active;
-#endif
-
-
 
 /*****************************************/
 // Internal function declarations
@@ -165,37 +150,6 @@ static unsigned int get_mic_level(int reg_index, unsigned int val);
 
 static void reset_boeffla_sound(void);
 
-#if defined(CONFIG_INTELLI_PLUG)
-// incall hook by arter97
-static void wm8994_incall_hook(void)
-{
-	// fall-out early when boot is not finished
-	// (a dirty workaround for early kernel-panic)
-
-	if (!bootdone || !intelli_plug_active)
-		return;
-
-
-	is_incall = check_for_call();
-	if (is_incall != prev_incall_state) {
-		queue_work(incall_boost_queue, &incall_boost_work);
-		prev_incall_state = is_incall;
-	}
-}
-
-static void incall_boost(struct work_struct *work)
-{
-	if (is_incall) {
-		pr_info("%s: locking cpufreq for incall boost\n", __func__);
-		exynos_cpufreq_lock_free(DVFS_LOCK_ID_INCALL);
-		exynos_cpufreq_lock(DVFS_LOCK_ID_INCALL, exynos_cpufreq_get_level_ret(INCALL_BOOST_FREQ));
-	} else {
-		pr_info("%s: freeing incall cpufreq lock\n", __func__);
-		exynos_cpufreq_lock_free(DVFS_LOCK_ID_INCALL);
-	}
-}
-#endif
-
 /*****************************************/
 // Boeffla sound hook functions for
 // original wm8994 alsa driver
@@ -233,11 +187,6 @@ unsigned int Boeffla_sound_hook_wm8994_write(unsigned int reg, unsigned int val)
 	bool current_is_call;
 	bool current_is_headphone;
 	bool current_is_fmradio;
-
-#if defined(CONFIG_INTELLI_PLUG)
-	// call incall hook no-matter-what boeffla sound is enabled or not
-	wm8994_incall_hook();
-#endif
 	
 	// Terminate instantly if boeffla sound is not enabled and return
 	// original value back
@@ -1476,11 +1425,7 @@ static ssize_t boeffla_sound_store(struct device *dev, struct device_attribute *
 {
 	unsigned int ret = -EINVAL;
 	int val;
-	
-#if defined(CONFIG_INTELLI_PLUG)
-	bootdone = true;
-#endif
-	
+		
 	// read values from input buffer
 	ret = sscanf(buf, "%d", &val);
 
@@ -2473,11 +2418,6 @@ static int boeffla_sound_init(void)
 
 	// Initialize delayed work for Eq reapplication
 	INIT_DELAYED_WORK_DEFERRABLE(&apply_settings_work, apply_settings);
-
-#if defined(CONFIG_INTELLI_PLUG)
-	// Add incall hook by arter97
-	incall_boost_queue = create_singlethread_workqueue("incall_boost_work");
-#endif
 
 	// Print debug info
 	printk("Boeffla-sound: engine version %s started\n", BOEFFLA_SOUND_VERSION);
