@@ -106,3 +106,4 @@ lib/gen_crc32table
 security/selinux/av_permissions.h
 security/selinux/flask.h
 kernel/hz.bc
+*.fw
