@@ -17,8 +17,8 @@ esac
 
   make mrproper
 
-  cp -f arch/arm/configs/$(echo $DEVICE)_defconfig .config
+  cp -f arch/arm/configs/lineageos_$(echo $DEVICE)_defconfig .config
   make oldconfig
-  mv -f .config arch/arm/configs/$(echo $DEVICE)_defconfig
+  mv -f .config arch/arm/configs/lineageos_$(echo $DEVICE)_defconfig
 
 
