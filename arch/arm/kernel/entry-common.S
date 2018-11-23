@@ -176,7 +176,7 @@ ENDPROC(ret_from_fork)
 	mov	r0, lr				@ instrumented function
 	sub	r0, r0, #MCOUNT_INSN_SIZE
 	adr	lr, BSYM(2f)
-	mov	pc, r2
+	ret	r2
 2:	mcount_exit
 .endm
 
