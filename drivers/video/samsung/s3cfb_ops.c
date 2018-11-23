@@ -1659,7 +1659,7 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 	if (fbdev->support_fence == FENCE_SUPPORT) {
 	do {
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
-		s3cfb_wait_for_vsync(fbdev, HZ/10);
+		s3cfb_wait_for_vsync(fbdev, msecs_to_jiffies(100));
 #else
 		s3cfb_wait_for_vsync(fbdev);
 #endif
@@ -2127,7 +2127,7 @@ int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 #endif
 		/* Wait for Vsync */
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
-		s3cfb_wait_for_vsync(fbdev, HZ/10);
+		s3cfb_wait_for_vsync(fbdev, msecs_to_jiffies(100));
 #else
 		s3cfb_wait_for_vsync(fbdev);
 #endif

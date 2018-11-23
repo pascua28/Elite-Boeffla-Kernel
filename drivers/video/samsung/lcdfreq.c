@@ -481,7 +481,7 @@ static void lcdfreq_status_work(struct work_struct *work)
 
 	dev_info(info->dev, "%d, usage=%d\n", hz, atomic_read(&info->usage));
 
-	schedule_delayed_work(&info->work, HZ*120);
+	schedule_delayed_work(&info->work, msecs_to_jiffies(120000));
 }
 
 static struct fb_videomode *get_videmode(struct list_head *list)

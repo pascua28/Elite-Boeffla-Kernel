@@ -133,7 +133,7 @@ static void err_fg_detection_work(struct work_struct *work)
 
 	if (!err_fg_level) {
 		if (lcd->err_fg_detection_count < 10) {
-			schedule_delayed_work(&lcd->err_fg_detection, HZ/8);
+			schedule_delayed_work(&lcd->err_fg_detection, msecs_to_jiffies(125));
 			lcd->err_fg_detection_count++;
 			set_dsim_hs_clk_toggle_count(15);
 		} else
@@ -150,7 +150,7 @@ static irqreturn_t err_fg_detection_int(int irq, void *_lcd)
 	dev_info(&lcd->ld->dev, "\t\t%s\n", __func__);
 
 	lcd->err_fg_detection_count = 0;
-	schedule_delayed_work(&lcd->err_fg_detection, HZ/16);
+	schedule_delayed_work(&lcd->err_fg_detection, msecs_to_jiffies(63));
 
 	return IRQ_HANDLED;
 }

@@ -461,7 +461,7 @@ static int s3cfb_wait_for_vsync(void)
 	dev_dbg(ctrl->dev, "waiting for VSYNC interrupt\n");
 
 	wait_event_interruptible_timeout(ctrl->wq,
-			count != ctrl->wq_count, HZ / 10);
+			count != ctrl->wq_count, msecs_to_jiffies(100));
 
 	dev_dbg(ctrl->dev, "got a VSYNC interrupt\n");
 

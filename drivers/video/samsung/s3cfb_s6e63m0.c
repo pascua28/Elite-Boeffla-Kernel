@@ -168,7 +168,7 @@ static irqreturn_t esd_detection_int(int irq, void *_lcd)
 
 	disable_irq_nosync(lcd->irq);
 	dev_info(&lcd->ld->dev, "%s\n", __func__);
-	schedule_delayed_work(&lcd->esd_detection, HZ/8); /* optimal delay for zest esd irq pattern*/
+	schedule_delayed_work(&lcd->esd_detection, msecs_to_jiffies(125)); /* optimal delay for zest esd irq pattern*/
 
 	return IRQ_HANDLED;
 }
