@@ -61,7 +61,7 @@ __beginning:	mov	r4, r0				@ save the entry to the firmware
 		bic	r3, r3, #0x1			@ MMU
 		mcr	p15, 0, r3, c1, c0		@ disabled
 
-		ret	r2
+		mov	pc, r2
 
 __copy_target:	.long	0x08507FFC
 __copy_end:	.long	0x08607FFC
@@ -126,7 +126,7 @@ __Copy:		ldr	r2, [r0], #-4
 		ldr	r0, __copy_target		@ and add 0850 8000 instead
 		add	r0, r0, #4
 		add	r2, r2, r0
-		ret	r2				@ and jump there
+		mov	pc, r2				@ and jump there
 
 __go_on:
 		adr	sp, __temp_stack

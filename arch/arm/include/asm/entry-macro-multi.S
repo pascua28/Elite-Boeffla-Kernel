@@ -42,5 +42,5 @@
 \symbol_name:
 	mov	r4, lr
 	arch_irq_handler_default
-	ret     r4
+	mov     pc, r4
 	.endm

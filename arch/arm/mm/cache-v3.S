@@ -18,7 +18,7 @@
  *	Unconditionally clean and invalidate the entire icache.
  */
 ENTRY(v3_flush_icache_all)
-	ret	lr
+	mov	pc, lr
 ENDPROC(v3_flush_icache_all)
 
 /*
@@ -52,7 +52,7 @@ ENTRY(v3_flush_kern_cache_all)
 ENTRY(v3_flush_user_cache_range)
 	mov	ip, #0
 	mcreq	p15, 0, ip, c7, c0, 0		@ flush ID cache
-	ret	lr
+	mov	pc, lr
 
 /*
  *	coherent_kern_range(start, end)
@@ -78,7 +78,7 @@ ENTRY(v3_coherent_kern_range)
  *	- end	 - virtual end address
  */
 ENTRY(v3_coherent_user_range)
-	ret	lr
+	mov	pc, lr
 
 /*
  *	flush_kern_dcache_area(void *page, size_t size)
@@ -103,7 +103,7 @@ ENTRY(v3_flush_kern_dcache_area)
 ENTRY(v3_dma_flush_range)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 0		@ flush ID cache
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -123,7 +123,7 @@ ENTRY(v3_dma_unmap_area)
  *	- dir	- DMA direction
  */
 ENTRY(v3_dma_map_area)
-	ret	lr
+	mov	pc, lr
 ENDPROC(v3_dma_unmap_area)
 ENDPROC(v3_dma_map_area)
 

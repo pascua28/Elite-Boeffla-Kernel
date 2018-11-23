@@ -47,8 +47,8 @@ ENTRY(v4t_late_abort)
 /* 9 */	b	.data_arm_ldmstm		@ ldm*b	rn, <rlist>
 /* a */	b	.data_unknown
 /* b */	b	.data_unknown
-/* c */	ret	lr				@ ldc	rd, [rn], #m	@ Same as ldr	rd, [rn], #m
-/* d */	ret	lr				@ ldc	rd, [rn, #m]
+/* c */	mov	pc, lr				@ ldc	rd, [rn], #m	@ Same as ldr	rd, [rn], #m
+/* d */	mov	pc, lr				@ ldc	rd, [rn, #m]
 /* e */	b	.data_unknown
 /* f */
 .data_unknown:	@ Part of jumptable
@@ -60,7 +60,7 @@ ENTRY(v4t_late_abort)
 
 .data_arm_ldmstm:
 	tst	r8, #1 << 21			@ check writeback bit
-	reteq	lr				@ no writeback -> no fixup
+	moveq	pc, lr				@ no writeback -> no fixup
 	mov	r7, #0x11
 	orr	r7, r7, #0x1100
 	and	r6, r8, r7
@@ -79,11 +79,11 @@ ENTRY(v4t_late_abort)
 	subne	r7, r7, r6, lsl #2		@ Undo increment
 	addeq	r7, r7, r6, lsl #2		@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	ret	lr
+	mov	pc, lr
 
 .data_arm_lateldrhpre:
 	tst	r8, #1 << 21			@ Check writeback bit
-	reteq	lr				@ No writeback -> no fixup
+	moveq	pc, lr				@ No writeback -> no fixup
 .data_arm_lateldrhpost:
 	and	r5, r8, #0x00f			@ get Rm / low nibble of immediate value
 	tst	r8, #1 << 22			@ if (immediate offset)
@@ -97,25 +97,25 @@ ENTRY(v4t_late_abort)
 	subne	r7, r7, r6			@ Undo incrmenet
 	addeq	r7, r7, r6			@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	ret	lr
+	mov	pc, lr
 
 .data_arm_lateldrpreconst:
 	tst	r8, #1 << 21			@ check writeback bit
-	reteq	lr				@ no writeback -> no fixup
+	moveq	pc, lr				@ no writeback -> no fixup
 .data_arm_lateldrpostconst:
 	movs	r2, r8, lsl #20			@ Get offset
-	reteq	lr				@ zero -> no fixup
+	moveq	pc, lr				@ zero -> no fixup
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
 	ldr	r7, [sp, r5, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
 	subne	r7, r7, r2, lsr #20		@ Undo increment
 	addeq	r7, r7, r2, lsr #20		@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	ret	lr
+	mov	pc, lr
 
 .data_arm_lateldrprereg:
 	tst	r8, #1 << 21			@ check writeback bit
-	reteq	lr				@ no writeback -> no fixup
+	moveq	pc, lr				@ no writeback -> no fixup
 .data_arm_lateldrpostreg:
 	and	r7, r8, #15			@ Extract 'm' from instruction
 	ldr	r6, [sp, r7, lsl #2]		@ Get register 'Rm'
@@ -172,10 +172,10 @@ ENTRY(v4t_late_abort)
 /* 3 */	b	.data_unknown
 /* 4 */	b	.data_unknown
 /* 5 */	b	.data_thumb_reg
-/* 6 */	ret	lr
-/* 7 */	ret	lr
-/* 8 */	ret	lr
-/* 9 */	ret	lr
+/* 6 */	mov	pc, lr
+/* 7 */	mov	pc, lr
+/* 8 */	mov	pc, lr
+/* 9 */	mov	pc, lr
 /* A */	b	.data_unknown
 /* B */	b	.data_thumb_pushpop
 /* C */	b	.data_thumb_ldmstm
@@ -185,10 +185,10 @@ ENTRY(v4t_late_abort)
 
 .data_thumb_reg:
 	tst	r8, #1 << 9
-	reteq	lr
+	moveq	pc, lr
 	tst	r8, #1 << 10			@ If 'S' (signed) bit is set
 	movne	r1, #0				@ it must be a load instr
-	ret	lr
+	mov	pc, lr
 
 .data_thumb_pushpop:
 	tst	r8, #1 << 10
@@ -207,7 +207,7 @@ ENTRY(v4t_late_abort)
 	addeq	r7, r7, r6, lsl #2		@ increment SP if PUSH
 	subne	r7, r7, r6, lsl #2		@ decrement SP if POP
 	str	r7, [sp, #13 << 2]
-	ret	lr
+	mov	pc, lr
 
 .data_thumb_ldmstm:
 	and	r6, r8, #0x55			@ hweight8(r8)
@@ -222,4 +222,4 @@ ENTRY(v4t_late_abort)
 	and	r6, r6, #15			@ number of regs to transfer
 	sub	r7, r7, r6, lsl #2		@ always decrement
 	str	r7, [sp, r5, lsr #6]
-	ret	lr
+	mov	pc, lr

@@ -69,7 +69,7 @@ ENTRY(cpu_feroceon_proc_init)
 	movne	r2, r2, lsr #2			@ turned into # of sets
 	sub	r2, r2, #(1 << 5)
 	stmia	r1, {r2, r3}
-	ret	lr
+	mov	pc, lr
 
 /*
  * cpu_feroceon_proc_fin()
@@ -86,7 +86,7 @@ ENTRY(cpu_feroceon_proc_fin)
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ret	lr
+	mov	pc, lr
 
 /*
  * cpu_feroceon_reset(loc)
@@ -109,7 +109,7 @@ ENTRY(cpu_feroceon_reset)
 	bic	ip, ip, #0x000f			@ ............wcam
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
-	ret	r0
+	mov	pc, r0
 
 /*
  * cpu_feroceon_do_idle()
@@ -121,7 +121,7 @@ ENTRY(cpu_feroceon_do_idle)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain write buffer
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
-	ret	lr
+	mov	pc, lr
 
 /*
  *	flush_icache_all()
@@ -131,7 +131,7 @@ ENTRY(cpu_feroceon_do_idle)
 ENTRY(feroceon_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
-	ret	lr
+	mov	pc, lr
 ENDPROC(feroceon_flush_icache_all)
 
 /*
@@ -166,7 +166,7 @@ __flush_whole_cache:
 	mov	ip, #0
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -195,7 +195,7 @@ ENTRY(feroceon_flush_user_cache_range)
 	tst	r2, #VM_EXEC
 	mov	ip, #0
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	coherent_kern_range(start, end)
@@ -229,7 +229,7 @@ ENTRY(feroceon_coherent_user_range)
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -250,7 +250,7 @@ ENTRY(feroceon_flush_kern_dcache_area)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 	.align	5
 ENTRY(feroceon_range_flush_kern_dcache_area)
@@ -264,7 +264,7 @@ ENTRY(feroceon_range_flush_kern_dcache_area)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_inv_range(start, end)
@@ -291,7 +291,7 @@ feroceon_dma_inv_range:
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 	.align	5
 feroceon_range_dma_inv_range:
@@ -307,7 +307,7 @@ feroceon_range_dma_inv_range:
 	mcr	p15, 5, r0, c15, c14, 0		@ D inv range start
 	mcr	p15, 5, r1, c15, c14, 1		@ D inv range top
 	msr	cpsr_c, r2			@ restore interrupts
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_clean_range(start, end)
@@ -327,7 +327,7 @@ feroceon_dma_clean_range:
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 	.align	5
 feroceon_range_dma_clean_range:
@@ -340,7 +340,7 @@ feroceon_range_dma_clean_range:
 	mcr	p15, 5, r1, c15, c13, 1		@ D clean range top
 	msr	cpsr_c, r2			@ restore interrupts
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_flush_range(start, end)
@@ -358,7 +358,7 @@ ENTRY(feroceon_dma_flush_range)
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 	.align	5
 ENTRY(feroceon_range_dma_flush_range)
@@ -371,7 +371,7 @@ ENTRY(feroceon_range_dma_flush_range)
 	mcr	p15, 5, r1, c15, c15, 1		@ D clean/inv range top
 	msr	cpsr_c, r2			@ restore interrupts
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_map_area(start, size, dir)
@@ -408,7 +408,7 @@ ENDPROC(feroceon_range_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(feroceon_dma_unmap_area)
-	ret	lr
+	mov	pc, lr
 ENDPROC(feroceon_dma_unmap_area)
 
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
@@ -453,7 +453,7 @@ ENTRY(cpu_feroceon_dcache_clean_area)
 	bhi	1b
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /* =============================== PageTable ============================== */
 
@@ -482,9 +482,9 @@ ENTRY(cpu_feroceon_switch_mm)
 
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
-	ret	r2
+	mov	pc, r2
 #else
-	ret	lr
+	mov	pc, lr
 #endif
 
 /*
@@ -504,7 +504,7 @@ ENTRY(cpu_feroceon_set_pte_ext)
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 #endif
-	ret	lr
+	mov	pc, lr
 
 	__CPUINIT
 
@@ -522,7 +522,7 @@ __feroceon_setup:
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
 	bic	r0, r0, r5
 	orr	r0, r0, r6
-	ret	lr
+	mov	pc, lr
 	.size	__feroceon_setup, . - __feroceon_setup
 
 	/*

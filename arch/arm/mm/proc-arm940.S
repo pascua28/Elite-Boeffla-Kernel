@@ -31,7 +31,7 @@
  */
 ENTRY(cpu_arm940_proc_init)
 ENTRY(cpu_arm940_switch_mm)
-	ret	lr
+	mov	pc, lr
 
 /*
  * cpu_arm940_proc_fin()
@@ -41,7 +41,7 @@ ENTRY(cpu_arm940_proc_fin)
 	bic	r0, r0, #0x00001000		@ i-cache
 	bic	r0, r0, #0x00000004		@ d-cache
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ret	lr
+	mov	pc, lr
 
 /*
  * cpu_arm940_reset(loc)
@@ -57,7 +57,7 @@ ENTRY(cpu_arm940_reset)
 	bic	ip, ip, #0x00000005		@ .............c.p
 	bic	ip, ip, #0x00001000		@ i-cache
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
-	ret	r0
+	mov	pc, r0
 
 /*
  * cpu_arm940_do_idle()
@@ -65,7 +65,7 @@ ENTRY(cpu_arm940_reset)
 	.align	5
 ENTRY(cpu_arm940_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
-	ret	lr
+	mov	pc, lr
 
 /*
  *	flush_icache_all()
@@ -75,7 +75,7 @@ ENTRY(cpu_arm940_do_idle)
 ENTRY(arm940_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
-	ret	lr
+	mov	pc, lr
 ENDPROC(arm940_flush_icache_all)
 
 /*
@@ -119,7 +119,7 @@ ENTRY(arm940_flush_user_cache_range)
 	tst	r2, #VM_EXEC
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	coherent_kern_range(start, end)
@@ -167,7 +167,7 @@ ENTRY(arm940_flush_kern_dcache_area)
 	bcs	1b				@ segments 7 to 0
 	mcr	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_inv_range(start, end)
@@ -188,7 +188,7 @@ arm940_dma_inv_range:
 	subs	r1, r1, #1 << 4
 	bcs	1b				@ segments 7 to 0
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_clean_range(start, end)
@@ -212,7 +212,7 @@ ENTRY(cpu_arm940_dcache_clean_area)
 	bcs	1b				@ segments 7 to 0
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_flush_range(start, end)
@@ -238,7 +238,7 @@ ENTRY(arm940_dma_flush_range)
 	subs	r1, r1, #1 << 4
 	bcs	1b				@ segments 7 to 0
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
-	ret	lr
+	mov	pc, lr
 
 /*
  *	dma_map_area(start, size, dir)
@@ -261,7 +261,7 @@ ENDPROC(arm940_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(arm940_dma_unmap_area)
-	ret	lr
+	mov	pc, lr
 ENDPROC(arm940_dma_unmap_area)
 
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
@@ -333,7 +333,7 @@ __arm940_setup:
 	orr	r0, r0, #0x00001000		@ I-cache
 	orr	r0, r0, #0x00000005		@ MPU/D-cache
 
-	ret	lr
+	mov	pc, lr
 
 	.size	__arm940_setup, . - __arm940_setup
 

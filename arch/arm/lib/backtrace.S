@@ -29,7 +29,7 @@ ENTRY(__backtrace)
 ENTRY(c_backtrace)
 
 #if !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)
-		ret	lr
+		mov	pc, lr
 ENDPROC(__backtrace)
 ENDPROC(c_backtrace)
 #else

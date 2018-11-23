@@ -28,4 +28,4 @@ ENTRY(v5t_early_abort)
 	do_ldrd_abort
 	tst	r3, #1 << 20			@ check write
 	orreq	r1, r1, #1 << 11
-	ret	lr
+	mov	pc, lr

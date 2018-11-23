@@ -56,7 +56,7 @@ ENTRY(s3c_cpu_save)
 	ldr	r0, =pm_cpu_sleep
 	@@ldr	pc, [ r0 ]
 	ldr	r0, [ r0 ]
-	ret	r0
+	mov	pc, r0
 	
 	@@ return to the caller, after having the MMU
 	@@ turned on, this restores the last bits from the

@@ -15,5 +15,5 @@
 	.align	5
 ENTRY(legacy_pabort)
 	mov	r1, #5
-	ret	lr
+	mov	pc, lr
 ENDPROC(legacy_pabort)

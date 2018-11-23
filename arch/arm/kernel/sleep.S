@@ -92,12 +92,12 @@ cpu_resume_turn_mmu_on:
 	mrc	p15, 0, r1, c0, c0, 0	@ read id reg
 	mov	r1, r1
 	mov	r1, r1
-	ret	r3			@ jump to virtual address
+	mov	pc, r3			@ jump to virtual address
 ENDPROC(cpu_resume_turn_mmu_on)
 cpu_resume_after_mmu:
 	str	r5, [r2, r4, lsl #2]	@ restore old mapping
 	mcr	p15, 0, r0, c1, c0, 0	@ turn on D-cache
-	ret	lr
+	mov	pc, lr
 ENDPROC(cpu_resume_after_mmu)
 
 /*

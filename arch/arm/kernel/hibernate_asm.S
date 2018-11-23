@@ -54,7 +54,7 @@ ENTRY(swsusp_arch_suspend)
 	 */
 	ldr     r3, .Lsaved_context_r14_svc
 	ldr     lr, [r3]
-	ret     lr
+	mov     pc, lr
 ENDPROC(swsusp_arch_suspend)
 
 ENTRY(swsusp_arch_resume)
@@ -128,7 +128,7 @@ ENTRY(swsusp_arch_resume)
 	/* Restore return address */
 	ldr     r3, .Lsaved_context_r14_svc
 	ldr     lr, [r3]
-	ret     lr
+	mov     pc, lr
 ENDPROC(swsusp_arch_resume)
 	.align	4
 .Lsaved_context_r0:		.long	saved_context_r0
