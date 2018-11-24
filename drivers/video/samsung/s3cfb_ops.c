@@ -1831,10 +1831,8 @@ static int s3c_fb_set_win_buffer(struct s3cfb_global *fbdev,
 				"(stride = %u, width = %u, bpp = %u)\n",
 				win_config->stride, win_config->w,
 				fb->var.bits_per_pixel);
-	win_config->format = S3C_FB_PIXEL_FORMAT_RGBA_8888;
-	
-
-	//	goto err_invalid;
+		ret = -EINVAL;
+		goto err_invalid;
 	}
 
 	if (!s3c_fb_validate_x_alignment(fbdev, win_config->x, win_config->w,
