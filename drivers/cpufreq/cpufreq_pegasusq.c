@@ -1471,7 +1471,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 	INIT_WORK(&dbs_info->down_work, cpu_down_work);
 
 	queue_delayed_work_on(dbs_info->cpu, dvfs_workqueue,
-			      &dbs_info->work, delay + 2 * HZ);
+			      &dbs_info->work, delay + msecs_to_jiffies(2000));
 }
 
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
