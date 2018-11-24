@@ -1845,7 +1845,7 @@ static inline void hotplug_timer_init(struct cpufreq_lulzactive_cpuinfo *dbs_inf
 	INIT_WORK(&dbs_info->down_work, cpu_down_work);
 
 	queue_delayed_work_on(dbs_info->cpu, dvfs_workqueue,
-			      &dbs_info->work, delay + 2 * HZ);
+			      &dbs_info->work, delay + msecs_to_jiffies(2000));
 }
 
 static int cpufreq_governor_lulzactive(struct cpufreq_policy *policy,
