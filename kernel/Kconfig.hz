@@ -4,17 +4,6 @@
 
 choice
 	prompt "Timer frequency"
-	default HZ_250
-	help
-	 Allows the configuration of the timer frequency. It is customary
-	 to have the timer interrupt run at 1000 Hz but 100 Hz may be more
-	 beneficial for servers and NUMA systems that do not need to have
-	 a fast response for user interaction and that may experience bus
-	 contention and cacheline bounces as a result of timer interrupts.
-	 Note that the timer interrupt occurs on each processor in an SMP
-	 environment leading to NR_CPUS * HZ number of timer interrupts
-	 per second.
-
 
 	config HZ_100
 		bool "100 HZ"
