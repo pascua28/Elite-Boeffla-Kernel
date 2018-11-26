@@ -1,0 +1,248 @@
+cat << CTAG
+
+{
+
+sections:[
+
+	{
+			name:MIF/INT,
+			elements:[
+				{ SDescription:{
+					description:"MIF or Memory Interface is the direct voltage and frequency used on the C2C bus to the memory chip. INT or internal voltage and frequency are the internal bus and all components connected to it other than the CPU and GPU cores. This encompasses blocks like the camera interfaces, the ISP, the I/O controllers and the MFC (Hardware decoder).
+
+WARNING!!!! Too much undervolting may cause instabilities!"
+				}},
+				{ SSpacer:{
+					height:1
+				}},
+				{ SPane:{
+					title:"INT Voltages"
+				}},
+$(cat /sys/devices/system/cpu/busfreq/int_volt_table | while read FREQ VOLT; do
+	cat << EOF1
+				{ SSeekBar:{
+					title:"$FREQ KHz",
+					max:1300000, min:600000, unit:" uV", step:12500,
+					default:$VOLT,
+					action:"int -v /sys/devices/system/cpu/busfreq/int_volt_table $FREQ"
+				}},
+
+	{ SSpacer:{
+		height:1
+	}},
+
+EOF1
+done)
+
+				{ SPane:{
+					title:"MIF Voltages"
+				}},
+$(cat /sys/devices/system/cpu/busfreq/int_volt_table | while read FREQ VOLT; do
+	cat << EOF2
+				{ SSeekBar:{
+					title:"$FREQ KHz",
+					max:1300000, min:600000, unit:" uV", step:50000,
+					default:$VOLT,
+					action:"mif -v /sys/devices/system/cpu/busfreq/mif_volt_table $FREQ"
+				}}
+EOF2
+done)
+	]
+
+	},
+
+
+	{
+			name:ABB,
+			elements:[
+				{ SDescription:{
+					description:"Adaptive body bias voltage is the voltage applied to the body of a transistor. Normally, when we undervolt the CPU, we are referring to the gate voltage. There are two types of body biasing: the reverse body bias and the forward body bias. Adaptive body bias is given by the formula, ABB = Gate voltage - Body voltage. A positive body bias (Forward Body Bias) allows the transistor to clock at much higher speed but at the cost of higher power leakage. A negative body bias (Reverse Body Bias) reduces power consumption at the cost of slower clock speed. A reverse body bias is recommended for low frequencies while a forward body bias is recommended for higher frequencies.
+Increasing the body voltage reduces power consumption while reducing body voltage increases stability on higher frequencies at the cost of more power consumption.
+
+WARNING!!!! This is a very advanced setting"
+				}},
+				{ SSpacer:{
+					height:1
+				}},
+
+				{ SPane:{
+					title:"ARM Slice Voltages"
+				}},
+
+{ SDescription:{
+					description:"G3D Slice Voltages are the voltages applied to the GPU body with corresponding frequencies"
+				}},
+
+	{ SSeekBar:{
+		title:"Slice 1 Body Voltage",
+		description:"For frequencies 100MHz to 700MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/arm/arm_slice_1_volt),
+		action:"generic /sys/devices/system/abb/arm/arm_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:"For frequencies 800MHz to 1500MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/arm/arm_slice_2_volt),
+		action:"generic /sys/devices/system/abb/arm/arm_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:"For frequencies 1600MHz up to the maximum allowable frequency",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/arm/arm_slice_3_volt),
+		action:"generic /sys/devices/system/abb/arm/arm_slice_3_volt"
+	}},
+
+
+	{ SSpacer:{
+		height:1
+	}},
+
+				{ SPane:{
+					title:"G3D Slice Voltages"
+				}},
+
+{ SDescription:{
+					description:"G3D Slice Voltages are the voltages applied to the GPU body with corresponding frequencies"
+				}},
+
+
+	{ SSeekBar:{
+		title:"Slice 1 Body Voltage",
+		description:"For frequencies 54MHz to 300MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_1_volt),
+		action:"generic /sys/devices/system/abb/g3d/g3d_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:"For frequencies 333MHz to 533MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_2_volt),
+		action:"generic /sys/devices/system/abb/g3d/g3d_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:"For frequencies 600MHz to 700MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/g3d/g3d_slice_3_volt),
+		action:"generic /sys/devices/system/abb/g3d/g3d_slice_3_volt"
+	}},
+
+	{ SSpacer:{
+		height:1
+	}},
+
+				{ SPane:{
+					title:"INT Slice Voltages"
+				}},
+
+{ SDescription:{
+					description:"INT Slice Voltages are the voltages applied to the internal bus body with corresponding frequencies"
+				}},
+
+	{ SSeekBar:{
+		title:"Slice 1 Body Voltage",
+		description:"For frequencies 100MHz to 160MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/int/int_slice_1_volt),
+		action:"generic /sys/devices/system/abb/int/int_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:"For frequencies 266MHz to 400.2MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/int/int_slice_2_volt),
+		action:"generic /sys/devices/system/abb/int/int_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:"For 400.266MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/int/int_slice_3_volt),
+		action:"generic /sys/devices/system/abb/int/int_slice_3_volt"
+	}},
+
+	{ SSpacer:{
+		height:1
+	}},
+
+				{ SPane:{
+					title:"MIF Slice Voltages"
+				}},
+
+	{ SSeekBar:{
+		title:"Slice 1 Body Voltage",
+		description:"For frequencies 100MHz to 160MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/mif/mif_slice_1_volt),
+		action:"generic /sys/devices/system/abb/mif/mif_slice_1_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 2 Body Voltage",
+		description:"For frequencies 260MHz to 400.2MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/mif/mif_slice_2_volt),
+		action:"generic /sys/devices/system/abb/mif/mif_slice_2_volt"
+	}},
+
+	{ SSeekBar:{
+		title:"Slice 3 Body Voltage",
+		description:"For 400.266MHz",
+		max:1500,
+		min:600,
+		unit:" mV",
+		step:50,
+		default:$(cat /sys/devices/system/abb/mif/mif_slice_3_volt),
+		action:"generic /sys/devices/system/abb/mif/mif_slice_3_volt"
+	}}
+
+		]
+	}
+
+	]
+}
+
+CTAG
