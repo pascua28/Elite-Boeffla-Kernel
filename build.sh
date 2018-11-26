@@ -15,7 +15,7 @@ case "$1" in
     ;;
 esac
 
-  cp -f arch/arm/configs/$(echo $DEVICE)_defconfig .config
+  cp -f arch/arm/configs/lineageos_$(echo $DEVICE)_defconfig .config
   make oldconfig
 
   TIMESTAMP=$(date +%s)
