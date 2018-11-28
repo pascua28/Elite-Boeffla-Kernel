@@ -133,3 +133,11 @@ scripts/mod/mk_elfconfig
 scripts/mod/modpost
 scripts/selinux/genheaders/genheaders
 scripts/selinux/mdp/mdp
+firmware/ssp.fw
+firmware/ssp_crashed.fw
+firmware/tsp_melfas/note/BOOT.fw
+firmware/tsp_melfas/note/CONFL.fw
+firmware/tsp_melfas/note/CONFM.fw
+firmware/tsp_melfas/note/CORE.fw
+firmware/tsp_melfas/note/melfasl.fw
+firmware/tsp_melfas/note/melfasm.fw
