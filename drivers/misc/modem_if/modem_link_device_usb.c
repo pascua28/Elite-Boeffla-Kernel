@@ -82,7 +82,7 @@ static int start_ipc(struct link_device *ld, struct io_device *iod)
 		goto exit;
 	}
 
-	mif_info("send 'a'\n");
+	mif_err("send 'a'\n");
 
 	skb = alloc_skb(16, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -288,7 +288,7 @@ static void if_usb_force_disconnect(struct work_struct *work)
 	pm_runtime_get_sync(&udev->dev);
 	if (udev->state != USB_STATE_NOTATTACHED) {
 		usb_force_disconnect(udev);
-		mif_info("force disconnect\n");
+		mif_err("force disconnect\n");
 	}
 	pm_runtime_put_autosuspend(&udev->dev);
 }
@@ -671,7 +671,7 @@ static int __devinit if_usb_probe(struct usb_interface *intf,
 		goto out;
 	}
 
-	mif_info("probe dev_id=%d usb_device_id(0x%p), usb_ld (0x%p)\n",
+	mif_err("probe dev_id=%d usb_device_id(0x%p), usb_ld (0x%p)\n",
 				dev_id, id, usb_ld);
 
 	usb_ld->usbdev = usbdev;
@@ -848,7 +848,7 @@ irqreturn_t usb_resume_irq(int irq, void *data)
 
 	if (hwup) {
 		dev = &usb_ld->usbdev->dev;
-		mif_info("runtime status=%d\n",
+		mif_err("runtime status=%d\n",
 				dev->power.runtime_status);
 
 		/* if usb3503 was on, usb_if was resumed by probe */

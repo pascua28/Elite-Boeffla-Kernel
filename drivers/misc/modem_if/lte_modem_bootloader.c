@@ -165,10 +165,10 @@ long bootloader_ioctl(struct file *flip,
 #ifdef AIRPLAIN_MODE_TEST
 	case IOCTL_LTE_MODEM_AIRPLAIN_ON:
 		lte_airplain_mode = 1;
-		mif_info("IOCTL_LTE_MODEM LPM_ON\n");
+		mif_err("IOCTL_LTE_MODEM LPM_ON\n");
 		break;
 	case IOCTL_LTE_MODEM_AIRPLAIN_OFF:
-		mif_info("IOCTL_LTE_MODEM LPM_OFF\n");
+		mif_err("IOCTL_LTE_MODEM LPM_OFF\n");
 		lte_airplain_mode = 0;
 		break;
 #endif
@@ -256,7 +256,7 @@ int __devinit lte_modem_bootloader_probe(struct spi_device *spi)
 		mif_err("failed to register misc dev for lte_modem_bootloader\n");
 		goto err_setup;
 	}
-	mif_info("lte_modem_bootloader successfully probed\n");
+	mif_err("lte_modem_bootloader successfully probed\n");
 #ifdef AIRPLAIN_MODE_TEST
 	lte_airplain_mode = 0;
 #endif

@@ -160,7 +160,7 @@ static inline void send_int2cp(struct shmem_link_device *shmd, u16 mask)
 	struct link_device *ld = &shmd->ld;
 
 	if (ld->mode != LINK_MODE_IPC)
-		mif_info("%s: <by %pf> mask = 0x%04X\n", ld->name, CALLER, mask);
+		mif_err("%s: <by %pf> mask = 0x%04X\n", ld->name, CALLER, mask);
 
 	if (shmd->type == C2C_SHMEM)
 		c2c_send_interrupt(mask);
@@ -942,7 +942,7 @@ static void msg_rx_task(unsigned long data)
 
 	if (unlikely(mask)) {
 #ifdef DEBUG_MODEM_IF
-		mif_info("%s: send RES_ACK 0x%04X\n", ld->name, mask);
+		mif_err("%s: send RES_ACK 0x%04X\n", ld->name, mask);
 #endif
 		send_int2cp(shmd, INT_NON_CMD(mask));
 	}
@@ -981,14 +981,14 @@ static void ipc_handler(struct shmem_link_device *shmd, struct mem_status *mst)
 	*/
 	if (unlikely(intr & get_mask_res_ack(shmd, IPC_FMT))) {
 #ifdef DEBUG_MODEM_IF
-		mif_info("%s: recv FMT RES_ACK\n", ld->name);
+		mif_err("%s: recv FMT RES_ACK\n", ld->name);
 #endif
 		complete(&shmd->req_ack_cmpl[IPC_FMT]);
 	}
 
 	if (unlikely(intr & get_mask_res_ack(shmd, IPC_RAW))) {
 #ifdef DEBUG_MODEM_IF
-		mif_info("%s: recv RAW RES_ACK\n", ld->name);
+		mif_err("%s: recv RAW RES_ACK\n", ld->name);
 #endif
 		complete(&shmd->req_ack_cmpl[IPC_RAW]);
 	}
@@ -1184,7 +1184,7 @@ static void udl_handler(struct shmem_link_device *shmd, struct mem_status *mst)
 		if (intr & get_mask_res_ack(shmd, IPC_RAW)) {
 #ifdef DEBUG_MODEM_IF
 			struct link_device *ld = &shmd->ld;
-			mif_info("%s: recv RAW RES_ACK\n", ld->name);
+			mif_err("%s: recv RAW RES_ACK\n", ld->name);
 			print_circ_status(ld, IPC_RAW, mst);
 #endif
 			complete(&shmd->req_ack_cmpl[IPC_RAW]);
@@ -1213,12 +1213,12 @@ static void c2c_irq_handler(void *data, u32 intr)
 	get_shmem_status(shmd, RX, mst);
 
 	if (unlikely(ld->mode == LINK_MODE_OFFLINE)) {
-		mif_info("%s: ld->mode == LINK_MODE_OFFLINE\n", ld->name);
+		mif_err("%s: ld->mode == LINK_MODE_OFFLINE\n", ld->name);
 		return;
 	}
 
 	if (unlikely(!INT_VALID(intr))) {
-		mif_info("%s: ERR! invalid intr 0x%X\n", ld->name, intr);
+		mif_err("%s: ERR! invalid intr 0x%X\n", ld->name, intr);
 		return;
 	}
 
@@ -1380,7 +1380,7 @@ static int wait_for_res_ack(struct shmem_link_device *shmd, int dev)
 	u16 mask;
 
 #ifdef DEBUG_MODEM_IF
-	mif_info("%s: send %s REQ_ACK\n", ld->name, get_dev_name(dev));
+	mif_err("%s: send %s REQ_ACK\n", ld->name, get_dev_name(dev));
 #endif
 
 	mask = get_mask_req_ack(shmd, dev);
@@ -1550,7 +1550,7 @@ static int c2c_send_ipc(struct shmem_link_device *shmd, int dev)
 	u16 mask;
 
 	if (atomic_read(&shmd->res_required[dev]) > 0) {
-		mif_info("%s: %s_TXQ is full\n", ld->name, get_dev_name(dev));
+		mif_err("%s: %s_TXQ is full\n", ld->name, get_dev_name(dev));
 		return 0;
 	}
 
@@ -1736,7 +1736,7 @@ static int c2c_send_udl_data(struct shmem_link_device *shmd, int dev)
 			/* Take the skb back to the skb_txq */
 			skb_queue_head(txq, skb);
 
-			mif_info("NOSPC in RAW_TXQ {qsize:%u in:%u out:%u}, "
+			mif_err("NOSPC in RAW_TXQ {qsize:%u in:%u out:%u}, "
 				"space:%u < tx_bytes:%u\n",
 				qsize, in, out, space, tx_bytes);
 			break;

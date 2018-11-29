@@ -282,14 +282,14 @@ int link_rx_flowctl_cmd(struct link_device *ld, const char *data, size_t len)
 		case CMD_SUSPEND:
 			iodevs_for_each(msd, iodev_netif_stop, 0);
 			ld->raw_tx_suspended = true;
-			mif_info("flowctl CMD_SUSPEND(%04X)\n", *cmd);
+			mif_err("flowctl CMD_SUSPEND(%04X)\n", *cmd);
 			break;
 
 		case CMD_RESUME:
 			iodevs_for_each(msd, iodev_netif_wake, 0);
 			ld->raw_tx_suspended = false;
 			complete_all(&ld->raw_tx_resumed_by_cp);
-			mif_info("flowctl CMD_RESUME(%04X)\n", *cmd);
+			mif_err("flowctl CMD_RESUME(%04X)\n", *cmd);
 			break;
 
 		default:
@@ -391,7 +391,7 @@ void iodev_netif_wake(struct io_device *iod, void *args)
 {
 	if (iod->io_typ == IODEV_NET && iod->ndev) {
 		netif_wake_queue(iod->ndev);
-		mif_info("%s\n", iod->name);
+		mif_err("%s\n", iod->name);
 	}
 }
 
@@ -399,7 +399,7 @@ void iodev_netif_stop(struct io_device *iod, void *args)
 {
 	if (iod->io_typ == IODEV_NET && iod->ndev) {
 		netif_stop_queue(iod->ndev);
-		mif_info("%s\n", iod->name);
+		mif_err("%s\n", iod->name);
 	}
 }
 
@@ -442,7 +442,7 @@ void mif_netif_wake(struct link_device *ld)
 	 * from CP.
 	 */
 	if (ld->suspend_netif_tx) {
-		mif_info("%s: waiting for FLOW_CTRL_RESUME\n", ld->name);
+		mif_err("%s: waiting for FLOW_CTRL_RESUME\n", ld->name);
 		return;
 	}
 

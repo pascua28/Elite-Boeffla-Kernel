@@ -107,7 +107,7 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev,
 		return NULL;
 	}
 
-	mif_info("%s is created!!!\n", pdata->name);
+	mif_err("%s is created!!!\n", pdata->name);
 
 	return modemctl;
 }
@@ -166,7 +166,7 @@ static struct io_device *create_io_device(struct modem_io_t *io_t,
 		return NULL;
 	}
 
-	mif_info("%s created\n", iod->name);
+	mif_err("%s created\n", iod->name);
 	return iod;
 }
 
@@ -318,7 +318,7 @@ static void modem_shutdown(struct platform_device *pdev)
 	mc->phone_state = STATE_OFFLINE;
 
 	get_utc_time(&utc);
-	mif_info("%s: at [%02d:%02d:%02d.%03d]\n",
+	mif_err("%s: at [%02d:%02d:%02d.%03d]\n",
 		mc->name, utc.hour, utc.min, utc.sec, utc.msec);
 }
 

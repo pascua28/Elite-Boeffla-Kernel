@@ -142,7 +142,7 @@ static long spi_boot_ioctl(struct file *filp, unsigned int cmd,
 			ret = -EFAULT;
 			goto exit_err;
 		}
-		mif_info("IOCTL_MODEM_XMIT_BOOT (size %d)\n", img.size);
+		mif_err("IOCTL_MODEM_XMIT_BOOT (size %d)\n", img.size);
 
 		ret = spi_boot_write(loader, img.binary, img.size);
 		if (ret < 0) {

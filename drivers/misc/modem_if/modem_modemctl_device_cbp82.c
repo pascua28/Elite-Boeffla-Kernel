@@ -38,7 +38,7 @@ static irqreturn_t phone_active_handler(int irq, void *arg)
 	int old_state = mc->phone_state;
 	int new_state = mc->phone_state;
 
-	mif_info("old_state:%s cp_on:%d cp_reset:%d cp_active:%d\n",
+	mif_err("old_state:%s cp_on:%d cp_reset:%d cp_active:%d\n",
 		get_cp_state_str(old_state), cp_on, cp_reset, cp_active);
 
 	if (cp_reset && cp_active) {
@@ -163,11 +163,11 @@ static int cbp82_reset(struct modem_ctl *mc)
 static int cbp82_boot_on(struct modem_ctl *mc)
 {
 	struct link_device *ld = get_current_link(mc->bootd);
-	mif_info("+++\n");
+	mif_err("+++\n");
 
 	ld->mode = LINK_MODE_BOOT;
 
-	mif_info("---\n");
+	mif_err("---\n");
 	return 0;
 }
 
@@ -267,7 +267,7 @@ int cbp82_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 		mif_err("---\n");
 		return -1;
 	}
-	mif_info("PHONE_ACTIVE IRQ# = %d\n", mc->irq_phone_active);
+	mif_err("PHONE_ACTIVE IRQ# = %d\n", mc->irq_phone_active);
 
 	irq = mc->irq_phone_active;
 	flag = IRQF_NO_SUSPEND | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;

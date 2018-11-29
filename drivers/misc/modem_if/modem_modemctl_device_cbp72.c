@@ -36,7 +36,7 @@ static irqreturn_t phone_active_handler(int irq, void *arg)
 	int phone_active = gpio_get_value(mc->gpio_phone_active);
 	int phone_state = mc->phone_state;
 
-	mif_info("state = %d, phone_reset = %d, phone_active = %d\n",
+	mif_err("state = %d, phone_reset = %d, phone_active = %d\n",
 		phone_state, phone_reset, phone_active);
 
 	if (phone_reset && phone_active) {
@@ -60,14 +60,14 @@ static irqreturn_t phone_active_handler(int irq, void *arg)
 	else
 		irq_set_irq_type(mc->irq_phone_active, IRQ_TYPE_LEVEL_HIGH);
 
-	mif_info("phone_state = %d\n", phone_state);
+	mif_err("phone_state = %d\n", phone_state);
 
 	return IRQ_HANDLED;
 }
 
 static int cbp72_on(struct modem_ctl *mc)
 {
-	mif_info("start!!!\n");
+	mif_err("start!!!\n");
 
 	/* prevent sleep during bootloader downloading */
 	if (!wake_lock_active(&mc->mc_wake_lock))
@@ -94,14 +94,14 @@ static int cbp72_on(struct modem_ctl *mc)
 
 	mc->bootd->modem_state_changed(mc->bootd, STATE_BOOTING);
 
-	mif_info("complete!!!\n");
+	mif_err("complete!!!\n");
 
 	return 0;
 }
 
 static int cbp72_off(struct modem_ctl *mc)
 {
-	mif_info("cbp72_off()\n");
+	mif_err("cbp72_off()\n");
 
 	if (!mc->gpio_cp_off || !mc->gpio_cp_reset) {
 		mif_err("no gpio data\n");
@@ -138,7 +138,7 @@ static int cbp72_reset(struct modem_ctl *mc)
 
 static int cbp72_boot_on(struct modem_ctl *mc)
 {
-	mif_info("\n");
+	mif_err("\n");
 
 	if (!mc->gpio_cp_reset) {
 		mif_err("no gpio data\n");
@@ -164,7 +164,7 @@ static int cbp72_boot_off(struct modem_ctl *mc)
 	mif_debug("\n");
 	/* Wait here until the PHONE is up.
 	 * Waiting as the this called from IOCTL->UM thread */
-	mif_info("Waiting for INT_CMD_PHONE_START\n");
+	mif_err("Waiting for INT_CMD_PHONE_START\n");
 	ret = wait_for_completion_interruptible_timeout(&ld->init_cmpl,
 			DPRAM_INIT_TIMEOUT);
 	if (!ret) {
@@ -173,7 +173,7 @@ static int cbp72_boot_off(struct modem_ctl *mc)
 		return -ENXIO;
 	}
 
-	mif_info("Waiting for INT_CMD_PIF_INIT_DONE\n");
+	mif_err("Waiting for INT_CMD_PIF_INIT_DONE\n");
 	ret = wait_for_completion_interruptible_timeout(&ld->pif_cmpl,
 			PIF_TIMEOUT);
 	if (!ret) {
@@ -244,7 +244,7 @@ int cbp72_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	}
 
 	irq = mc->irq_phone_active;
-	mif_info("PHONE_ACTIVE IRQ# = %d\n", irq);
+	mif_err("PHONE_ACTIVE IRQ# = %d\n", irq);
 
 	flag = IRQF_TRIGGER_HIGH;
 	ret = request_irq(irq, phone_active_handler, flag, "cbp_active", mc);

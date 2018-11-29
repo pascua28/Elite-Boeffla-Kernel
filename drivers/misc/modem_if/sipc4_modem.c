@@ -99,7 +99,7 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev,
 		return NULL;
 	}
 
-	mif_info("%s is created!!!\n", pdata->name);
+	mif_err("%s is created!!!\n", pdata->name);
 
 	return modemctl;
 }
@@ -136,7 +136,7 @@ static struct io_device *create_io_device(struct modem_io_t *io_t,
 		modemctl->iod = iod;
 	if (iod->format == IPC_BOOT) {
 		modemctl->bootd = iod;
-		mif_info("Bood device = %s\n", iod->name);
+		mif_err("Bood device = %s\n", iod->name);
 	}
 
 	/* link between io device and modem shared */
@@ -279,7 +279,7 @@ static int __devinit modem_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, modemctl);
 
-	mif_info("Complete!!!\n");
+	mif_err("Complete!!!\n");
 	return 0;
 
 err_free_modemctl:

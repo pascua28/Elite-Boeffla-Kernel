@@ -73,7 +73,7 @@ bool link_pm_is_connected(struct usb_link_device *usb_ld)
 void link_pm_preactive(struct link_pm_data *pm_data)
 {
 	if (pm_data->root_hub) {
-		mif_info("pre-active\n");
+		mif_err("pre-active\n");
 		pm_data->hub_on_retry_cnt = 0;
 		complete(&pm_data->hub_active);
 		pm_runtime_put_sync(pm_data->root_hub);
@@ -102,7 +102,7 @@ static void link_pm_hub_work(struct work_struct *work)
 
 	/* If kernel if suspend, wait the ehci resume */
 	if (pm_data->dpm_suspending) {
-		mif_info("dpm_suspending\n");
+		mif_err("dpm_suspending\n");
 		start_hub_work(pm_data, 500);
 		return;
 	}
@@ -149,7 +149,7 @@ static void link_pm_hub_work(struct work_struct *work)
 			mif_err("USB Hub resume fail !!!\n");
 			end_hub_work(pm_data);
 		} else {
-			mif_info("hub resumming: %d\n",
+			mif_err("hub resumming: %d\n",
 					pm_data->hub_on_retry_cnt);
 			start_hub_work(pm_data, 200);
 		}
@@ -214,7 +214,7 @@ static long link_pm_ioctl(struct file *file, unsigned int cmd,
 	struct link_pm_data *pm_data = file->private_data;
 	struct usb_link_device *usb_ld = pm_data->usb_ld;
 
-	mif_info("cmd: 0x%08x\n", cmd);
+	mif_err("cmd: 0x%08x\n", cmd);
 
 	switch (cmd) {
 	case IOCTL_LINK_CONTROL_ACTIVE:
@@ -222,7 +222,7 @@ static long link_pm_ioctl(struct file *file, unsigned int cmd,
 							sizeof(int)))
 			return -EFAULT;
 		gpio_set_value(pm_data->gpio_link_active, value);
-		mif_info("> H-ACT %d\n", value);
+		mif_err("> H-ACT %d\n", value);
 		break;
 	case IOCTL_LINK_GET_HOSTWAKE:
 		return !gpio_get_value(pm_data->gpio_link_hostwake);
@@ -283,7 +283,7 @@ static ssize_t store_autosuspend(struct device *dev,
 	struct task_struct *task = get_current();
 	char taskname[TASK_COMM_LEN];
 
-	mif_info("autosuspend: %s: %s(%d)'\n",
+	mif_err("autosuspend: %s: %s(%d)'\n",
 			buf, get_task_comm(taskname, task), task->pid);
 
 	if (!strncmp(buf, "on", 2)) {
