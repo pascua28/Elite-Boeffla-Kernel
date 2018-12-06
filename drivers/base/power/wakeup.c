@@ -376,6 +376,9 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
 
+	if (!strcmp(ws->name, "boot_hsic")) 
+		return;
+
 	ws->active = true;
 	ws->active_count++;
 	ws->last_time = ktime_get();
