@@ -136,15 +136,15 @@ static int netif_flow_ctrl(struct link_device *ld, struct sk_buff *skb)
 			goto exit;
 		ld->suspend_netif_tx = true;
 		mif_netif_stop(ld);
-		mif_err("%s: FLOW_CTRL_SUSPEND\n", ld->name);
+		mif_info("%s: FLOW_CTRL_SUSPEND\n", ld->name);
 	} else if (cmd == FLOW_CTRL_RESUME) {
 		if (!ld->suspend_netif_tx)
 			goto exit;
 		ld->suspend_netif_tx = false;
 		mif_netif_wake(ld);
-		mif_err("%s: FLOW_CTRL_RESUME\n", ld->name);
+		mif_info("%s: FLOW_CTRL_RESUME\n", ld->name);
 	} else {
-		mif_err("%s: ERR! invalid command %02X\n", ld->name, cmd);
+		mif_info("%s: ERR! invalid command %02X\n", ld->name, cmd);
 	}
 
 exit:
@@ -242,7 +242,7 @@ static int rx_fmt_frame(struct sk_buff *skb)
 
 	if (ctrl & 0x80) {
 		/* The last frame has not arrived yet. */
-		mif_err("%s->%s: recv multi-frame (ID:%d rcvd:%d)\n",
+		mif_info("%s->%s: recv multi-frame (ID:%d rcvd:%d)\n",
 			ld->name, iod->name, id, rx_skb->len);
 	} else {
 		/* It is the last frame because the "more" bit is 0. */
@@ -279,7 +279,7 @@ static int rx_multi_pdp(struct sk_buff *skb)
 
 	ndev = iod->ndev;
 	if (!ndev) {
-		mif_err("%s: ERR! no iod->ndev\n", iod->name);
+		mif_info("%s: ERR! no iod->ndev\n", iod->name);
 		return -ENODEV;
 	}
 
@@ -752,7 +752,7 @@ static int io_dev_recv_data_from_link_dev(struct io_device *iod,
 		/* save packet to sk_buff */
 		skb = rx_alloc_skb(len, iod, ld);
 		if (!skb) {
-			mif_err("%s->%s: ERR! rx_alloc_skb fail\n",
+			mif_info("%s->%s: ERR! rx_alloc_skb fail\n",
 				ld->name, iod->name);
 			return -ENOMEM;
 		}
@@ -955,13 +955,13 @@ static void io_dev_modem_state_changed(struct io_device *iod,
 static void io_dev_sim_state_changed(struct io_device *iod, bool sim_online)
 {
 	if (atomic_read(&iod->opened) == 0) {
-		mif_err("%s: ERR! not opened\n", iod->name);
+		mif_info("%s: ERR! not opened\n", iod->name);
 	} else if (iod->mc->sim_state.online == sim_online) {
-		mif_err("%s: SIM state not changed\n", iod->name);
+		mif_info("%s: SIM state not changed\n", iod->name);
 	} else {
 		iod->mc->sim_state.online = sim_online;
 		iod->mc->sim_state.changed = true;
-		mif_err("%s: SIM state changed {online %d, changed %d}\n",
+		mif_info("%s: SIM state changed {online %d, changed %d}\n",
 			iod->name, iod->mc->sim_state.online,
 			iod->mc->sim_state.changed);
 		wake_up(&iod->wq);
@@ -1001,7 +1001,7 @@ static int misc_open(struct inode *inode, struct file *filp)
 	if (iod->format == IPC_BOOT || iod->format == IPC_RAMDUMP)
 		mif_err("%s (opened %d)\n", iod->name, ref_cnt);
 	else
-		mif_err("%s (opened %d)\n", iod->name, ref_cnt);
+		mif_info("%s (opened %d)\n", iod->name, ref_cnt);
 
 	return 0;
 }
@@ -1025,7 +1025,7 @@ static int misc_release(struct inode *inode, struct file *filp)
 	if (iod->format == IPC_BOOT || iod->format == IPC_RAMDUMP)
 		mif_err("%s (opened %d)\n", iod->name, ref_cnt);
 	else
-		mif_err("%s (opened %d)\n", iod->name, ref_cnt);
+		mif_info("%s (opened %d)\n", iod->name, ref_cnt);
 
 	return 0;
 }
@@ -1119,7 +1119,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		p_state = mc->phone_state;
 		if ((p_state == STATE_CRASH_RESET) ||
 		    (p_state == STATE_CRASH_EXIT)) {
-			mif_err("%s: IOCTL_MODEM_STATUS (state %s)\n",
+			mif_info("%s: IOCTL_MODEM_STATUS (state %s)\n",
 				iod->name, get_cp_state_str(p_state));
 		} else if (mc->sim_state.changed) {
 			int s_state = mc->sim_state.online ?
@@ -1127,7 +1127,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			mc->sim_state.changed = false;
 			return s_state;
 		} else if (p_state == STATE_NV_REBUILDING) {
-			mif_err("%s: IOCTL_MODEM_STATUS (state %s)\n",
+			mif_info("%s: IOCTL_MODEM_STATUS (state %s)\n",
 				iod->name, get_cp_state_str(p_state));
 			mc->phone_state = STATE_ONLINE;
 		}
@@ -1135,7 +1135,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_MODEM_XMIT_BOOT:
 		if (ld->xmit_boot) {
-			mif_err("%s: IOCTL_MODEM_XMIT_BOOT\n", iod->name);
+			mif_info("%s: IOCTL_MODEM_XMIT_BOOT\n", iod->name);
 			return ld->xmit_boot(ld, iod, arg);
 		}
 		mif_err("%s: !ld->xmit_boot\n", iod->name);
@@ -1143,7 +1143,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_MODEM_DL_START:
 		if (ld->dload_start) {
-			mif_err("%s: IOCTL_MODEM_DL_START\n", iod->name);
+			mif_info("%s: IOCTL_MODEM_DL_START\n", iod->name);
 			return ld->dload_start(ld, iod);
 		}
 		mif_err("%s: !ld->dload_start\n", iod->name);
@@ -1151,7 +1151,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_MODEM_FW_UPDATE:
 		if (ld->firm_update) {
-			mif_err("%s: IOCTL_MODEM_FW_UPDATE\n", iod->name);
+			mif_info("%s: IOCTL_MODEM_FW_UPDATE\n", iod->name);
 			return ld->firm_update(ld, iod, arg);
 		}
 		mif_err("%s: !ld->firm_update\n", iod->name);
@@ -1168,7 +1168,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_MODEM_DUMP_RESET:
 		if (mc->ops.modem_dump_reset) {
-			mif_err("%s: IOCTL_MODEM_DUMP_RESET\n", iod->name);
+			mif_info("%s: IOCTL_MODEM_DUMP_RESET\n", iod->name);
 			return mc->ops.modem_dump_reset(mc);
 		}
 		mif_err("%s: !mc->ops.modem_dump_reset\n", iod->name);
@@ -1184,7 +1184,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_MODEM_RAMDUMP_START:
 		if (ld->dump_start) {
-			mif_err("%s: IOCTL_MODEM_RAMDUMP_START\n", iod->name);
+			mif_info("%s: IOCTL_MODEM_RAMDUMP_START\n", iod->name);
 			return ld->dump_start(ld, iod);
 		}
 		mif_err("%s: !ld->dump_start\n", iod->name);
@@ -1192,7 +1192,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_MODEM_DUMP_UPDATE:
 		if (ld->dump_update) {
-			mif_err("%s: IOCTL_MODEM_DUMP_UPDATE\n", iod->name);
+			mif_info("%s: IOCTL_MODEM_DUMP_UPDATE\n", iod->name);
 			return ld->dump_update(ld, iod, arg);
 		}
 		mif_err("%s: !ld->dump_update\n", iod->name);
@@ -1200,14 +1200,14 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_MODEM_RAMDUMP_STOP:
 		if (ld->dump_finish) {
-			mif_err("%s: IOCTL_MODEM_RAMDUMP_STOP\n", iod->name);
+			mif_info("%s: IOCTL_MODEM_RAMDUMP_STOP\n", iod->name);
 			return ld->dump_finish(ld, iod, arg);
 		}
 		mif_err("%s: !ld->dump_finish\n", iod->name);
 		return -EINVAL;
 
 	case IOCTL_MODEM_CP_UPLOAD:
-		mif_err("%s: IOCTL_MODEM_CP_UPLOAD\n", iod->name);
+		mif_info("%s: IOCTL_MODEM_CP_UPLOAD\n", iod->name);
 		strcpy(iod->msd->cp_crash_info, CP_CRASH_TAG);
 		if (arg) {
 			buff = iod->msd->cp_crash_info + strlen(CP_CRASH_TAG);
@@ -1219,7 +1219,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	case IOCTL_MODEM_PROTOCOL_SUSPEND:
-		mif_err("%s: IOCTL_MODEM_PROTOCOL_SUSPEND\n", iod->name);
+		mif_info("%s: IOCTL_MODEM_PROTOCOL_SUSPEND\n", iod->name);
 		if (iod->format == IPC_MULTI_RAW) {
 			iodevs_for_each(iod->msd, iodev_netif_stop, 0);
 			return 0;
@@ -1227,7 +1227,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -EINVAL;
 
 	case IOCTL_MODEM_PROTOCOL_RESUME:
-		mif_err("%s: IOCTL_MODEM_PROTOCOL_RESUME\n", iod->name);
+		mif_info("%s: IOCTL_MODEM_PROTOCOL_RESUME\n", iod->name);
 		if (iod->format != IPC_MULTI_RAW) {
 			iodevs_for_each(iod->msd, iodev_netif_wake, 0);
 			return 0;
@@ -1250,7 +1250,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (ld->ioctl)
 			return ld->ioctl(ld, iod, cmd, arg);
 
-		mif_err("%s: ERR! undefined cmd 0x%X\n", iod->name, cmd);
+		mif_info("%s: ERR! undefined cmd 0x%X\n", iod->name, cmd);
 		return -EINVAL;
 	}
 
@@ -1289,7 +1289,7 @@ static ssize_t misc_write(struct file *filp, const char __user *data,
 
 	skb = alloc_skb(tx_bytes, GFP_KERNEL);
 	if (!skb) {
-		mif_err("%s: ERR! alloc_skb fail (tx_bytes:%d)\n",
+		mif_info("%s: ERR! alloc_skb fail (tx_bytes:%d)\n",
 			iod->name, tx_bytes);
 		return -ENOMEM;
 	}
@@ -1342,13 +1342,13 @@ static ssize_t misc_write(struct file *filp, const char __user *data,
 
 	ret = ld->send(ld, iod, skb);
 	if (ret < 0) {
-		mif_err("%s->%s: ERR! ld->send fail (err %d, tx_bytes %d)\n",
+		mif_info("%s->%s: ERR! ld->send fail (err %d, tx_bytes %d)\n",
 			iod->name, ld->name, ret, tx_bytes);
 		return ret;
 	}
 
 	if (ret != tx_bytes) {
-		mif_err("%s->%s: WARNING! ret %d != tx_bytes %d (count %d)\n",
+		mif_info("%s->%s: WARNING! ret %d != tx_bytes %d (count %d)\n",
 			iod->name, ld->name, ret, tx_bytes, count);
 	}
 
@@ -1364,7 +1364,7 @@ static ssize_t misc_read(struct file *filp, char *buf, size_t count,
 	int copied = 0;
 
 	if (skb_queue_empty(rxq)) {
-		mif_err("%s: ERR! no data in rxq\n", iod->name);
+		mif_info("%s: ERR! no data in rxq\n", iod->name);
 		return 0;
 	}
 
@@ -1489,7 +1489,7 @@ static int vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 		/* skb_copy_expand success or not, free old skb from caller */
 		dev_kfree_skb_any(skb);
 		if (!skb_new) {
-			mif_err("%s: ERR! skb_copy_expand fail\n", iod->name);
+			mif_info("%s: ERR! skb_copy_expand fail\n", iod->name);
 			return NETDEV_TX_BUSY;
 		}
 	} else {
@@ -1517,13 +1517,13 @@ static int vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	ret = ld->send(ld, iod, skb_new);
 	if (ret < 0) {
 		netif_stop_queue(ndev);
-		mif_err("%s->%s: ERR! ld->send fail (err %d, tx_bytes %d)\n",
+		mif_info("%s->%s: ERR! ld->send fail (err %d, tx_bytes %d)\n",
 			iod->name, ld->name, ret, tx_bytes);
 		return NETDEV_TX_BUSY;
 	}
 
 	if (ret != tx_bytes) {
-		mif_err("%s->%s: WARNING! ret %d != tx_bytes %d (count %d)\n",
+		mif_info("%s->%s: WARNING! ret %d != tx_bytes %d (count %d)\n",
 			iod->name, ld->name, ret, tx_bytes, count);
 	}
 
@@ -1591,7 +1591,7 @@ int sipc5_init_io_device(struct io_device *iod)
 
 		ret = misc_register(&iod->miscdev);
 		if (ret)
-			mif_err("%s: ERR! misc_register failed\n", iod->name);
+			mif_info("%s: ERR! misc_register failed\n", iod->name);
 
 		break;
 
@@ -1604,13 +1604,13 @@ int sipc5_init_io_device(struct io_device *iod)
 			iod->ndev = alloc_netdev(0, iod->name, vnet_setup);
 
 		if (!iod->ndev) {
-			mif_err("%s: ERR! alloc_netdev fail\n", iod->name);
+			mif_info("%s: ERR! alloc_netdev fail\n", iod->name);
 			return -ENOMEM;
 		}
 
 		ret = register_netdev(iod->ndev);
 		if (ret) {
-			mif_err("%s: ERR! register_netdev fail\n", iod->name);
+			mif_info("%s: ERR! register_netdev fail\n", iod->name);
 			free_netdev(iod->ndev);
 		}
 
@@ -1630,12 +1630,12 @@ int sipc5_init_io_device(struct io_device *iod)
 
 		ret = misc_register(&iod->miscdev);
 		if (ret)
-			mif_err("%s: ERR! misc_register fail\n", iod->name);
+			mif_info("%s: ERR! misc_register fail\n", iod->name);
 
 		ret = device_create_file(iod->miscdev.this_device,
 					&attr_waketime);
 		if (ret)
-			mif_err("%s: ERR! device_create_file fail\n",
+			mif_info("%s: ERR! device_create_file fail\n",
 				iod->name);
 
 		ret = device_create_file(iod->miscdev.this_device,
@@ -1652,7 +1652,7 @@ int sipc5_init_io_device(struct io_device *iod)
 		break;
 
 	default:
-		mif_err("%s: ERR! wrong io_type %d\n", iod->name, iod->io_typ);
+		mif_info("%s: ERR! wrong io_type %d\n", iod->name, iod->io_typ);
 		return -EINVAL;
 	}
 

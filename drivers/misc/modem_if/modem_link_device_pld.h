@@ -52,13 +52,13 @@ static inline struct mif_rxb *rxbq_create_pool(unsigned size, int count)
 
 	rxb = kzalloc(sizeof(struct mif_rxb) * count, GFP_KERNEL);
 	if (!rxb) {
-		mif_err("ERR! kzalloc rxb fail\n");
+		mif_info("ERR! kzalloc rxb fail\n");
 		return NULL;
 	}
 
 	buff = kzalloc((size * count), GFP_KERNEL|GFP_DMA);
 	if (!buff) {
-		mif_err("ERR! kzalloc buff fail\n");
+		mif_info("ERR! kzalloc buff fail\n");
 		kfree(rxb);
 		return NULL;
 	}

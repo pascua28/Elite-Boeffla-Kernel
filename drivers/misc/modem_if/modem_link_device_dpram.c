@@ -357,7 +357,7 @@ static inline void reset_txq_circ(struct dpram_link_device *dpld, int dev)
 	u32 head = get_txq_head(dpld, dev);
 	u32 tail = get_txq_tail(dpld, dev);
 
-	mif_err("%s: %s_TXQ: HEAD[%u] <== TAIL[%u]\n",
+	mif_info("%s: %s_TXQ: HEAD[%u] <== TAIL[%u]\n",
 		ld->name, get_dev_name(dev), head, tail);
 
 	set_txq_head(dpld, dev, tail);
@@ -377,7 +377,7 @@ static inline void reset_rxq_circ(struct dpram_link_device *dpld, int dev)
 	u32 head = get_rxq_head(dpld, dev);
 	u32 tail = get_rxq_tail(dpld, dev);
 
-	mif_err("%s: %s_RXQ: TAIL[%u] <== HEAD[%u]\n",
+	mif_info("%s: %s_RXQ: TAIL[%u] <== HEAD[%u]\n",
 		ld->name, get_dev_name(dev), tail, head);
 
 	set_rxq_tail(dpld, dev, head);
@@ -403,7 +403,7 @@ static int check_magic_access(struct dpram_link_device *dpld)
 
 	/* Retry up to 100 times with 100 us delay per each retry */
 	for (i = 1; i <= 100; i++) {
-		mif_err("%s: magic:%X access:%X -> retry:%d\n",
+		mif_info("%s: magic:%X access:%X -> retry:%d\n",
 			ld->name, magic, access, i);
 		udelay(100);
 
@@ -413,7 +413,7 @@ static int check_magic_access(struct dpram_link_device *dpld)
 			return 0;
 	}
 
-	mif_err("%s: !CRISIS! magic:%X access:%X\n", ld->name, magic, access);
+	mif_info("%s: !CRISIS! magic:%X access:%X\n", ld->name, magic, access);
 	return -EACCES;
 }
 
@@ -830,7 +830,7 @@ static void ext_command_handler(struct dpram_link_device *dpld, u16 cmd)
 		break;
 
 	default:
-		mif_err("%s: unknown command 0x%04X\n", ld->name, cmd);
+		mif_info("%s: unknown command 0x%04X\n", ld->name, cmd);
 		break;
 	}
 }
@@ -974,7 +974,7 @@ static int init_dpram_ipc(struct dpram_link_device *dpld)
 	if (ld->mode == LINK_MODE_IPC &&
 	    get_magic(dpld) == DPRAM_MAGIC_CODE &&
 	    get_access(dpld) == 1)
-		mif_err("%s: IPC already initialized\n", ld->name);
+		mif_info("%s: IPC already initialized\n", ld->name);
 
 	/* Clear pointers in every circular queue */
 	for (i = 0; i < ld->max_ipc_dev; i++) {
@@ -1096,7 +1096,7 @@ static void cmd_handler(struct dpram_link_device *dpld, u16 cmd)
 		break;
 
 	case INT_CMD_NV_REBUILDING:
-		mif_err("%s: NV_REBUILDING\n", ld->name);
+		mif_info("%s: NV_REBUILDING\n", ld->name);
 		break;
 
 	case INT_CMD_PIF_INIT_DONE:
@@ -1104,7 +1104,7 @@ static void cmd_handler(struct dpram_link_device *dpld, u16 cmd)
 		break;
 
 	case INT_CMD_SILENT_NV_REBUILDING:
-		mif_err("%s: SILENT_NV_REBUILDING\n", ld->name);
+		mif_info("%s: SILENT_NV_REBUILDING\n", ld->name);
 		break;
 
 	case INT_CMD_NORMAL_POWER_OFF:
@@ -1118,7 +1118,7 @@ static void cmd_handler(struct dpram_link_device *dpld, u16 cmd)
 		break;
 
 	default:
-		mif_err("%s: unknown command 0x%04X\n", ld->name, cmd);
+		mif_info("%s: unknown command 0x%04X\n", ld->name, cmd);
 	}
 }
 
@@ -1230,7 +1230,7 @@ static int rx_sipc4_frames(struct dpram_link_device *dpld, int dev,
 	/* Allocate an skb */
 	skb = dev_alloc_skb(rcvd);
 	if (!skb) {
-		mif_err("%s: ERR! %s dev_alloc_skb fail\n",
+		mif_info("%s: ERR! %s dev_alloc_skb fail\n",
 			ld->name, get_dev_name(dev));
 		rcvd = -ENOMEM;
 		goto exit;
@@ -1503,7 +1503,7 @@ static void msg_handler(struct dpram_link_device *dpld, struct mem_status *stat)
 		for (i = 0; i < ld->max_ipc_dev; i++) {
 			if (intr & get_mask_res_ack(dpld, i)) {
 #ifdef DEBUG_MODEM_IF
-				mif_err("%s: recv %s_RES_ACK\n",
+				mif_info("%s: recv %s_RES_ACK\n",
 					ld->name, get_dev_name(i));
 				print_circ_status(ld, i, stat);
 #endif
@@ -1555,7 +1555,7 @@ static inline void intr_handler(struct dpram_link_device *dpld,
 	u16 intr = stat->int2ap;
 
 	if (unlikely(intr == INT_POWERSAFE_FAIL)) {
-		mif_err("%s: intr == INT_POWERSAFE_FAIL\n", name);
+		mif_info("%s: intr == INT_POWERSAFE_FAIL\n", name);
 		return;
 	}
 
@@ -1566,7 +1566,7 @@ static inline void intr_handler(struct dpram_link_device *dpld,
 			else if (EXT_CMD_VALID(intr))
 				ext_command_handler(dpld, intr);
 			else
-				mif_err("%s: ERR! invalid intr 0x%04X\n",
+				mif_info("%s: ERR! invalid intr 0x%04X\n",
 					name, intr);
 		} else {
 			mif_err("%s: ERR! invalid intr 0x%04X\n", name, intr);
@@ -1833,7 +1833,7 @@ static int xmit_ipc_msg(struct dpram_link_device *dpld, int dev)
 			/* Take the skb back to the skb_txq */
 			skb_queue_head(txq, skb);
 
-			mif_err("%s: <called by %pf> NOSPC in %s_TXQ"
+			mif_info("%s: <called by %pf> NOSPC in %s_TXQ"
 				"{qsize:%u in:%u out:%u}, free:%u < len:%u\n",
 				ld->name, CALLER, get_dev_name(dev),
 				stat.qsize, stat.in, stat.out, space, skb->len);
@@ -1876,7 +1876,7 @@ static int wait_for_res_ack(struct dpram_link_device *dpld, int dev)
 	u16 mask;
 
 #ifdef DEBUG_MODEM_IF
-	mif_err("%s: send %s_REQ_ACK\n", ld->name, get_dev_name(dev));
+	mif_info("%s: send %s_REQ_ACK\n", ld->name, get_dev_name(dev));
 #endif
 
 	mask = get_mask_req_ack(dpld, dev);
@@ -1885,7 +1885,7 @@ static int wait_for_res_ack(struct dpram_link_device *dpld, int dev)
 	ret = wait_for_completion_interruptible_timeout(cmpl, timeout);
 	/* ret == 0 on timeout, ret < 0 if interrupted */
 	if (ret < 0) {
-		mif_err("%s: %s: wait_for_completion interrupted! (ret %d)\n",
+		mif_info("%s: %s: wait_for_completion interrupted! (ret %d)\n",
 			ld->name, get_dev_name(dev), ret);
 		goto exit;
 	}
@@ -1894,7 +1894,7 @@ static int wait_for_res_ack(struct dpram_link_device *dpld, int dev)
 		struct mem_status mst;
 		get_dpram_status(dpld, TX, &mst);
 
-		mif_err("%s: wait_for_completion TIMEOUT! (no %s_RES_ACK)\n",
+		mif_info("%s: wait_for_completion TIMEOUT! (no %s_RES_ACK)\n",
 			ld->name, get_dev_name(dev));
 
 		/*
@@ -1904,7 +1904,7 @@ static int wait_for_res_ack(struct dpram_link_device *dpld, int dev)
 		if (mst.head[dev][TX] == mst.tail[dev][TX]) {
 			ret = get_txq_buff_size(dpld, dev);
 #ifdef DEBUG_MODEM_IF
-			mif_err("%s: %s_TXQ has been emptied\n",
+			mif_info("%s: %s_TXQ has been emptied\n",
 				ld->name, get_dev_name(dev));
 			print_circ_status(ld, dev, &mst);
 #endif
@@ -2086,7 +2086,7 @@ static int dpram_send_ipc(struct dpram_link_device *dpld, int dev)
 	u16 mask;
 
 	if (atomic_read(&dpld->res_required[dev]) > 0) {
-		mif_err("%s: %s_TXQ is full\n", ld->name, get_dev_name(dev));
+		mif_info("%s: %s_TXQ is full\n", ld->name, get_dev_name(dev));
 		return 0;
 	}
 
@@ -2096,7 +2096,7 @@ static int dpram_send_ipc(struct dpram_link_device *dpld, int dev)
 	}
 
 	if (!ipc_active(dpld)) {
-		mif_err("%s: IPC is NOT active\n", ld->name);
+		mif_info("%s: IPC is NOT active\n", ld->name);
 		ret = -EIO;
 		goto exit;
 	}
@@ -2197,7 +2197,7 @@ static void dpram_try_send_ipc(struct dpram_link_device *dpld, int dev,
 	int ret;
 
 	if (unlikely(txq->qlen >= MAX_SKB_TXQ_DEPTH)) {
-		mif_err("%s: %s txq->qlen %d >= %d\n", ld->name,
+		mif_info("%s: %s txq->qlen %d >= %d\n", ld->name,
 			get_dev_name(dev), txq->qlen, MAX_SKB_TXQ_DEPTH);
 		dev_kfree_skb_any(skb);
 		return;
@@ -2268,7 +2268,7 @@ static int dpram_send(struct link_device *ld, struct io_device *iod,
 		if (likely(ld->mode == LINK_MODE_IPC)) {
 			dpram_try_send_ipc(dpld, dev, iod, skb);
 		} else {
-			mif_err("%s: ld->mode != LINK_MODE_IPC\n", ld->name);
+			mif_info("%s: ld->mode != LINK_MODE_IPC\n", ld->name);
 			dev_kfree_skb_any(skb);
 		}
 		return len;
@@ -2277,7 +2277,7 @@ static int dpram_send(struct link_device *ld, struct io_device *iod,
 		return dpram_send_cp_binary(ld, skb);
 
 	default:
-		mif_err("%s: ERR! no TXQ for %s\n", ld->name, iod->name);
+		mif_info("%s: ERR! no TXQ for %s\n", ld->name, iod->name);
 		dev_kfree_skb_any(skb);
 		return -ENODEV;
 	}
@@ -2362,7 +2362,7 @@ static int dpram_ioctl(struct link_device *ld, struct io_device *iod,
 	struct dpram_link_device *dpld = to_dpram_link_device(ld);
 	int err = 0;
 
-	mif_err("%s: cmd 0x%08X\n", ld->name, cmd);
+	mif_info("%s: cmd 0x%08X\n", ld->name, cmd);
 
 	switch (cmd) {
 	case IOCTL_DPRAM_INIT_STATUS:
@@ -2591,8 +2591,8 @@ struct link_device *dpram_create_link_device(struct platform_device *pdev)
 		mif_err("ERR! modem == NULL\n");
 		goto err;
 	}
-	mif_err("modem = %s\n", modem->name);
-	mif_err("link device = %s\n", modem->link_name);
+	mif_info("modem = %s\n", modem->name);
+	mif_info("link device = %s\n", modem->link_name);
 
 	/*
 	** Retrieve modem data and DPRAM control data from the modem data
@@ -2695,7 +2695,7 @@ struct link_device *dpram_create_link_device(struct platform_device *pdev)
 	dpld->base = dpram->base;
 	dpld->size = dpram->size;
 
-	mif_err("%s: type %d, aligned %d, base 0x%08X, size %d\n",
+	mif_info("%s: type %d, aligned %d, base 0x%08X, size %d\n",
 		ld->name, dpld->type, ld->aligned, (int)dpld->base, dpld->size);
 
 	/*

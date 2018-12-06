@@ -96,15 +96,15 @@ static int pld_register_isr(unsigned irq, irqreturn_t (*isr)(int, void*),
 
 	ret = request_irq(irq, isr, flag, name, pld);
 	if (ret) {
-		mif_err("%s: ERR! request_irq fail (err %d)\n", name, ret);
+		mif_info("%s: ERR! request_irq fail (err %d)\n", name, ret);
 		return ret;
 	}
 
 	ret = enable_irq_wake(irq);
 	if (ret)
-		mif_err("%s: ERR! enable_irq_wake fail (err %d)\n", name, ret);
+		mif_info("%s: ERR! enable_irq_wake fail (err %d)\n", name, ret);
 
-	mif_err("%s (#%d) handler registered\n", name, irq);
+	mif_info("%s (#%d) handler registered\n", name, irq);
 
 	return 0;
 }
@@ -591,7 +591,7 @@ static inline int get_txq_space(struct pld_link_device *pld, int dev, u32 qsize,
 			return space;
 		}
 
-		mif_err("%s: CAUTION! <%pf> "
+		mif_info("%s: CAUTION! <%pf> "
 			"%s_TXQ invalid (size:%d in:%d out:%d)\n",
 			ld->name, __builtin_return_address(0),
 			get_dev_name(dev), qsize, head, tail);
@@ -632,7 +632,7 @@ static inline int get_rxq_rcvd(struct pld_link_device *pld, int dev, u32 qsize,
 		}
 
 		rcvd = (head > tail) ? (head - tail) : (qsize - tail + head);
-		mif_err("%s: %s_RXQ qsize[%u] in[%u] out[%u] rcvd[%u]\n",
+		mif_info("%s: %s_RXQ qsize[%u] in[%u] out[%u] rcvd[%u]\n",
 			ld->name, get_dev_name(dev), qsize, head, tail, rcvd);
 
 		if (circ_valid(qsize, head, tail)) {
@@ -641,7 +641,7 @@ static inline int get_rxq_rcvd(struct pld_link_device *pld, int dev, u32 qsize,
 			return rcvd;
 		}
 
-		mif_err("%s: CAUTION! <%pf> "
+		mif_info("%s: CAUTION! <%pf> "
 			"%s_RXQ invalid (size:%d in:%d out:%d)\n",
 			ld->name, __builtin_return_address(0),
 			get_dev_name(dev), qsize, head, tail);
@@ -673,7 +673,7 @@ static int check_access(struct pld_link_device *pld)
 		return 0;
 
 	for (i = 1; i <= 100; i++) {
-		mif_err("%s: ERR! magic:%X access:%X -> retry:%d\n",
+		mif_info("%s: ERR! magic:%X access:%X -> retry:%d\n",
 			ld->name, magic, access, i);
 		udelay(100);
 
@@ -683,7 +683,7 @@ static int check_access(struct pld_link_device *pld)
 			return 0;
 	}
 
-	mif_err("%s: !CRISIS! magic:%X access:%X\n", ld->name, magic, access);
+	mif_info("%s: !CRISIS! magic:%X access:%X\n", ld->name, magic, access);
 	return -EACCES;
 }
 
@@ -693,13 +693,13 @@ static bool ipc_active(struct pld_link_device *pld)
 
 	/* Check DPRAM mode */
 	if (ld->mode != LINK_MODE_IPC) {
-		mif_err("%s: <%pf> ld->mode != LINK_MODE_IPC\n",
+		mif_info("%s: <%pf> ld->mode != LINK_MODE_IPC\n",
 			ld->name, __builtin_return_address(0));
 		return false;
 	}
 
 	if (check_access(pld) < 0) {
-		mif_err("%s: ERR! <%pf> check_access fail\n",
+		mif_info("%s: ERR! <%pf> check_access fail\n",
 			ld->name, __builtin_return_address(0));
 		return false;
 	}
@@ -784,7 +784,7 @@ static int pld_try_ipc_tx(struct pld_link_device *pld, int dev)
 			atomic_set(&pld->res_required[dev], 1);
 			skb_queue_head(txq, skb);
 			spin_unlock_irqrestore(&pld->tx_rx_lock, flags);
-			mif_err("%s: %s "
+			mif_info("%s: %s "
 				"qsize[%u] in[%u] out[%u] free[%u] < len[%u]\n",
 				ld->name, get_dev_name(dev),
 				qsize, in, out, space, skb->len);
@@ -853,7 +853,7 @@ static void pld_ipc_read(struct pld_link_device *pld, int dev, u8 *dst,
 
 	spin_unlock_irqrestore(&pld->pld_lock, flags);
 	if (pld->ld.mode == LINK_MODE_IPC && ori_det[0] != 0x7F)	{
-		mif_err("ipc read error!! in[%d], out[%d]\n",
+		mif_info("ipc read error!! in[%d], out[%d]\n",
 					get_rx_head(pld, dev),
 					get_rx_tail(pld, dev));
 	}
@@ -893,7 +893,7 @@ static int pld_ipc_recv_data_with_rxb(struct pld_link_device *pld, int dev)
 	/* Allocate an rxb */
 	rxb = rxbq_get_free_rxb(&pld->rxbq[dev]);
 	if (!rxb) {
-		mif_err("%s: ERR! %s rxbq_get_free_rxb fail\n",
+		mif_info("%s: ERR! %s rxbq_get_free_rxb fail\n",
 			ld->name, get_dev_name(dev));
 		spin_unlock_irqrestore(&pld->tx_rx_lock, flags);
 		return -ENOMEM;
@@ -965,7 +965,7 @@ static void handle_cp_crash(struct pld_link_device *pld)
 	int i;
 
 	for (i = 0; i < ld->max_ipc_dev; i++) {
-		mif_err("%s: purging %s_skb_txq\b", ld->name, get_dev_name(i));
+		mif_info("%s: purging %s_skb_txq\b", ld->name, get_dev_name(i));
 		skb_queue_purge(ld->skb_txq[i]);
 	}
 
@@ -1021,7 +1021,7 @@ static int pld_init_ipc(struct pld_link_device *pld)
 	if (ld->mode == LINK_MODE_IPC &&
 	    get_magic(pld) == DPRAM_MAGIC_CODE &&
 	    get_access(pld) == 1)
-		mif_err("%s: IPC already initialized\n", ld->name);
+		mif_info("%s: IPC already initialized\n", ld->name);
 
 	/* Clear pointers in every circular queue */
 	for (i = 0; i < ld->max_ipc_dev; i++) {
@@ -1105,13 +1105,13 @@ static void cmd_phone_start_handler(struct pld_link_device *pld)
 	struct link_device *ld = &pld->ld;
 	struct io_device *iod = NULL;
 
-	mif_err("%s: Recv 0xC8 (CP_START)\n", ld->name);
+	mif_info("%s: Recv 0xC8 (CP_START)\n", ld->name);
 
 	pld_init_ipc(pld);
 
 	iod = link_get_iod_with_format(ld, IPC_FMT);
 	if (!iod) {
-		mif_err("%s: ERR! no iod\n", ld->name);
+		mif_info("%s: ERR! no iod\n", ld->name);
 		return;
 	}
 
@@ -1119,12 +1119,12 @@ static void cmd_phone_start_handler(struct pld_link_device *pld)
 		pld->ext_op->cp_start_handler(pld);
 
 	if (ld->mc->phone_state != STATE_ONLINE) {
-		mif_err("%s: phone_state: %d -> ONLINE\n",
+		mif_info("%s: phone_state: %d -> ONLINE\n",
 			ld->name, ld->mc->phone_state);
 		iod->modem_state_changed(iod, STATE_ONLINE);
 	}
 
-	mif_err("%s: Send 0xC2 (INIT_END)\n", ld->name);
+	mif_info("%s: Send 0xC2 (INIT_END)\n", ld->name);
 	send_intr(pld, INT_CMD(INT_CMD_INIT_END));
 }
 
@@ -1154,7 +1154,7 @@ static void command_handler(struct pld_link_device *pld, u16 cmd)
 		break;
 
 	case INT_CMD_NV_REBUILDING:
-		mif_err("%s: NV_REBUILDING\n", ld->name);
+		mif_info("%s: NV_REBUILDING\n", ld->name);
 		break;
 
 	case INT_CMD_PIF_INIT_DONE:
@@ -1162,7 +1162,7 @@ static void command_handler(struct pld_link_device *pld, u16 cmd)
 		break;
 
 	case INT_CMD_SILENT_NV_REBUILDING:
-		mif_err("%s: SILENT_NV_REBUILDING\n", ld->name);
+		mif_info("%s: SILENT_NV_REBUILDING\n", ld->name);
 		break;
 
 	case INT_CMD_NORMAL_POWER_OFF:
@@ -1176,7 +1176,7 @@ static void command_handler(struct pld_link_device *pld, u16 cmd)
 		break;
 
 	default:
-		mif_err("%s: unknown command 0x%04X\n", ld->name, cmd);
+		mif_info("%s: unknown command 0x%04X\n", ld->name, cmd);
 	}
 }
 
@@ -1192,7 +1192,7 @@ static irqreturn_t pld_irq_handler(int irq, void *data)
 	int2ap = recv_intr(pld);
 
 	if (unlikely(int2ap == INT_POWERSAFE_FAIL)) {
-		mif_err("%s: int2ap == INT_POWERSAFE_FAIL\n", ld->name);
+		mif_info("%s: int2ap == INT_POWERSAFE_FAIL\n", ld->name);
 		goto exit;
 	} else if (int2ap == 0x1234 || int2ap == 0xDBAB || int2ap == 0xABCD) {
 		if (pld->ext_op && pld->ext_op->dload_cmd_handler) {
@@ -1207,7 +1207,7 @@ static irqreturn_t pld_irq_handler(int irq, void *data)
 		else
 			non_command_handler(pld, int2ap);
 	} else {
-		mif_err("%s: ERR! invalid intr 0x%04X\n",
+		mif_info("%s: ERR! invalid intr 0x%04X\n",
 			ld->name, int2ap);
 	}
 
@@ -1245,9 +1245,9 @@ static void pld_send_ipc(struct link_device *ld, int dev,
 	} else if (ret == -ENOSPC) {
 		mask = get_mask_req_ack(pld, dev);
 		send_intr(pld, INT_NON_CMD(mask));
-		mif_err("%s: Send REQ_ACK 0x%04X\n", ld->name, mask);
+		mif_info("%s: Send REQ_ACK 0x%04X\n", ld->name, mask);
 	} else {
-		mif_err("%s: pld_try_ipc_tx fail (err %d)\n", ld->name, ret);
+		mif_info("%s: pld_try_ipc_tx fail (err %d)\n", ld->name, ret);
 	}
 
 exit:
@@ -1267,13 +1267,13 @@ static int pld_send(struct link_device *ld, struct io_device *iod,
 		if (likely(ld->mode == LINK_MODE_IPC)) {
 			pld_send_ipc(ld, dev, iod, skb);
 		} else {
-			mif_err("%s: ld->mode != LINK_MODE_IPC\n", ld->name);
+			mif_info("%s: ld->mode != LINK_MODE_IPC\n", ld->name);
 			dev_kfree_skb_any(skb);
 		}
 		return len;
 
 	default:
-		mif_err("%s: ERR! no TXQ for %s\n", ld->name, iod->name);
+		mif_info("%s: ERR! no TXQ for %s\n", ld->name, iod->name);
 		dev_kfree_skb_any(skb);
 		return -ENODEV;
 	}
@@ -1314,7 +1314,7 @@ static int pld_ioctl(struct link_device *ld, struct io_device *iod,
 	int err = 0;
 
 /*
-	mif_err("%s: cmd 0x%08X\n", ld->name, cmd);
+	mif_info("%s: cmd 0x%08X\n", ld->name, cmd);
 */
 
 	switch (cmd) {
@@ -1343,7 +1343,7 @@ static int pld_table_init(struct pld_link_device *pld)
 	int i;
 
 	if (!pld->base) {
-		mif_err("%s: ERR! pld->base == NULL\n", ld->name);
+		mif_info("%s: ERR! pld->base == NULL\n", ld->name);
 		return -EINVAL;
 	}
 	dp_base = pld->base;
@@ -1448,14 +1448,14 @@ struct link_device *pld_create_link_device(struct platform_device *pdev)
 	/* Get the platform data */
 	mdm_data = (struct modem_data *)pdev->dev.platform_data;
 	if (!mdm_data) {
-		mif_err("ERR! mdm_data == NULL\n");
+		mif_info("ERR! mdm_data == NULL\n");
 		goto err;
 	}
-	mif_err("modem = %s\n", mdm_data->name);
-	mif_err("link device = %s\n", mdm_data->link_name);
+	mif_info("modem = %s\n", mdm_data->name);
+	mif_info("link device = %s\n", mdm_data->link_name);
 
 	if (!mdm_data->dpram) {
-		mif_err("ERR! no mdm_data->dpram\n");
+		mif_info("ERR! no mdm_data->dpram\n");
 		goto err;
 	}
 	dpram = mdm_data->dpram;
@@ -1463,7 +1463,7 @@ struct link_device *pld_create_link_device(struct platform_device *pdev)
 	/* Alloc DPRAM link device structure */
 	pld = kzalloc(sizeof(struct pld_link_device), GFP_KERNEL);
 	if (!pld) {
-		mif_err("ERR! kzalloc pld fail\n");
+		mif_info("ERR! kzalloc pld fail\n");
 		goto err;
 	}
 	ld = &pld->ld;
@@ -1479,7 +1479,7 @@ struct link_device *pld_create_link_device(struct platform_device *pdev)
 
 	if (mdm_data->ipc_version < SIPC_VER_50) {
 		if (!mdm_data->max_ipc_dev) {
-			mif_err("ERR! no max_ipc_dev\n");
+			mif_info("ERR! no max_ipc_dev\n");
 			goto err;
 		}
 
@@ -1518,7 +1518,7 @@ struct link_device *pld_create_link_device(struct platform_device *pdev)
 	if (!dpram->base) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!res) {
-			mif_err("%s: ERR! platform_get_resource fail\n",
+			mif_info("%s: ERR! platform_get_resource fail\n",
 				ld->name);
 			goto err;
 		}
@@ -1530,13 +1530,13 @@ struct link_device *pld_create_link_device(struct platform_device *pdev)
 	pld->base = dpram->base;
 	pld->size = dpram->size;
 
-	mif_err("%s: type %d, aligned %d, base 0x%08X, size %d\n",
+	mif_info("%s: type %d, aligned %d, base 0x%08X, size %d\n",
 		ld->name, pld->type, ld->aligned, (int)pld->base, pld->size);
 
 	/* Initialize DPRAM map (physical map -> logical map) */
 	ret = pld_table_init(pld);
 	if (ret < 0) {
-		mif_err("%s: ERR! pld_table_init fail (err %d)\n",
+		mif_info("%s: ERR! pld_table_init fail (err %d)\n",
 			ld->name, ret);
 		goto err;
 	}
@@ -1572,18 +1572,18 @@ struct link_device *pld_create_link_device(struct platform_device *pdev)
 		pld->rxbq[i].out = 0;
 		pld->rxbq[i].rxb = rxbq_create_pool(bsize, qsize);
 		if (!pld->rxbq[i].rxb) {
-			mif_err("%s: ERR! %s rxbq_create_pool fail\n",
+			mif_info("%s: ERR! %s rxbq_create_pool fail\n",
 				ld->name, get_dev_name(i));
 			goto err;
 		}
-		mif_err("%s: %s rxbq_pool created (bsize:%d, qsize:%d)\n",
+		mif_info("%s: %s rxbq_pool created (bsize:%d, qsize:%d)\n",
 			ld->name, get_dev_name(i), bsize, qsize);
 	}
 
 	/* Prepare a multi-purpose miscellaneous buffer */
 	pld->buff = kzalloc(pld->size, GFP_KERNEL);
 	if (!pld->buff) {
-		mif_err("%s: ERR! kzalloc pld->buff fail\n", ld->name);
+		mif_info("%s: ERR! kzalloc pld->buff fail\n", ld->name);
 		goto err;
 	}
 

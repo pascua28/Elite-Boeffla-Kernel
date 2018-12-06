@@ -31,7 +31,7 @@
 #endif
 static int xmm6262_on(struct modem_ctl *mc)
 {
-	mif_err("\n");
+	mif_info("\n");
 
 	if (!mc->gpio_cp_reset || !mc->gpio_cp_on || !mc->gpio_reset_req_n) {
 		mif_err("no gpio data\n");
@@ -74,7 +74,7 @@ static int xmm6262_on(struct modem_ctl *mc)
 
 static int xmm6262_off(struct modem_ctl *mc)
 {
-	mif_err("\n");
+	mif_info("\n");
 
 	if (!mc->gpio_cp_reset || !mc->gpio_cp_on) {
 		mif_err("no gpio data\n");
@@ -89,7 +89,7 @@ static int xmm6262_off(struct modem_ctl *mc)
 
 static int xmm6262_reset(struct modem_ctl *mc)
 {
-	mif_err("\n");
+	mif_info("\n");
 
 	if (!mc->gpio_cp_reset || !mc->gpio_reset_req_n)
 		return -ENXIO;
@@ -126,13 +126,13 @@ static int xmm6262_reset(struct modem_ctl *mc)
 
 static int xmm6262_force_crash_exit(struct modem_ctl *mc)
 {
-	mif_err("\n");
+	mif_info("\n");
 
 	if (!mc->gpio_ap_dump_int)
 		return -ENXIO;
 	
 	gpio_set_value(mc->gpio_ap_dump_int, 1);
-	mif_err("set ap_dump_int(%d) to high=%d\n",
+	mif_info("set ap_dump_int(%d) to high=%d\n",
 		mc->gpio_ap_dump_int, gpio_get_value(mc->gpio_ap_dump_int));
 	return 0;
 }
@@ -158,7 +158,7 @@ static irqreturn_t phone_active_irq_handler(int irq, void *_mc)
 	phone_active_value = gpio_get_value(mc->gpio_phone_active);
 	cp_dump_value = gpio_get_value(mc->gpio_cp_dump_int);
 
-	mif_err("PA EVENT : reset =%d, pa=%d, cp_dump=%d\n",
+	mif_info("PA EVENT : reset =%d, pa=%d, cp_dump=%d\n",
 				phone_reset, phone_active_value, cp_dump_value);
 
 	if (phone_reset && phone_active_value) {
@@ -196,7 +196,7 @@ static irqreturn_t phone_active_irq_handler(int irq, void *_mc)
 static void mif_sim_detect_complete(struct modem_ctl *mc)
 {
 	if (mc->sim_shutdown_req) {
-		mif_err("fake shutdown sim changed shutdown\n");
+		mif_info("fake shutdown sim changed shutdown\n");
 		kernel_power_off();
 		/*kernel_restart(NULL);*/
 		mc->sim_shutdown_req = false;
@@ -233,7 +233,7 @@ static irqreturn_t sim_detect_irq_handler(int irq, void *_mc)
 	static int prev_val;
 
 	if (mc->phone_state == STATE_BOOTING) {
-		mif_err("BOOTING, reset unchange\n");
+		mif_info("BOOTING, reset unchange\n");
 		unchange = 0;
 	}
 

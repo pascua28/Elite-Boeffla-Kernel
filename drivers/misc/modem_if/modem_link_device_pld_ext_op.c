@@ -125,7 +125,7 @@ static void _qc_do_download(struct pld_link_device *pld,
 
 		pld->send_intr(pld, 0xDB12);
 	} else {
-		mif_err("param->size %d\n", param->size);
+		mif_info("param->size %d\n", param->size);
 	}
 }
 
@@ -245,7 +245,7 @@ static void qc_dload_cmd_handler(struct pld_link_device *pld, u16 cmd)
 		break;
 
 	case 0xABCD:
-		mif_err("[%s] booting Start\n", pld->ld.name);
+		mif_info("[%s] booting Start\n", pld->ld.name);
 		pld->qc_udl_check.boot_complete = 1;
 		break;
 
@@ -314,7 +314,7 @@ static void qc_start_handler(struct pld_link_device *pld)
 	pld->boot_start_complete = 1;
 
 	/* Send INIT_END code to CP */
-	mif_err("send 0x%04X (INIT_END)\n", mask);
+	mif_info("send 0x%04X (INIT_END)\n", mask);
 
 	pld->send_intr(pld, mask);
 }
@@ -328,8 +328,8 @@ static void qc_crash_log(struct pld_link_device *pld)
 	data = pld->get_rx_buff(pld, IPC_FMT);
 	memcpy(buf, data, (sizeof(buf) - 1));
 
-	mif_err("PHONE ERR MSG\t| %s Crash\n", ld->mdm_data->name);
-	mif_err("PHONE ERR MSG\t| %s\n", buf);
+	mif_info("PHONE ERR MSG\t| %s Crash\n", ld->mdm_data->name);
+	mif_info("PHONE ERR MSG\t| %s\n", buf);
 }
 
 static int _qc_data_upload(struct pld_link_device *pld,
@@ -390,18 +390,18 @@ static int qc_uload_step1(struct pld_link_device *pld)
 
 	qc_dload_map(pld, 1);
 
-	mif_err("+---------------------------------------------+\n");
-	mif_err("|            UPLOAD PHONE SDRAM               |\n");
-	mif_err("+---------------------------------------------+\n");
+	mif_info("+---------------------------------------------+\n");
+	mif_info("|            UPLOAD PHONE SDRAM               |\n");
+	mif_info("+---------------------------------------------+\n");
 
 	while (1) {
 		if (!gpio_get_value(pld->gpio_ipc_int2ap)) {
 			intval = pld->recv_intr(pld);
-			mif_err("intr 0x%04x\n", intval);
+			mif_info("intr 0x%04x\n", intval);
 			if (intval == 0x1234) {
 				break;
 			} else {
-				mif_err("ERR! invalid intr\n");
+				mif_info("ERR! invalid intr\n");
 				return -1;
 			}
 		}
@@ -411,7 +411,7 @@ static int qc_uload_step1(struct pld_link_device *pld)
 		count++;
 		if (count > 200) {
 			intval = pld->recv_intr(pld);
-			mif_err("count %d, intr 0x%04x\n", count, intval);
+			mif_info("count %d, intr 0x%04x\n", count, intval);
 			if (intval == 0x1234)
 				break;
 			return -1;
@@ -442,11 +442,11 @@ static int qc_uload_step2(struct pld_link_device *pld, void *arg)
 	}
 
 	if (!(param.count % 500))
-		mif_err("param->count = %d\n", param.count);
+		mif_info("param->count = %d\n", param.count);
 
 	if (param.tag == 4) {
 		enable_irq(pld->irq);
-		mif_err("param->tag = %d\n", param.tag);
+		mif_info("param->tag = %d\n", param.tag);
 	}
 
 	retval = copy_to_user((unsigned long *)arg, &param, sizeof(param));
@@ -468,31 +468,31 @@ static int qc_ioctl(struct pld_link_device *pld, struct io_device *iod,
 	case IOCTL_DPRAM_PHONE_POWON:
 		err = qc_prepare_download(pld);
 		if (err < 0)
-			mif_err("%s: ERR! prepare_download fail\n", ld->name);
+			mif_info("%s: ERR! prepare_download fail\n", ld->name);
 		break;
 
 	case IOCTL_DPRAM_PHONEIMG_LOAD:
 		err = qc_download_bin(pld, (void *)arg);
 		if (err < 0)
-			mif_err("%s: ERR! download_bin fail\n", ld->name);
+			mif_info("%s: ERR! download_bin fail\n", ld->name);
 		break;
 
 	case IOCTL_DPRAM_NVDATA_LOAD:
 		err = qc_download_nv(pld, (void *)arg);
 		if (err < 0)
-			mif_err("%s: ERR! download_nv fail\n", ld->name);
+			mif_info("%s: ERR! download_nv fail\n", ld->name);
 		break;
 
 	case IOCTL_DPRAM_PHONE_BOOTSTART:
 		err = qc_boot_start(pld);
 		if (err < 0) {
-			mif_err("%s: ERR! boot_start fail\n", ld->name);
+			mif_info("%s: ERR! boot_start fail\n", ld->name);
 			break;
 		}
 
 		err = qc_boot_post_process(pld);
 		if (err < 0)
-			mif_err("%s: ERR! boot_post_process fail\n", ld->name);
+			mif_info("%s: ERR! boot_post_process fail\n", ld->name);
 
 		break;
 
@@ -501,7 +501,7 @@ static int qc_ioctl(struct pld_link_device *pld, struct io_device *iod,
 		err = qc_uload_step1(pld);
 		if (err < 0) {
 			enable_irq(pld->irq);
-			mif_err("%s: ERR! upload_step1 fail\n", ld->name);
+			mif_info("%s: ERR! upload_step1 fail\n", ld->name);
 		}
 		break;
 
@@ -509,7 +509,7 @@ static int qc_ioctl(struct pld_link_device *pld, struct io_device *iod,
 		err = qc_uload_step2(pld, (void *)arg);
 		if (err < 0) {
 			enable_irq(pld->irq);
-			mif_err("%s: ERR! upload_step2 fail\n", ld->name);
+			mif_info("%s: ERR! upload_step2 fail\n", ld->name);
 		}
 		break;
 

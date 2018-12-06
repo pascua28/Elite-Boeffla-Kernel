@@ -405,7 +405,7 @@ static int rx_multi_fmt_frame(struct sk_buff *rx_skb)
 			iod->skb[id] = skb;
 
 			fh = (struct fmt_hdr *)data;
-			mif_err("Start multi-frame (ID %d, len %d)",
+			mif_info("Start multi-frame (ID %d, len %d)",
 				id, fh->len);
 		}
 	}
@@ -417,15 +417,15 @@ static int rx_multi_fmt_frame(struct sk_buff *rx_skb)
 
 	if (fh->control & 0x80) {
 		/* The last frame has not arrived yet. */
-		mif_err("Receiving (ID %d, %d bytes)\n",
+		mif_info("Receiving (ID %d, %d bytes)\n",
 			id, skb->len);
 	} else {
 		/* It is the last frame because the "more" bit is 0. */
-		mif_err("The Last (ID %d, %d bytes received)\n",
+		mif_info("The Last (ID %d, %d bytes received)\n",
 			id, skb->len);
 		skb_queue_tail(&iod->sk_rx_q, skb);
 		iod->skb[id] = NULL;
-		mif_err("wake up wq of %s\n", iod->name);
+		mif_info("wake up wq of %s\n", iod->name);
 		wake_up(&iod->wq);
 	}
 
@@ -494,7 +494,7 @@ static int rx_multi_fmt_frame_sipc42(struct sk_buff *rx_skb)
 			id, skb->len);
 		skb_queue_tail(&real_iod->sk_rx_q, skb);
 		real_iod->skb[id] = NULL;
-		mif_err("wake up wq of %s\n", real_iod->name);
+		mif_info("wake up wq of %s\n", real_iod->name);
 		wake_up(&real_iod->wq);
 	}
 
@@ -828,7 +828,7 @@ static int io_dev_recv_data_from_link_dev(struct io_device *iod,
 			return len;
 		}
 		/* 32KB page alloc fail case, alloc 3.5K a page.. */
-		mif_err("(%d)page fail, alloc fragment pages\n", len);
+		mif_info("(%d)page fail, alloc fragment pages\n", len);
 
 		rest_len = len;
 		cur = (char *)data;
@@ -1038,17 +1038,17 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 					STATE_SIM_ATTACH : STATE_SIM_DETACH;
 			iod->mc->sim_state.changed = false;
 
-			mif_err("SIM states (%d) to %s\n", s_state, str);
+			mif_info("SIM states (%d) to %s\n", s_state, str);
 			return s_state;
 		} else if (p_state == STATE_NV_REBUILDING) {
-			mif_err("send nv rebuild state : %d\n",
+			mif_info("send nv rebuild state : %d\n",
 				p_state);
 			iod->mc->phone_state = STATE_ONLINE;
 		}
 		return p_state;
 
 	case IOCTL_MODEM_PROTOCOL_SUSPEND:
-		mif_err("%s: IOCTL_MODEM_PROTOCOL_SUSPEND\n", iod->name);
+		mif_info("%s: IOCTL_MODEM_PROTOCOL_SUSPEND\n", iod->name);
 
 		if (iod->format != IPC_MULTI_RAW)
 			return -EINVAL;
@@ -1057,15 +1057,15 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	case IOCTL_MODEM_DL_START:
-		mif_err("%s: IOCTL_MODEM_DL_START\n", iod->name);
+		mif_info("%s: IOCTL_MODEM_DL_START\n", iod->name);
 		return ld->dload_start(ld, iod);
 
 	case IOCTL_MODEM_FW_UPDATE:
-		mif_err("%s: IOCTL_MODEM_FW_UPDATE\n", iod->name);
+		mif_info("%s: IOCTL_MODEM_FW_UPDATE\n", iod->name);
 		return ld->firm_update(ld, iod, arg);
 
 	case IOCTL_MODEM_PROTOCOL_RESUME:
-		mif_err("%s: IOCTL_MODEM_PROTOCOL_RESUME\n", iod->name);
+		mif_info("%s: IOCTL_MODEM_PROTOCOL_RESUME\n", iod->name);
 
 		if (iod->format != IPC_MULTI_RAW)
 			return -EINVAL;
@@ -1086,7 +1086,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return ld->dump_update(ld, iod, arg);
 
 	case IOCTL_MODEM_RAMDUMP_STOP:
-		mif_err("%s: IOCTL_MODEM_RAMDUMP_STOP\n", iod->name);
+		mif_info("%s: IOCTL_MODEM_RAMDUMP_STOP\n", iod->name);
 		return ld->dump_finish(ld, iod, arg);
 
 	case IOCTL_MODEM_FORCE_CRASH_EXIT:
@@ -1198,7 +1198,7 @@ static ssize_t misc_write(struct file *filp, const char __user *buf,
 	skb = alloc_skb(frame_len, GFP_KERNEL);
 	if (!skb) {
 		if (frame_len > MAX_BOOTDATA_SIZE && iod->format == IPC_BOOT) {
-			mif_err("large alloc fail\n");
+			mif_info("large alloc fail\n");
 			return _boot_write(iod, buf, count);
 		}
 		mif_err("fail alloc skb (%d)\n", __LINE__);
@@ -1263,7 +1263,7 @@ static ssize_t misc_write(struct file *filp, const char __user *buf,
 
 	/* Temporaly enable t he RFS log for debugging IPC RX pedding issue */
 	if (iod->format == IPC_RFS)
-		mif_err("write rfs size = %d\n", count);
+		mif_info("write rfs size = %d\n", count);
 
 	return count;
 }
@@ -1301,7 +1301,7 @@ static ssize_t misc_read(struct file *filp, char *buf, size_t count,
 				cur += rest_len;
 				skb_pull(skb, rest_len);
 				if (skb->len) {
-					mif_err("queue-head, skb->len = %d\n",
+					mif_info("queue-head, skb->len = %d\n",
 						skb->len);
 					skb_queue_head(&iod->sk_rx_q, skb);
 				}

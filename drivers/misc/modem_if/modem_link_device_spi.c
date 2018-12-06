@@ -1459,14 +1459,14 @@ static int link_pm_notifier_event(struct notifier_block *this,
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		/* set TD PDA Active High if previous state was LPA */
-		mif_err("TD PDA active low to LPA suspend spot\n");
+		mif_info("TD PDA active low to LPA suspend spot\n");
 		gpio_set_value(iod->mc->gpio_pda_active, 0);
 
 		return NOTIFY_OK;
 	case PM_POST_SUSPEND:
 		/* LPA to Kernel suspend and User Freezing task fail resume,
 		restore to LPA GPIO states. */
-		mif_err("TD PDA active High to LPA GPIO state\n");
+		mif_info("TD PDA active High to LPA GPIO state\n");
 		gpio_set_value(iod->mc->gpio_pda_active, 1);
 		return NOTIFY_OK;
 	}

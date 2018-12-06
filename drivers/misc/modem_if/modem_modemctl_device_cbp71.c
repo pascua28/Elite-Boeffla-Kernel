@@ -37,7 +37,7 @@ static int cbp71_on(struct modem_ctl *mc)
 	struct link_device *ld = get_current_link(mc->iod);
 	struct dpram_link_device *dpram_ld = to_dpram_link_device(ld);
 
-	mif_err("cbp71_on()\n");
+	mif_info("cbp71_on()\n");
 
 	if (!mc->gpio_cp_off || !mc->gpio_cp_reset) {
 		mif_err("no gpio data\n");
@@ -181,7 +181,7 @@ static irqreturn_t phone_active_irq_handler(int irq, void *_mc)
 	else
 		irq_set_irq_type(mc->irq_phone_active, IRQ_TYPE_LEVEL_HIGH);
 
-	mif_err("phone_active_irq_handler : phone_state=%d\n", phone_state);
+	mif_info("phone_active_irq_handler : phone_state=%d\n", phone_state);
 
 	return IRQ_HANDLED;
 }

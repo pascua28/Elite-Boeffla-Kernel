@@ -66,11 +66,11 @@ static long modem_net_flowcontrol_device_ioctl(
 	switch (cmd) {
 	case IOCTL_MODEM_NET_SUSPEND:
 		netif_stop_queue(ndev);
-		mif_err("NET SUSPEND(%s)\n", dev_name);
+		mif_info("NET SUSPEND(%s)\n", dev_name);
 		break;
 	case IOCTL_MODEM_NET_RESUME:
 		netif_wake_queue(ndev);
-		mif_err("NET RESUME(%s)\n", dev_name);
+		mif_info("NET RESUME(%s)\n", dev_name);
 		break;
 	default:
 		return -EINVAL;
