@@ -64,6 +64,7 @@ static void battery_error_control(struct battery_info *info);
 
 /* Get LP charging mode state */
 unsigned int lpcharge;
+#if defined(CONFIG_MACH_M0)
 static int battery_get_lpm_state(char *str)
 {
 	if (strncmp(str, "1", 1) == 0)
@@ -75,6 +76,7 @@ static int battery_get_lpm_state(char *str)
 }
 __setup("lpcharge=", battery_get_lpm_state);
 
+#else
 /* For KitKat bootloader compatibility */
 static int bootloader_get_lpm_state(char *str)
 {
@@ -86,6 +88,7 @@ static int bootloader_get_lpm_state(char *str)
 	return lpcharge;
 }
 __setup("androidboot.mode=", bootloader_get_lpm_state);
+#endif
 EXPORT_SYMBOL(lpcharge);
 
 /* Cable type from charger or adc */
