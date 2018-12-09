@@ -528,10 +528,8 @@ static ssize_t proximity_enable_store(struct device *dev,
 #endif
 
 		enable_irq(cm36651->irq);
-		enable_irq_wake(cm36651->irq);
 	} else if (!new_value && (cm36651->power_state & PROXIMITY_ENABLED)) {
 		cm36651->power_state &= ~PROXIMITY_ENABLED;
-		disable_irq_wake(cm36651->irq);
 		disable_irq(cm36651->irq);
 		/* disable settings */
 		cm36651_i2c_write_byte(cm36651, CM36651_PS, PS_CONF1,
@@ -1278,8 +1276,7 @@ static int cm36651_i2c_remove(struct i2c_client *client)
 	struct cm36651_data *cm36651 = i2c_get_clientdata(client);
 
 	/* free irq */
-	if (cm36651->power_state & PROXIMITY_ENABLED) {
-		disable_irq_wake(cm36651->irq);
+	if (cm36651->power_state & PROXIMITY_ENABLED) {;
 		disable_irq(cm36651->irq);
 	}
 	free_irq(cm36651->irq, cm36651);
