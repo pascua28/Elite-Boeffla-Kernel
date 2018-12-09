@@ -1348,7 +1348,7 @@ static void max77693_softreg_work(struct work_struct *work)
 		cancel_delayed_work(&chg_data->update_work);
 
 		/* schedule softreg wq */
-		wake_lock(&chg_data->softreg_wake_lock);
+		//wake_lock(&chg_data->softreg_wake_lock);
 		schedule_delayed_work(&chg_data->softreg_work,
 				msecs_to_jiffies(SW_REG_STEP_DELAY));
 	} else {
@@ -1533,7 +1533,7 @@ static irqreturn_t max77693_bypass_irq(int irq, void *data)
 		pr_err("%s: chgin regulation loop is active\n", __func__);
 		if (chg_data->cable_type != POWER_SUPPLY_TYPE_WIRELESS) {
 			/* software regulation */
-			wake_lock(&chg_data->softreg_wake_lock);
+			//wake_lock(&chg_data->softreg_wake_lock);
 			schedule_delayed_work(&chg_data->softreg_work,
 					msecs_to_jiffies(SW_REG_START_DELAY));
 		} else
@@ -1638,7 +1638,7 @@ static irqreturn_t max77693_charger_irq(int irq, void *data)
 		max77693_reduce_input(chg_data, SW_REG_CURR_STEP_MA);
 
 		/* software regulation */
-		wake_lock(&chg_data->softreg_wake_lock);
+		//wake_lock(&chg_data->softreg_wake_lock);
 		schedule_delayed_work(&chg_data->softreg_work,
 				msecs_to_jiffies(SW_REG_STEP_DELAY));
 	}
