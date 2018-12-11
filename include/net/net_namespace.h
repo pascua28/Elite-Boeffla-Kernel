@@ -55,8 +55,6 @@ struct net {
 
 	struct user_namespace   *user_ns;	/* Owning user namespace */
 
-	unsigned int		proc_inum;
-
 	struct proc_dir_entry 	*proc_net;
 	struct proc_dir_entry 	*proc_net_stat;
 
