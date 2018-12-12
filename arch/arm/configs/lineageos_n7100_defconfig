@@ -582,7 +582,7 @@ CONFIG_SEC_MODEM_M0=y
 # CONFIG_BT_BCM4330 is not set
 CONFIG_BT_BCM4334=y
 # CONFIG_BT_BCM43241 is not set
-CONFIG_BT_MGMT=y
+# CONFIG_BT_MGMT is not set
 
 #
 # Qualcomm Modem Feature
