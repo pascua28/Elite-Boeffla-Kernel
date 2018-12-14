@@ -230,19 +230,12 @@ int parse_dataframe(struct ssp_data *data, char *pchRcvDataFrame, int iLength)
 				&iDataIdx);
 		} else if (pchRcvDataFrame[iDataIdx] ==
 			MSG2AP_INST_DEBUG_DATA) {
-			iSensorData
-				= print_mcu_debug(pchRcvDataFrame + iDataIdx+1,
-						&iDataIdx, iLength);
-			if (iSensorData) {
-				pr_err("[SSP]: %s - Mcu data frame3 error %d\n",
-					__func__, iSensorData);
-				kfree(sensorsdata);
-				return ERROR;
-			}
+			print_mcu_debug(pchRcvDataFrame + iDataIdx + 1,
+				&iDataIdx);
 #ifdef CONFIG_SENSORS_SSP_SENSORHUB
 		} else if (pchRcvDataFrame[iDataIdx] ==
 			MSG2AP_INST_LIBRARY_DATA) {
-			ssp_sensorhub_handle_data(data,
+			ssp_handle_sensorhub_data(data,
 					pchRcvDataFrame, iDataIdx, iLength);
 			break;
 #endif

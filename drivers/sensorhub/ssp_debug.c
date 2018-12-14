@@ -16,7 +16,7 @@
 
 #define SSP_DEBUG_TIMER_SEC		(10 * HZ)
 
-#define LIMIT_RESET_CNT		20
+#define LIMIT_RESET_CNT			20
 #define LIMIT_SSD_FAIL_CNT		3
 #define LIMIT_INSTRUCTION_FAIL_CNT	1
 #define LIMIT_IRQ_FAIL_CNT		2
@@ -26,39 +26,37 @@
 /* SSP Debug timer function                                              */
 /*************************************************************************/
 
-int print_mcu_debug(char *pchRcvDataFrame, int *pDataIdx,
-			int iRcvDataFrameLength)
+void print_mcu_debug(char *pchRcvDataFrame, int *pDataIdx)
 {
-	int iLength = pchRcvDataFrame[0];
+	int iLength;
 
-	if (iLength >= iRcvDataFrameLength - *pDataIdx - 1 || iLength <= 0) {
-		ssp_dbg("[SSP]: MSG From MCU - invalid debug length(%d/%d)\n",
-			iLength, iRcvDataFrameLength);
-		return iLength ? iLength : ERROR;
-	}
-
+	iLength = pchRcvDataFrame[0];
 	pchRcvDataFrame[iLength] = 0;
-	*pDataIdx += iLength + 2;
-	ssp_dbg("[SSP]: MSG From MCU - %s\n", pchRcvDataFrame + 1);
+	*pDataIdx = *pDataIdx + iLength + 2;
 
-	return 0;
+	ssp_dbg("[SSP]: MSG From MCU - %s\n", pchRcvDataFrame + 1);
 }
 
 void reset_mcu(struct ssp_data *data)
 {
-	ssp_enable(data, false);
+	data->bSspShutdown = true;
+	disable_irq(data->iIrq);
+	disable_irq_wake(data->iIrq);
 
 	toggle_mcu_reset(data);
 	msleep(SSP_SW_RESET_TIME);
+	data->bSspShutdown = false;
 
 	if (initialize_mcu(data) < 0)
-		return;
+		data->bSspShutdown = true;
 
-	ssp_enable(data, true);
 	sync_sensor_state(data);
 
+	enable_irq(data->iIrq);
+	enable_irq_wake(data->iIrq);
+
 #ifdef CONFIG_SENSORS_SSP_SENSORHUB
-	ssp_sensorhub_report_notice(data, MSG2SSP_AP_STATUS_RESET);
+	ssp_report_sensorhub_notice(data, MSG2SSP_AP_STATUS_RESET);
 #endif
 }
 
@@ -66,12 +64,8 @@ void sync_sensor_state(struct ssp_data *data)
 {
 	unsigned char uBuf[2] = {0,};
 	unsigned int uSensorCnt;
-	int iRet = 0;
+
 	proximity_open_calibration(data);
-	iRet = set_hw_offset(data);
-	if (iRet < 0) {
-		pr_err("[SSP]: %s - set_hw_offset failed\n", __func__);
-	}
 
 	udelay(10);
 
@@ -102,6 +96,12 @@ static void print_sensordata(struct ssp_data *data, unsigned int uSensor)
 			data->buf[uSensor].z,
 			get_msdelay(data->adDelayBuf[uSensor]));
 		break;
+	case LIGHT_SENSOR:
+		ssp_dbg(" %u : %u, %u, %u, %u (%ums)\n", uSensor,
+			data->buf[uSensor].r, data->buf[uSensor].g,
+			data->buf[uSensor].b, data->buf[uSensor].w,
+			get_msdelay(data->adDelayBuf[uSensor]));
+		break;
 	case PRESSURE_SENSOR:
 		ssp_dbg(" %u : %d, %d (%ums)\n", uSensor,
 			data->buf[uSensor].pressure[0],
@@ -114,25 +114,10 @@ static void print_sensordata(struct ssp_data *data, unsigned int uSensor)
 			data->buf[uSensor].data[2], data->buf[uSensor].data[3],
 			get_msdelay(data->adDelayBuf[uSensor]));
 		break;
-	case TEMPERATURE_HUMIDITY_SENSOR:
-		ssp_dbg(" %u : %d %d %d(%ums)\n", uSensor,
-			data->buf[uSensor].data[0], data->buf[uSensor].data[1],
-			data->buf[uSensor].data[2], get_msdelay(data->adDelayBuf[uSensor]));
-		break;
-	case LIGHT_SENSOR:
-		ssp_dbg(" %u : %u, %u, %u, %u (%ums)\n", uSensor,
-			data->buf[uSensor].r, data->buf[uSensor].g,
-			data->buf[uSensor].b, data->buf[uSensor].w,
-			get_msdelay(data->adDelayBuf[uSensor]));
-		break;
 	case PROXIMITY_SENSOR:
 		ssp_dbg(" %u : %d %d(%ums)\n", uSensor,
 			data->buf[uSensor].prox[0], data->buf[uSensor].prox[1],
 			get_msdelay(data->adDelayBuf[uSensor]));
-		break;
-	default:
-		ssp_dbg("Wrong sensorCnt: %u\n", uSensor);
-		break;
 	}
 }
 
@@ -145,42 +130,26 @@ static void debug_work_func(struct work_struct *work)
 		__func__, data->uIrqCnt, data->uSensorState, data->uResetCnt,
 		data->uMissSensorCnt);
 
-	if (data->fw_dl_state >= FW_DL_STATE_DOWNLOADING &&
-		data->fw_dl_state < FW_DL_STATE_DONE) {
-		pr_info("[SSP] : %s firmware downloading state = %d\n",
-			__func__, data->fw_dl_state);
-		return;
-	} else if (data->fw_dl_state == FW_DL_STATE_FAIL) {
-		pr_err("[SSP] : %s firmware download failed = %d\n",
-			__func__, data->fw_dl_state);
-		return;
-	}
-
 	for (uSensorCnt = 0; uSensorCnt < (SENSOR_MAX - 1); uSensorCnt++)
 		if (atomic_read(&data->aSensorEnable) & (1 << uSensorCnt))
 			print_sensordata(data, uSensorCnt);
 
-	if ((atomic_read(&data->aSensorEnable) & SSP_BYPASS_SENSORS_EN_ALL)\
-			&& (data->uIrqCnt == 0))
+	if ((atomic_read(&data->aSensorEnable) & 0x4f) && (data->uIrqCnt == 0))
 		data->uIrqFailCnt++;
 	else
 		data->uIrqFailCnt = 0;
 
-	if (((data->uSsdFailCnt >= LIMIT_SSD_FAIL_CNT)
+	if ((data->uSsdFailCnt >= LIMIT_SSD_FAIL_CNT)
 		|| (data->uInstFailCnt >= LIMIT_INSTRUCTION_FAIL_CNT)
 		|| (data->uIrqFailCnt >= LIMIT_IRQ_FAIL_CNT)
-		|| ((data->uTimeOutCnt + data->uBusyCnt) > LIMIT_TIMEOUT_CNT))
-		&& (data->bSspShutdown == false)) {
+		|| ((data->uTimeOutCnt + data->uBusyCnt) > LIMIT_TIMEOUT_CNT)) {
 
 		if (data->uResetCnt < LIMIT_RESET_CNT) {
-			pr_info("[SSP] : %s - uSsdFailCnt(%u), uInstFailCnt(%u),"\
-				"uIrqFailCnt(%u), uTimeOutCnt(%u), uBusyCnt(%u)\n",
-				__func__, data->uSsdFailCnt, data->uInstFailCnt, data->uIrqFailCnt,
-				data->uTimeOutCnt, data->uBusyCnt);
 			reset_mcu(data);
 			data->uResetCnt++;
-		} else
-			ssp_enable(data, false);
+		} else {
+			data->bSspShutdown = true;
+		}
 
 		data->uSsdFailCnt = 0;
 		data->uInstFailCnt = 0;
