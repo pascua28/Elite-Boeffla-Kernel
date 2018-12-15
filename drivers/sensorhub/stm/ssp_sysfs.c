@@ -56,9 +56,6 @@ static void change_sensor_delay(struct ssp_data *data,
 
 	data->adDelayBuf[iSensorType] = dNewDelay;
 
-	if (iSensorType == ORIENTATION_SENSOR)
-		iSensorType = ACCELEROMETER_SENSOR;
-
 	switch (data->aiCheckStatus[iSensorType]) {
 	case ADD_SENSOR_STATE:
 		ssp_dbg("[SSP]: %s - add %u, New = %lldns\n",
@@ -103,7 +100,7 @@ static void change_sensor_delay(struct ssp_data *data,
 
 		break;
 	default:
-		break;
+		data->aiCheckStatus[iSensorType] = ADD_SENSOR_STATE;
 	}
 }
 
@@ -111,21 +108,11 @@ static void change_sensor_delay(struct ssp_data *data,
 /* SSP data enable function                                              */
 /*************************************************************************/
 
-static int ssp_add_sensor(struct ssp_data *data, unsigned int uChangedSensor)
-{
-	if ((data->aiCheckStatus[uChangedSensor] != INITIALIZATION_STATE)
-		&& (!atomic_read(&data->aSensorEnable))) {
-		if (data->bCheckSuspend == false)
-			data->bDebugEnabled = true;
-	}
-
-	return 0;
-}
-
 static int ssp_remove_sensor(struct ssp_data *data,
 	unsigned int uChangedSensor, unsigned int uNewEnable)
 {
 	u8 uBuf[2];
+	int iRet = 0;
 	int64_t dSensorDelay = data->adDelayBuf[uChangedSensor];
 
 	ssp_dbg("[SSP]: %s - remove sensor = %d, current state = %d\n",
@@ -133,7 +120,31 @@ static int ssp_remove_sensor(struct ssp_data *data,
 
 	data->adDelayBuf[uChangedSensor] = DEFUALT_POLLING_DELAY;
 
-        if (uChangedSensor == ORIENTATION_SENSOR) {
+	if (data->aiCheckStatus[uChangedSensor] == INITIALIZATION_STATE) {
+		data->aiCheckStatus[uChangedSensor] = NO_SENSOR_STATE;
+		if (uChangedSensor == ACCELEROMETER_SENSOR)
+			accel_open_calibration(data);
+		else if (uChangedSensor == GYROSCOPE_SENSOR)
+			gyro_open_calibration(data);
+		else if (uChangedSensor == PRESSURE_SENSOR)
+			pressure_open_calibration(data);
+		else if (uChangedSensor == PROXIMITY_SENSOR) {
+			proximity_open_lcd_ldi(data);
+			proximity_open_calibration(data);
+		} else if (uChangedSensor == GEOMAGNETIC_SENSOR) {
+			iRet = mag_open_hwoffset(data);
+			if (iRet < 0)
+				pr_err("[SSP]: %s - mag_open_hw_offset"
+				" failed, %d\n", __func__, iRet);
+
+			iRet = set_hw_offset(data);
+			if (iRet < 0) {
+				pr_err("[SSP]: %s - set_hw_offset failed\n",
+					__func__);
+			}
+		}
+		return 0;
+	} else if (uChangedSensor == ORIENTATION_SENSOR) {
 		if (!(atomic_read(&data->aSensorEnable)
 			& (1 << ACCELEROMETER_SENSOR))) {
 			uChangedSensor = ACCELEROMETER_SENSOR;
@@ -149,11 +160,9 @@ static int ssp_remove_sensor(struct ssp_data *data,
 				data->adDelayBuf[ORIENTATION_SENSOR]);
 			return 0;
 		}
-	}
-
-	if (!uNewEnable) {
-		if (data->bCheckSuspend == false)
-			data->bDebugEnabled = false;
+	} else if (uChangedSensor == GEOMAGNETIC_SENSOR) {
+		if (mag_store_hwoffset(data))
+			pr_err("mag_store_hwoffset success\n");
 	}
 
 	if (atomic_read(&data->aSensorEnable) & (1 << uChangedSensor)) {
@@ -187,40 +196,24 @@ static ssize_t set_sensors_enable(struct device *dev,
 	int64_t dTemp;
 	unsigned int uNewEnable = 0, uChangedSensor = 0;
 	struct ssp_data *data = dev_get_drvdata(dev);
-	int iRet;
 
-	if (strict_strtoll(buf, 10, &dTemp) < 0)
-		return -1;
+	if (kstrtoll(buf, 10, &dTemp) < 0)
+		return -EINVAL;
 
 	uNewEnable = (unsigned int)dTemp;
 	ssp_dbg("[SSP]: %s - new_enable = %u, old_enable = %u\n", __func__,
 		 uNewEnable, atomic_read(&data->aSensorEnable));
 
 	if (uNewEnable == atomic_read(&data->aSensorEnable))
-		return 0;
+		return size;
 
 	for (uChangedSensor = 0; uChangedSensor < SENSOR_MAX; uChangedSensor++)
 		if ((atomic_read(&data->aSensorEnable) & (1 << uChangedSensor))
 			!= (uNewEnable & (1 << uChangedSensor))) {
 
-		        if (!(uNewEnable & (1 << uChangedSensor)))
-                                ssp_remove_sensor(data, uChangedSensor,
-					uNewEnable); /* disable */
-			else { /* Change to ADD_SENSOR_STATE from KitKat */
-			      if (data->aiCheckStatus[uChangedSensor] == INITIALIZATION_STATE) {
-                                      if (uChangedSensor == ACCELEROMETER_SENSOR)
-                                               accel_open_calibration(data);
-                                      else if (uChangedSensor == GYROSCOPE_SENSOR)
-                                               gyro_open_calibration(data);
-                                      else if (uChangedSensor == PRESSURE_SENSOR)
-                                               pressure_open_calibration(data);
-                                      else if (uChangedSensor == PROXIMITY_SENSOR) {
-                                               proximity_open_lcd_ldi(data);
-                                               proximity_open_calibration(data);
-                                      }
-                             }
-                             data->aiCheckStatus[uChangedSensor] = ADD_SENSOR_STATE;
-			}
+			if (!(uNewEnable & (1 << uChangedSensor)))
+				ssp_remove_sensor(data, uChangedSensor,
+					uNewEnable);
 			break;
 		}
 
@@ -243,8 +236,8 @@ static ssize_t set_acc_delay(struct device *dev,
 	int64_t dNewDelay;
 	struct ssp_data *data = dev_get_drvdata(dev);
 
-	if (strict_strtoll(buf, 10, &dNewDelay) < 0)
-		return -1;
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
+		return -EINVAL;
 
 	if ((atomic_read(&data->aSensorEnable) & (1 << ORIENTATION_SENSOR)) &&
 		(data->adDelayBuf[ORIENTATION_SENSOR] < dNewDelay))
@@ -254,7 +247,7 @@ static ssize_t set_acc_delay(struct device *dev,
 
 	return size;
 }
-
+/*
 static ssize_t show_ori_delay(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -269,7 +262,7 @@ static ssize_t set_ori_delay(struct device *dev,
 	int64_t dNewDelay;
 	struct ssp_data *data = dev_get_drvdata(dev);
 
-	if (strict_strtoll(buf, 10, &dNewDelay) < 0)
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
 		return -1;
 
 	if (data->aiCheckStatus[ACCELEROMETER_SENSOR] == NO_SENSOR_STATE) {
@@ -285,7 +278,7 @@ static ssize_t set_ori_delay(struct device *dev,
 	}
 	return size;
 }
-
+*/
 static ssize_t show_gyro_delay(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -300,8 +293,8 @@ static ssize_t set_gyro_delay(struct device *dev,
 	int64_t dNewDelay;
 	struct ssp_data *data = dev_get_drvdata(dev);
 
-	if (strict_strtoll(buf, 10, &dNewDelay) < 0)
-		return -1;
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
+		return -EINVAL;
 
 	change_sensor_delay(data, GYROSCOPE_SENSOR, dNewDelay);
 	return size;
@@ -321,8 +314,8 @@ static ssize_t set_mag_delay(struct device *dev,
 	int64_t dNewDelay;
 	struct ssp_data *data = dev_get_drvdata(dev);
 
-	if (strict_strtoll(buf, 10, &dNewDelay) < 0)
-		return -1;
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
+		return -EINVAL;
 
 	change_sensor_delay(data, GEOMAGNETIC_SENSOR, dNewDelay);
 
@@ -343,10 +336,32 @@ static ssize_t set_pressure_delay(struct device *dev,
 	int64_t dNewDelay;
 	struct ssp_data *data  = dev_get_drvdata(dev);
 
-	if (strict_strtoll(buf, 10, &dNewDelay) < 0)
-		return -1;
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
+		return -EINVAL;
 
 	change_sensor_delay(data, PRESSURE_SENSOR, dNewDelay);
+	return size;
+}
+
+static ssize_t show_gesture_delay(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct ssp_data *data = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld\n", data->adDelayBuf[GESTURE_SENSOR]);
+}
+
+static ssize_t set_gesture_delay(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	int64_t dNewDelay;
+	struct ssp_data *data = dev_get_drvdata(dev);
+
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
+		return -EINVAL;
+
+	change_sensor_delay(data, GESTURE_SENSOR, dNewDelay);
+
 	return size;
 }
 
@@ -364,8 +379,8 @@ static ssize_t set_light_delay(struct device *dev,
 	int64_t dNewDelay;
 	struct ssp_data *data  = dev_get_drvdata(dev);
 
-	if (strict_strtoll(buf, 10, &dNewDelay) < 0)
-		return -1;
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
+		return -EINVAL;
 
 	change_sensor_delay(data, LIGHT_SENSOR, dNewDelay);
 	return size;
@@ -385,17 +400,41 @@ static ssize_t set_prox_delay(struct device *dev,
 	int64_t dNewDelay;
 	struct ssp_data *data  = dev_get_drvdata(dev);
 
-	if (strict_strtoll(buf, 10, &dNewDelay) < 0)
-		return -1;
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
+		return -EINVAL;
 
 	change_sensor_delay(data, PROXIMITY_SENSOR, dNewDelay);
 	return size;
 }
 
+static ssize_t show_temp_humi_delay(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct ssp_data *data  = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lld\n",
+		data->adDelayBuf[TEMPERATURE_HUMIDITY_SENSOR]);
+}
+
+static ssize_t set_temp_humi_delay(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	int64_t dNewDelay;
+	struct ssp_data *data  = dev_get_drvdata(dev);
+
+	if (kstrtoll(buf, 10, &dNewDelay) < 0)
+		return -EINVAL;
+
+	change_sensor_delay(data, TEMPERATURE_HUMIDITY_SENSOR, dNewDelay);
+	return size;
+}
+
 static DEVICE_ATTR(mcu_rev, S_IRUGO, mcu_revision_show, NULL);
 static DEVICE_ATTR(mcu_name, S_IRUGO, mcu_model_name_show, NULL);
-static DEVICE_ATTR(mcu_update, S_IRUGO, mcu_update_show, NULL);
-static DEVICE_ATTR(mcu_update2, S_IRUGO, mcu_update2_show, NULL);
+static DEVICE_ATTR(mcu_update, S_IRUGO, mcu_update_kernel_bin_show, NULL);
+static DEVICE_ATTR(mcu_update2, S_IRUGO,
+	mcu_update_kernel_crashed_bin_show, NULL);
+static DEVICE_ATTR(mcu_update_ums, S_IRUGO, mcu_update_ums_bin_show, NULL);
 static DEVICE_ATTR(mcu_reset, S_IRUGO, mcu_reset_show, NULL);
 
 static DEVICE_ATTR(mcu_test, S_IRUGO | S_IWUSR | S_IWGRP,
@@ -404,20 +443,31 @@ static DEVICE_ATTR(mcu_sleep_test, S_IRUGO | S_IWUSR | S_IWGRP,
 	mcu_sleep_factorytest_show, mcu_sleep_factorytest_store);
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_sensors_enable, set_sensors_enable);
-static DEVICE_ATTR(acc_poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
+
+static struct device_attribute dev_attr_accel_poll_delay
+	= __ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_acc_delay, set_acc_delay);
-static DEVICE_ATTR(gyro_poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
+static struct device_attribute dev_attr_gyro_poll_delay
+	= __ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_gyro_delay, set_gyro_delay);
-static DEVICE_ATTR(mag_poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
+static struct device_attribute dev_attr_mag_poll_delay
+	= __ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_mag_delay, set_mag_delay);
-static DEVICE_ATTR(ori_poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
-	show_ori_delay, set_ori_delay);
-static DEVICE_ATTR(pressure_poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
+static struct device_attribute dev_attr_pressure_poll_delay
+	= __ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_pressure_delay, set_pressure_delay);
-static DEVICE_ATTR(light_poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
+static struct device_attribute dev_attr_gesture_poll_delay
+	= __ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
+	show_gesture_delay, set_gesture_delay);
+static struct device_attribute dev_attr_light_poll_delay
+	= __ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_light_delay, set_light_delay);
-static DEVICE_ATTR(prox_poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
+static struct device_attribute dev_attr_prox_poll_delay
+	= __ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_prox_delay, set_prox_delay);
+static struct device_attribute dev_attr_temp_humi_poll_delay
+	= __ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
+	show_temp_humi_delay, set_temp_humi_delay);
 
 static struct device_attribute *mcu_attrs[] = {
 	&dev_attr_enable,
@@ -427,9 +477,8 @@ static struct device_attribute *mcu_attrs[] = {
 	&dev_attr_mcu_reset,
 	&dev_attr_mcu_update,
 	&dev_attr_mcu_update2,
+	&dev_attr_mcu_update_ums,
 	&dev_attr_mcu_sleep_test,
-	&dev_attr_mag_poll_delay,
-	&dev_attr_ori_poll_delay,
 	NULL,
 };
 
@@ -446,7 +495,7 @@ static void remove_mcu_factorytest(struct ssp_data *data)
 int initialize_sysfs(struct ssp_data *data)
 {
 	if (device_create_file(&data->acc_input_dev->dev,
-		&dev_attr_acc_poll_delay))
+		&dev_attr_accel_poll_delay))
 		goto err_acc_input_dev;
 
 	if (device_create_file(&data->gyro_input_dev->dev,
@@ -457,6 +506,10 @@ int initialize_sysfs(struct ssp_data *data)
 		&dev_attr_pressure_poll_delay))
 		goto err_pressure_input_dev;
 
+	if (device_create_file(&data->gesture_input_dev->dev,
+		&dev_attr_gesture_poll_delay))
+		goto err_gesture_input_dev;
+
 	if (device_create_file(&data->light_input_dev->dev,
 		&dev_attr_light_poll_delay))
 		goto err_light_input_dev;
@@ -465,6 +518,14 @@ int initialize_sysfs(struct ssp_data *data)
 		&dev_attr_prox_poll_delay))
 		goto err_prox_input_dev;
 
+	if (device_create_file(&data->temp_humi_input_dev->dev,
+			&dev_attr_temp_humi_poll_delay))
+			goto err_temp_humi_input_dev;
+
+	if (device_create_file(&data->mag_input_dev->dev,
+		&dev_attr_mag_poll_delay))
+		goto err_mag_input_dev;
+
 	initialize_accel_factorytest(data);
 	initialize_gyro_factorytest(data);
 	initialize_prox_factorytest(data);
@@ -472,9 +533,19 @@ int initialize_sysfs(struct ssp_data *data)
 	initialize_pressure_factorytest(data);
 	initialize_magnetic_factorytest(data);
 	initialize_mcu_factorytest(data);
-
+#ifdef CONFIG_SENSORS_SSP_MAX88920
+	initialize_gesture_factorytest(data);
+#endif
+#ifdef CONFIG_SENSORS_SSP_SHTC1
+	initialize_temphumidity_factorytest(data);
+#endif
 	return SUCCESS;
-
+err_mag_input_dev:
+	device_remove_file(&data->temp_humi_input_dev->dev,
+		&dev_attr_temp_humi_poll_delay);
+err_temp_humi_input_dev:
+	device_remove_file(&data->prox_input_dev->dev,
+		&dev_attr_prox_poll_delay);
 err_prox_input_dev:
 	device_remove_file(&data->light_input_dev->dev,
 		&dev_attr_light_poll_delay);
@@ -484,9 +555,12 @@ err_light_input_dev:
 err_pressure_input_dev:
 	device_remove_file(&data->gyro_input_dev->dev,
 		&dev_attr_gyro_poll_delay);
+err_gesture_input_dev:
+	device_remove_file(&data->gesture_input_dev->dev,
+		&dev_attr_gesture_poll_delay);
 err_gyro_input_dev:
 	device_remove_file(&data->acc_input_dev->dev,
-		&dev_attr_acc_poll_delay);
+		&dev_attr_accel_poll_delay);
 err_acc_input_dev:
 	return ERROR;
 }
@@ -494,16 +568,21 @@ err_acc_input_dev:
 void remove_sysfs(struct ssp_data *data)
 {
 	device_remove_file(&data->acc_input_dev->dev,
-		&dev_attr_acc_poll_delay);
+		&dev_attr_accel_poll_delay);
 	device_remove_file(&data->gyro_input_dev->dev,
 		&dev_attr_gyro_poll_delay);
 	device_remove_file(&data->pressure_input_dev->dev,
 		&dev_attr_pressure_poll_delay);
+	device_remove_file(&data->gesture_input_dev->dev,
+		&dev_attr_gesture_poll_delay);
 	device_remove_file(&data->light_input_dev->dev,
 		&dev_attr_light_poll_delay);
 	device_remove_file(&data->prox_input_dev->dev,
 		&dev_attr_prox_poll_delay);
-
+	device_remove_file(&data->temp_humi_input_dev->dev,
+		&dev_attr_temp_humi_poll_delay);
+	device_remove_file(&data->mag_input_dev->dev,
+		&dev_attr_mag_poll_delay);
 	remove_accel_factorytest(data);
 	remove_gyro_factorytest(data);
 	remove_prox_factorytest(data);
@@ -511,5 +590,11 @@ void remove_sysfs(struct ssp_data *data)
 	remove_pressure_factorytest(data);
 	remove_magnetic_factorytest(data);
 	remove_mcu_factorytest(data);
+#ifdef CONFIG_SENSORS_SSP_MAX88920
+	remove_gesture_factorytest(data);
+#endif
+#ifdef CONFIG_SENSORS_SSP_SHTC1
+	remove_temphumidity_factorytest(data);
+#endif
 	destroy_sensor_class();
 }

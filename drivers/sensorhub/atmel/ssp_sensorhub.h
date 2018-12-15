@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2012, Samsung Electronics Co. Ltd. All Rights Reserved.
+ *  Copyright (C) 2013, Samsung Electronics Co. Ltd. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,20 +22,25 @@
 #include <linux/spinlock.h>
 #include "ssp.h"
 
-#define SUBCMD_GPIOWAKEUP	0X02
-#define SUBCMD_POWEREUP		0X04
-#define LIBRARY_MAX_NUM		5
-#define LIBRARY_MAX_TRY		32
-#define EVENT_WAIT_COUNT	3
+#define LIST_SIZE			5
+#define MAX_DATA_COPY_TRY		2
+#define WAKE_LOCK_TIMEOUT		(3*HZ)
+#define COMPLETION_TIMEOUT		(2*HZ)
+#define DATA				REL_RX
+#define LARGE_DATA			REL_RY
+#define NOTICE				REL_RZ
 
-/* sensorhub ioctl command */
-#define SENSORHUB_IOCTL_MAGIC	'S'
-#define IOCTL_READ_CONTEXT_DATA	_IOR(SENSORHUB_IOCTL_MAGIC, 3, char *)
+#define SENSORHUB_IOCTL_MAGIC		'S'
+#define IOCTL_READ_LARGE_CONTEXT_DATA	_IOR(SENSORHUB_IOCTL_MAGIC, 3, char *)
+
+#define sensorhub_info(str, args...) pr_info("%s: " str, __func__, ##args)
+#define sensorhub_debug(str, args...) pr_debug("%s: " str, __func__, ##args)
+#define sensorhub_err(str, args...) pr_err("%s: " str, __func__, ##args)
 
 
 struct sensorhub_event {
 	char *library_data;
-	int length;
+	int library_length;
 	struct list_head list;
 };
 
@@ -44,25 +49,23 @@ struct ssp_sensorhub_data {
 	struct input_dev *sensorhub_input_dev;
 	struct miscdevice sensorhub_device;
 	struct wake_lock sensorhub_wake_lock;
-	struct completion transfer_done;
+	struct completion sensorhub_completion;
 	struct task_struct *sensorhub_task;
 	struct sensorhub_event events_head;
-	struct sensorhub_event events[LIBRARY_MAX_NUM + 1];
+	struct sensorhub_event events[LIST_SIZE];
 	struct sensorhub_event *first_event;
-	int event_number;
-	int transfer_try;
-	int transfer_ready;
-	int large_library_length;
 	char *large_library_data;
-	wait_queue_head_t sensorhub_waitqueue;
+	int large_library_length;
+	int event_number;
+	wait_queue_head_t sensorhub_wq;
 	spinlock_t sensorhub_lock;
 };
 
-void ssp_report_sensorhub_notice(struct ssp_data *data, char notice);
-int ssp_handle_sensorhub_data(struct ssp_data *data, char *dataframe,
+void ssp_sensorhub_report_notice(struct ssp_data *ssp_data, char notice);
+int ssp_sensorhub_handle_data(struct ssp_data *ssp_data, char *dataframe,
 				int start, int end);
-int ssp_handle_sensorhub_large_data(struct ssp_data *data, u8 sub_cmd);
-int ssp_initialize_sensorhub(struct ssp_data *data);
-void ssp_remove_sensorhub(struct ssp_data *data);
+int ssp_sensorhub_handle_large_data(struct ssp_data *ssp_data, u8 sub_cmd);
+int ssp_sensorhub_initialize(struct ssp_data *ssp_data);
+void ssp_sensorhub_remove(struct ssp_data *ssp_data);
 
 #endif
