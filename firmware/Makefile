@@ -172,7 +172,8 @@ fw-shipped-$(CONFIG_EPEN_WACOM_G9PM) += epen/W9001_B746.bin epen/W9001_B713.bin 
 fw-shipped-$(CONFIG_EPEN_WACOM_G9PL) += epen/W9002_B781.bin
 
 #for sensorhub
-fw-shipped-$(CONFIG_SENSORS_SSP) += ssp.fw
+fw-shipped-$(CONFIG_SENSORS_SSP_STM) += ssp_b.fw
+fw-shipped-$(CONFIG_SENSORS_SSP_ATMEL) += ssp.fw
 fw-shipped-$(CONFIG_SENSORS_SSP) += ssp_crashed.fw
 
 TSPFIRMWARE_DIRECTORY = $(srctree)/firmware/tsp_atmel
