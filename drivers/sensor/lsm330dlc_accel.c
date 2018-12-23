@@ -682,6 +682,7 @@ static ssize_t lsm330dlc_accel_reactive_alert_store(struct device *dev,
 		}
 		enable_irq(data->client->irq);
 		if (device_may_wakeup(&data->client->dev))
+			enable_irq_wake(data->client->irq);
 		/* Get x, y, z data to set threshold1, threshold2. */
 		err = lsm330dlc_accel_read_xyz(data, &raw_data);
 		accel_dbgmsg("raw x = %d, y = %d, z = %d\n",
@@ -752,6 +753,7 @@ static ssize_t lsm330dlc_accel_reactive_alert_store(struct device *dev,
 			goto err_i2c_write;
 		}
 		if (device_may_wakeup(&data->client->dev))
+			disable_irq_wake(data->client->irq);
 		disable_irq_nosync(data->client->irq);
 		/* return the power state */
 		err = i2c_smbus_write_byte_data(data->client, CTRL_REG1,
@@ -1051,6 +1053,7 @@ static int lsm330dlc_accel_probe(struct i2c_client *client,
 	int probe_retry_max = 3;
 
 	accel_dbgmsg("is started\n");
+
 probe_retry:
 	for (retry = 0; retry < 5; retry++) {
 		if (!i2c_check_functionality(client->adapter,
@@ -1289,14 +1292,12 @@ err_position_device_create_file:
 #ifdef DEBUG_ODR
 	device_remove_file(data->dev, &dev_attr_odr);
 err_odr_device_create_file:
+#endif
 #ifdef USES_MOVEMENT_RECOGNITION
 	device_remove_file(data->dev, &dev_attr_reactive_alert);
-#else
-	device_remove_file(data->dev, &dev_attr_calibration);
-#endif
-#endif
-#ifdef USES_MOVEMENT_RECOGNITION
 err_reactive_device_create_file:
+	device_remove_file(data->dev, &dev_attr_calibration);
+#else
 	device_remove_file(data->dev, &dev_attr_calibration);
 #endif
 err_cal_device_create_file:

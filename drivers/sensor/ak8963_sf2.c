@@ -227,6 +227,9 @@ static long akmd_ioctl(struct file *file, unsigned int cmd,
 			struct akm8963_data, akmd_device);
 	int ret;
 	short x, y, z;
+	unsigned int retrycount = 5;
+	int read_error = 0 ;
+
 	union {
 		char raw[RWBUF_SIZE];
 		int status;
@@ -272,42 +275,55 @@ static long akmd_ioctl(struct file *file, unsigned int cmd,
 		akm8963_Reset(akm);
 		break;
 	case ECS_IOCTL_GETDATA:
-		mutex_lock(&akm->lock);
-		ret = akm8963_wait_for_data_ready(akm);
-		if (ret) {
-			mutex_unlock(&akm->lock);
-			return ret;
-		}
-		ret = i2c_smbus_read_i2c_block_data(akm->this_client,
+		do {
+			mutex_lock(&akm->lock);
+			ret = akm8963_wait_for_data_ready(akm);
+			read_error = 0;
+			if (ret) {
+				mutex_unlock(&akm->lock);
+				return ret;
+			}
+			ret = i2c_smbus_read_i2c_block_data(akm->this_client,
 						    AK8963_REG_ST1,
 						    sizeof(rwbuf.data),
 						    rwbuf.data);
-		mutex_unlock(&akm->lock);
+			mutex_unlock(&akm->lock);
 
-		if (akm->convert_axes) {
-			x = (rwbuf.data[2] << 8) + rwbuf.data[1];
-			y = (rwbuf.data[4] << 8) + rwbuf.data[3];
-			z = (rwbuf.data[6] << 8) + rwbuf.data[5];
+			if (akm->convert_axes) {
+				x = (rwbuf.data[2] << 8) + rwbuf.data[1];
+				y = (rwbuf.data[4] << 8) + rwbuf.data[3];
+				z = (rwbuf.data[6] << 8) + rwbuf.data[5];
 
-			akm->convert_axes(&x, &y, &z);
+				akm->convert_axes(&x, &y, &z);
 
-			rwbuf.data[1] = x & 0xff;
-			rwbuf.data[2] = (x >> 8) & 0xff;
-			rwbuf.data[3] = y & 0xff;
-			rwbuf.data[4] = (y >> 8) & 0xff;
-			rwbuf.data[5] = z & 0xff;
-			rwbuf.data[6] = (z >> 8) & 0xff;
-		} else {
-		#ifdef MAGNETIC_LOGGING
-			x = (rwbuf.data[2] << 8) + rwbuf.data[1];
-			y = (rwbuf.data[4] << 8) + rwbuf.data[3];
-			z = (rwbuf.data[6] << 8) + rwbuf.data[5];
-		#endif
-		}
-		#ifdef MAGNETIC_LOGGING
-		pr_info("%s:ST1=%d, x=%d, y=%d, z=%d, ST2=%d\n",
-			__func__, rwbuf.data[0], x, y, z, rwbuf.data[7]);
-		#endif
+				rwbuf.data[1] = x & 0xff;
+				rwbuf.data[2] = (x >> 8) & 0xff;
+				rwbuf.data[3] = y & 0xff;
+				rwbuf.data[4] = (y >> 8) & 0xff;
+				rwbuf.data[5] = z & 0xff;
+				rwbuf.data[6] = (z >> 8) & 0xff;
+			} else {
+			#ifdef MAGNETIC_LOGGING
+				x = (rwbuf.data[2] << 8) + rwbuf.data[1];
+				y = (rwbuf.data[4] << 8) + rwbuf.data[3];
+				z = (rwbuf.data[6] << 8) + rwbuf.data[5];
+			#endif
+			}
+			#ifdef MAGNETIC_LOGGING
+			pr_info("%s:ST1=%d, x=%d, y=%d, z=%d, ST2=%d\n",
+				__func__, rwbuf.data[0], x, y, z, rwbuf.data[7]);
+			#endif
+			/* Some times eventhough the "data ready" bit is set,but ST bit is set to 0.
+			and the x,y,z read are 0 just after wake up from sleep.This is rare case scenario .
+			This is caused purely due to timing issue (i.e reading data while chip is not ready)
+			So, adding below retry count */
+			if(rwbuf.data[0] == 0 && x==0 && y==0 && z==0) {
+				msleep(20);
+				pr_info("%s: %d Error case hit\n",__func__,retrycount);
+				retrycount-- ;
+				read_error = 1;
+			}
+		} while( retrycount<5 && read_error );
 
 		if (ret != sizeof(rwbuf.data)) {
 			pr_err("%s : failed to read %d bytes of mag data\n",

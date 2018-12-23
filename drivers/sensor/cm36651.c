@@ -322,12 +322,6 @@ static ssize_t light_enable_store(struct device *dev,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_TOUCH_WAKE
-	if (!new_value) { // Yank555.lu : Proxy disabled, consider proximity not detected
-		proximity_off();
-	}
-#endif
-
 	mutex_lock(&cm36651->power_lock);
 	pr_info("%s,new_value=%d\n", __func__, new_value);
 	if (new_value && !(cm36651->power_state & LIGHT_ENABLED)) {
@@ -415,7 +409,7 @@ static int proximity_store_cancelation(struct device *dev, bool do_calib)
 	set_fs(KERNEL_DS);
 
 	cancel_filp = filp_open(CANCELATION_FILE_PATH,
-			O_CREAT | O_TRUNC | O_WRONLY, 0666);
+			O_CREAT | O_TRUNC | O_WRONLY | O_SYNC, 0666);
 	if (IS_ERR(cancel_filp)) {
 		pr_err("%s: Can't open cancelation file\n", __func__);
 		set_fs(old_fs);
@@ -489,6 +483,12 @@ static ssize_t proximity_enable_store(struct device *dev,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_TOUCH_WAKE
+	if (!new_value) { // Yank555.lu : Proxy disabled, consider proximity not detected
+		proximity_off();
+	}
+#endif
+
 	mutex_lock(&cm36651->power_lock);
 	pr_info("%s, new_value = %d, threshold = %d\n", __func__, new_value,
 		ps_reg_setting[1][1]);
@@ -528,8 +528,10 @@ static ssize_t proximity_enable_store(struct device *dev,
 #endif
 
 		enable_irq(cm36651->irq);
+		enable_irq_wake(cm36651->irq);
 	} else if (!new_value && (cm36651->power_state & PROXIMITY_ENABLED)) {
 		cm36651->power_state &= ~PROXIMITY_ENABLED;
+		disable_irq_wake(cm36651->irq);
 		disable_irq(cm36651->irq);
 		/* disable settings */
 		cm36651_i2c_write_byte(cm36651, CM36651_PS, PS_CONF1,
@@ -767,11 +769,11 @@ irqreturn_t cm36651_irq_thread_fn(int irq, void *data)
 
 // Yank555.lu : this is where we will know is something changes in proximity detection
 #ifdef CONFIG_TOUCH_WAKE
-		if (!val) { // 0 is close = proximity detected
-			proximity_detected();
-		} else {
-			proximity_off();
-		}
+	if (!val) { // 0 is close = proximity detected
+		proximity_detected();
+	} else {
+		proximity_off();
+	}
 #endif
 
 	wake_lock_timeout(&cm36651->prx_wake_lock, 3 * HZ);
@@ -1276,7 +1278,8 @@ static int cm36651_i2c_remove(struct i2c_client *client)
 	struct cm36651_data *cm36651 = i2c_get_clientdata(client);
 
 	/* free irq */
-	if (cm36651->power_state & PROXIMITY_ENABLED) {;
+	if (cm36651->power_state & PROXIMITY_ENABLED) {
+		disable_irq_wake(cm36651->irq);
 		disable_irq(cm36651->irq);
 	}
 	free_irq(cm36651->irq, cm36651);

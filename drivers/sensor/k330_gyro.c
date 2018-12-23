@@ -23,17 +23,16 @@
 #include <linux/interrupt.h>
 #include <asm/div64.h>
 #include <linux/delay.h>
-#include <linux/ioctl.h>
 #include <linux/miscdevice.h>
 #include <linux/completion.h>
-#include <linux/sensor/lsm330dlc_gyro.h>
+#include <linux/sensor/k330_gyro.h>
 #include <linux/sensor/sensors_core.h>
 
 #undef LOGGING_GYRO
 #undef DEBUG_REGISTER
 
 #define VENDOR		"STM"
-#define CHIP_ID		"LSM330"
+#define CHIP_ID		"K330"
 
 #ifdef CONFIG_SLP
 #define CALIBRATION_FILE_PATH	"/csa/sensor/gyro_cal_data"
@@ -41,76 +40,13 @@
 #define CALIBRATION_FILE_PATH	"/efs/gyro_cal_data"
 #endif
 
-/* lsm330dlc_gyro chip id */
-#define DEVICE_ID	0xD4
-/* lsm330dlc_gyro gyroscope registers */
-#define WHO_AM_I	0x0F
-#define CTRL_REG1	0x20  /* power control reg */
-#define CTRL_REG2	0x21  /* trigger & filter setting control reg */
-#define CTRL_REG3	0x22  /* interrupt control reg */
-#define CTRL_REG4	0x23  /* data control reg */
-#define CTRL_REG5	0x24  /* fifo en & filter en control reg */
-#define OUT_TEMP	0x26  /* Temperature data */
-#define STATUS_REG	0x27
-#define AXISDATA_REG	0x28
-#define OUT_Y_L		0x2A
-#define FIFO_CTRL_REG	0x2E
-#define FIFO_SRC_REG	0x2F
-#define PM_OFF		0x00
-#define PM_NORMAL	0x08
-#define ENABLE_ALL_AXES	0x07
-#define BYPASS_MODE	0x00
-#define FIFO_MODE	0x20
-#define FIFO_EMPTY	0x20
-#define AC		(1 << 7) /* register auto-increment bit */
-
-/* odr settings */
-#define FSS_MASK	0x1F
-#define ODR_MASK	0xF0
-#define ODR95_BW12_5	0x00  /* ODR = 95Hz; BW = 12.5Hz */
-#define ODR95_BW25	0x11  /* ODR = 95Hz; BW = 25Hz   */
-#define ODR190_BW12_5	0x40  /* ODR = 190Hz; BW = 12.5Hz */
-#define ODR190_BW25	0x50  /* ODR = 190Hz; BW = 25Hz   */
-#define ODR190_BW50	0x60  /* ODR = 190Hz; BW = 50Hz   */
-#define ODR190_BW70	0x70  /* ODR = 190Hz; BW = 70Hz   */
-#define ODR380_BW20	0x80  /* ODR = 380Hz; BW = 20Hz   */
-#define ODR380_BW25	0x90  /* ODR = 380Hz; BW = 25Hz   */
-#define ODR380_BW50	0xA0  /* ODR = 380Hz; BW = 50Hz   */
-#define ODR380_BW100	0xB0  /* ODR = 380Hz; BW = 100Hz  */
-#define ODR760_BW30	0xC0  /* ODR = 760Hz; BW = 30Hz   */
-#define ODR760_BW35	0xD0  /* ODR = 760Hz; BW = 35Hz   */
-#define ODR760_BW50	0xE0  /* ODR = 760Hz; BW = 50Hz   */
-#define ODR760_BW100	0xF0  /* ODR = 760Hz; BW = 100Hz  */
-
-/* full scale selection */
-#define DPS250		250
-#define DPS500		500
-#define DPS2000		2000
-#define FS_MASK		0x30
-#define FS_250DPS	0x00
-#define FS_500DPS	0x10
-#define FS_2000DPS	0x20
-#define DEFAULT_DPS	DPS500
-#define FS_DEFULAT_DPS	FS_500DPS
-
-/* self tset settings */
-#define MIN_ST		175
-#define MAX_ST		875
-#define FIFO_TEST_WTM	0x1F
-#define MIN_ZERO_RATE	-3142
-#define MAX_ZERO_RATE	3142 /* 55*1000/17.5 */
-
-/* max and min entry */
-#define MAX_ENTRY	20
-#define MAX_DELAY	(MAX_ENTRY * 10000000LL) /* 200ms */
-
 /* default register setting for device init */
 static const char default_ctrl_regs_bypass[] = {
 	0x3F,	/* 95HZ, BW25, PM-normal, xyz enable */
-	0x00,	/* normal mode */
+	0x10,	/* reference signal for filtering */
 	0x00,	/* fifo wtm interrupt off */
 	0x90,	/* block data update, 500d/s */
-	0x00,	/* fifo disable */
+	0x12,	/* fifo disable, high-pass filter enable */
 };
 static const char default_ctrl_regs_fifo[] = {
 	0x3F,	/* 95HZ, BW25, PM-normal, xyz enable */
@@ -124,14 +60,14 @@ static const struct odr_delay {
 	u8 odr; /* odr reg setting */
 	u64 delay_ns; /* odr in ns */
 } odr_delay_table[] = {
-	{ ODR760_BW100, 1315789LL },/* 760Hz */
-	{ ODR380_BW100, 2631578LL },/* 380Hz */
-	{ ODR190_BW70, 5263157LL }, /* 190Hz */
+	{ ODR760_BW30, 1315789LL }, /* 760Hz */
+	{ ODR380_BW25, 2631578LL }, /* 380Hz */
+	{ ODR190_BW25, 5263157LL }, /* 190Hz */
 	{ ODR95_BW25, 10526315LL }, /* 95Hz */
 };
 
 /*
- * lsm330dlc_gyro gyroscope data
+ * k330_gyro gyroscope data
  * brief structure containing gyroscope values for yaw, pitch and roll in
  * signed short
  */
@@ -141,22 +77,11 @@ struct gyro_t {
 	s16 z;
 };
 
-static const int position_map[][3][3] = {
-	{{-1,  0,  0}, { 0, -1,  0}, { 0,  0,  1} }, /* 0 top/upper-left */
-	{{ 0, -1,  0}, { 1,  0,  0}, { 0,  0,  1} }, /* 1 top/upper-right */
-	{{ 1,  0,  0}, { 0,  1,  0}, { 0,  0,  1} }, /* 2 top/lower-right */
-	{{ 0,  1,  0}, {-1,  0,  0}, { 0,  0,  1} }, /* 3 top/lower-left */
-	{{ 1,  0,  0}, { 0, -1,  0}, { 0,  0, -1} }, /* 4 bottom/upper-left */
-	{{ 0,  1,  0}, { 1,  0,  0}, { 0,  0, -1} }, /* 5 bottom/upper-right */
-	{{-1,  0,  0}, { 0,  1,  0}, { 0,  0, -1} }, /* 6 bottom/lower-right */
-	{{ 0, -1,  0}, {-1,  0,  0}, { 0,  0, -1} }, /* 7 bottom/lower-left*/
-};
-
-struct lsm330dlc_gyro_data {
+struct k330_gyro_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	struct mutex lock;
-	struct workqueue_struct *lsm330dlc_gyro_wq;
+	struct workqueue_struct *k330_gyro_wq;
 	struct work_struct work;
 	struct hrtimer timer;
 	atomic_t opened;
@@ -178,13 +103,15 @@ struct lsm330dlc_gyro_data {
 	int count;
 #endif
 	struct gyro_t cal_data;
-	int position;
-	bool axis_adjust;
+	u8 position;
+	axes_func_s16 convert_axes;
+	bool *gyro_en;
+	axes_func_s16 (*select_func) (u8);
 };
 
-static int lsm330dlc_gyro_open_calibration(struct lsm330dlc_gyro_data *data)
+static int k330_gyro_open_calibration(struct k330_gyro_data *data)
 {
-	struct file *cal_filp = NULL;
+	struct file *cal_filp;
 	int err = 0;
 	mm_segment_t old_fs;
 
@@ -216,9 +143,9 @@ static int lsm330dlc_gyro_open_calibration(struct lsm330dlc_gyro_data *data)
 	return err;
 }
 
-static int lsm330dlc_gyro_restart_fifo(struct lsm330dlc_gyro_data *data)
+static int k330_gyro_restart_fifo(struct k330_gyro_data *data)
 {
-	int res = 0;
+	int res;
 
 	res = i2c_smbus_write_byte_data(data->client,
 			FIFO_CTRL_REG, BYPASS_MODE);
@@ -237,14 +164,14 @@ static int lsm330dlc_gyro_restart_fifo(struct lsm330dlc_gyro_data *data)
 }
 
 /* gyroscope data readout */
-static int lsm330dlc_gyro_read_values(struct i2c_client *client,
+static int k330_gyro_read_values(struct i2c_client *client,
 				struct gyro_t *data, int total_read)
 {
 	int err;
 	int len = sizeof(*data) * (total_read ? (total_read - 1) : 1);
-	struct lsm330dlc_gyro_data *gyro_data = i2c_get_clientdata(client);
+	struct k330_gyro_data *gyro_data = i2c_get_clientdata(client);
 	struct i2c_msg msg[2];
-	u8 reg_buf;
+	u8 reg_buf = AXISDATA_REG | AC;
 
 	msg[0].addr = client->addr;
 	msg[0].buf = &reg_buf;
@@ -256,7 +183,6 @@ static int lsm330dlc_gyro_read_values(struct i2c_client *client,
 	msg[1].buf = gyro_data->fifo_data;
 
 	if (total_read > 1) {
-		reg_buf = AXISDATA_REG | AC;
 		msg[1].len = len;
 
 		err = i2c_transfer(client->adapter, msg, 2);
@@ -264,7 +190,6 @@ static int lsm330dlc_gyro_read_values(struct i2c_client *client,
 			return (err < 0) ? err : -EIO;
 	}
 
-	reg_buf = AXISDATA_REG | AC;
 	msg[1].len = sizeof(*data);
 	err = i2c_transfer(client->adapter, msg, 2);
 	if (err != 2)
@@ -277,13 +202,12 @@ static int lsm330dlc_gyro_read_values(struct i2c_client *client,
 	return 0;
 }
 
-static int lsm330dlc_gyro_report_values\
-	(struct lsm330dlc_gyro_data *data)
+static int k330_gyro_report_values\
+	(struct k330_gyro_data *data)
 {
-	int res, i, j;
-	s16 raw[3] = {0,}, gyro_adjusted[3] = {0,};
+	int res;
 
-	res = lsm330dlc_gyro_read_values(data->client,
+	res = k330_gyro_read_values(data->client,
 		&data->xyz_data, data->entries);
 	if (res < 0)
 		return res;
@@ -292,53 +216,42 @@ static int lsm330dlc_gyro_report_values\
 	data->xyz_data.y -= data->cal_data.y;
 	data->xyz_data.z -= data->cal_data.z;
 
-	if (data->axis_adjust) {
-		raw[0] = data->xyz_data.x;
-		raw[1] = data->xyz_data.y;
-		raw[2] = data->xyz_data.z;
-		for (i = 0; i < 3; i++) {
-			for (j = 0; j < 3; j++)
-				gyro_adjusted[i]
-				+= position_map[data->position][i][j] * raw[j];
-		}
-	} else {
-		gyro_adjusted[0] = data->xyz_data.x;
-		gyro_adjusted[1] = data->xyz_data.y;
-		gyro_adjusted[2] = data->xyz_data.z;
-	}
+	if (data->convert_axes)
+		data->convert_axes(&data->xyz_data.x, &data->xyz_data.y,
+			&data->xyz_data.z);
 
-	input_report_rel(data->input_dev, REL_RX, gyro_adjusted[0]);
-	input_report_rel(data->input_dev, REL_RY, gyro_adjusted[1]);
-	input_report_rel(data->input_dev, REL_RZ, gyro_adjusted[2]);
+	input_report_rel(data->input_dev, REL_RX, data->xyz_data.x);
+	input_report_rel(data->input_dev, REL_RY, data->xyz_data.y);
+	input_report_rel(data->input_dev, REL_RZ, data->xyz_data.z);
 	input_sync(data->input_dev);
 
-	lsm330dlc_gyro_restart_fifo(data);
+	k330_gyro_restart_fifo(data);
 
 #ifdef LOGGING_GYRO
 	pr_info("%s, x = %d, y = %d, z = %d\n"
-			, __func__, gyro_adjusted[0], gyro_adjusted[1],
-			gyro_adjusted[2]);
+			, __func__, data->xyz_data.x, data->xyz_data.y,
+			data->xyz_data.z);
 #endif
 
 	return res;
 }
 
-static enum hrtimer_restart lsm330dlc_gyro_timer_func(struct hrtimer *timer)
+static enum hrtimer_restart k330_gyro_timer_func(struct hrtimer *timer)
 {
-	struct lsm330dlc_gyro_data *gyro_data\
-		= container_of(timer, struct lsm330dlc_gyro_data, timer);
-	queue_work(gyro_data->lsm330dlc_gyro_wq, &gyro_data->work);
+	struct k330_gyro_data *gyro_data\
+		= container_of(timer, struct k330_gyro_data, timer);
+	queue_work(gyro_data->k330_gyro_wq, &gyro_data->work);
 	hrtimer_forward_now(&gyro_data->timer, gyro_data->polling_delay);
 	return HRTIMER_RESTART;
 }
 
-static void lsm330dlc_gyro_work_func(struct work_struct *work)
+static void k330_gyro_work_func(struct work_struct *work)
 {
-	int res, retry = 3, i, j;
-	struct lsm330dlc_gyro_data *data\
-		= container_of(work, struct lsm330dlc_gyro_data, work);
+	int res, retry = 3;
+	struct k330_gyro_data *data\
+		= container_of(work, struct k330_gyro_data, work);
 	s32 status = 0;
-	s16 raw[3] = {0,}, gyro_adjusted[3] = {0,};
+	s16 x_temp, y_temp, z_temp;
 
 	do {
 		status = i2c_smbus_read_byte_data(data->client,
@@ -348,54 +261,68 @@ static void lsm330dlc_gyro_work_func(struct work_struct *work)
 	} while (retry--);
 
 	if (status & 0x08 && data->self_test == false) {
-		res = lsm330dlc_gyro_read_values(data->client,
+		res = k330_gyro_read_values(data->client,
 			&data->xyz_data, 0);
 		if (res < 0)
 			pr_err("%s, reading data fail(res = %d)\n",
 				__func__, res);
+
 		if (data->dps == DPS500) {
-			data->xyz_data.x -= data->cal_data.x;
-			data->xyz_data.y -= data->cal_data.y;
-			data->xyz_data.z -= data->cal_data.z;
+			x_temp = data->xyz_data.x - data->cal_data.x;
+			y_temp = data->xyz_data.y - data->cal_data.y;
+			z_temp = data->xyz_data.z - data->cal_data.z;
+
+			if (!(x_temp >> 15 == data->xyz_data.x >> 15) &&\
+				!(data->cal_data.x >> 15 == data->xyz_data.x >> 15)) {
+				pr_debug("%s, gyro x is overflowed!\n", __func__);
+				x_temp =
+					(x_temp >= 0 ? K330_MIN_GYRO : K330_MAX_GYRO);
+			}
+			if (!(y_temp >> 15 == data->xyz_data.y >> 15) &&\
+				!(data->cal_data.y >> 15 == data->xyz_data.y >> 15)) {
+				pr_debug("%s, gyro y is overflowed!\n", __func__);
+				y_temp =
+					(y_temp >= 0 ? K330_MIN_GYRO : K330_MAX_GYRO);
+			}
+			if (!(z_temp >> 15 == data->xyz_data.z >> 15) &&\
+				!(data->cal_data.z >> 15 == data->xyz_data.z >> 15)) {
+				pr_debug("%s, gyro z is overflowed!\n", __func__);
+				z_temp =
+					(z_temp >= 0 ? K330_MIN_GYRO : K330_MAX_GYRO);
+			}
+
+			data->xyz_data.x = x_temp;
+			data->xyz_data.y = y_temp;
+			data->xyz_data.z = z_temp;
 		}
+
 	} else {
 		pr_warn("%s, use last data(%d, %d, %d), status=%d, selftest=%d\n",
 			__func__, data->xyz_data.x, data->xyz_data.y,
 			data->xyz_data.z, status, data->self_test);
 	}
 
-	if (data->axis_adjust) {
-		raw[0] = data->xyz_data.x;
-		raw[1] = data->xyz_data.y;
-		raw[2] = data->xyz_data.z;
-		for (i = 0; i < 3; i++) {
-			for (j = 0; j < 3; j++)
-				gyro_adjusted[i]
-				+= position_map[data->position][i][j] * raw[j];
-		}
-	} else {
-		gyro_adjusted[0] = data->xyz_data.x;
-		gyro_adjusted[1] = data->xyz_data.y;
-		gyro_adjusted[2] = data->xyz_data.z;
-	}
+	if (data->convert_axes)
+		data->convert_axes(&data->xyz_data.x, &data->xyz_data.y,
+			&data->xyz_data.z);
 
-	input_report_rel(data->input_dev, REL_RX, gyro_adjusted[0]);
-	input_report_rel(data->input_dev, REL_RY, gyro_adjusted[1]);
-	input_report_rel(data->input_dev, REL_RZ, gyro_adjusted[2]);
+	input_report_rel(data->input_dev, REL_RX, data->xyz_data.x);
+	input_report_rel(data->input_dev, REL_RY, data->xyz_data.y);
+	input_report_rel(data->input_dev, REL_RZ, data->xyz_data.z);
 	input_sync(data->input_dev);
 
 #ifdef LOGGING_GYRO
 	pr_info("%s, x = %d, y = %d, z = %d\n"
-		, __func__, gyro_adjusted[0], gyro_adjusted[1],
-		gyro_adjusted[2]);
+		, __func__, data->xyz_data.x, data->xyz_data.y,
+		data->xyz_data.z);
 #endif
 }
 
-static irqreturn_t lsm330dlc_gyro_interrupt_thread(int irq\
-	, void *lsm330dlc_gyro_data_p)
+static irqreturn_t k330_gyro_interrupt_thread(int irq\
+	, void *k330_gyro_data_p)
 {
 	int res;
-	struct lsm330dlc_gyro_data *data = lsm330dlc_gyro_data_p;
+	struct k330_gyro_data *data = k330_gyro_data_p;
 
 	if (unlikely(data->self_test)) {
 		disable_irq_nosync(irq);
@@ -405,17 +332,17 @@ static irqreturn_t lsm330dlc_gyro_interrupt_thread(int irq\
 #ifdef LOGGING_GYRO
 	data->count++;
 #endif
-	res = lsm330dlc_gyro_report_values(data);
+	res = k330_gyro_report_values(data);
 	if (res < 0)
 		pr_err("%s: failed to report gyro values\n", __func__);
 
 	return IRQ_HANDLED;
 }
 
-static ssize_t lsm330dlc_gyro_selftest_dps_show(struct device *dev,
+static ssize_t k330_gyro_selftest_dps_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", data->dps);
 }
 
@@ -423,7 +350,7 @@ static ssize_t lsm330dlc_gyro_selftest_dps_show(struct device *dev,
 static ssize_t register_data_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
 	struct i2c_msg msg[2];
 	u8 reg1, reg2, reg3, reg4, reg5, fifo_ctrl, fifo_src;
 	u8 reg_buf;
@@ -491,16 +418,18 @@ static ssize_t register_data_show(struct device *dev,
 }
 #endif
 
-static ssize_t lsm330dlc_gyro_selftest_dps_store(struct device *dev,
+static ssize_t k330_gyro_selftest_dps_store(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
-	int new_dps = 0;
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
+	u16 new_dps;
 	int err;
 	u8 ctrl;
 
-	sscanf(buf, "%d", &new_dps);
+	err = kstrtou16(buf, 10, &new_dps);
+	if (err < 0)
+		pr_err("%s, kstrtoint failed.", __func__);
 
 	/* check out dps validity */
 	if (new_dps != DPS250 && new_dps != DPS500 && new_dps != DPS2000) {
@@ -537,18 +466,18 @@ static ssize_t lsm330dlc_gyro_selftest_dps_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lsm330dlc_gyro_show_enable(struct device *dev,
+static ssize_t k330_gyro_show_enable(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct lsm330dlc_gyro_data *data  = dev_get_drvdata(dev);
+	struct k330_gyro_data *data  = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", data->enable);
 }
 
-static ssize_t lsm330dlc_gyro_set_enable(struct device *dev,
+static ssize_t k330_gyro_set_enable(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	int err = 0;
-	struct lsm330dlc_gyro_data *data  = dev_get_drvdata(dev);
+	struct k330_gyro_data *data  = dev_get_drvdata(dev);
 	bool new_enable;
 
 	if (sysfs_streq(buf, "1"))
@@ -560,7 +489,7 @@ static ssize_t lsm330dlc_gyro_set_enable(struct device *dev,
 		return -EINVAL;
 	}
 
-	printk(KERN_INFO "%s, %d enable : %d.\n", __func__, __LINE__,\
+	pr_info("%s, %d enable : %d.\n", __func__, __LINE__,\
 		new_enable);
 
 	if (new_enable == data->enable)
@@ -569,9 +498,9 @@ static ssize_t lsm330dlc_gyro_set_enable(struct device *dev,
 	mutex_lock(&data->lock);
 	if (new_enable) {
 		/* load cal data */
-		err = lsm330dlc_gyro_open_calibration(data);
+		err = k330_gyro_open_calibration(data);
 		if (err < 0 && err != -ENOENT)
-			pr_err("%s: lsm330dlc_gyro_open_calibration() failed\n",
+			pr_err("%s: k330_gyro_open_calibration() failed\n",
 				__func__);
 		/* turning on */
 		err = i2c_smbus_write_i2c_block_data(data->client,
@@ -582,11 +511,14 @@ static ssize_t lsm330dlc_gyro_set_enable(struct device *dev,
 			goto unlock;
 		}
 
+		if (data->gyro_en)
+			*data->gyro_en = true;
+
 		if (data->interruptible) {
 			enable_irq(data->client->irq);
 
 			/* reset fifo entries */
-			err = lsm330dlc_gyro_restart_fifo(data);
+			err = k330_gyro_restart_fifo(data);
 			if (err < 0) {
 				err = -EIO;
 				goto turn_off;
@@ -609,10 +541,12 @@ static ssize_t lsm330dlc_gyro_set_enable(struct device *dev,
 						CTRL_REG1, 0x00);
 		if (err < 0)
 			goto unlock;
+		if (data->gyro_en)
+			*data->gyro_en = false;
 	}
 	data->enable = new_enable;
 
-	printk(KERN_INFO "%s, %d lsm330dlc_gyro enable is done.\n",\
+	pr_info("%s, %d k330_gyro enable is done.\n",\
 		__func__, __LINE__);
 
 turn_off:
@@ -625,9 +559,9 @@ unlock:
 	return err ? err : size;
 }
 
-static u64 lsm330dlc_gyro_get_delay_ns(struct lsm330dlc_gyro_data *k3)
+static u64 k330_gyro_get_delay_ns(struct k330_gyro_data *k3)
 {
-	u64 delay = -1;
+	u64 delay;
 
 	delay = k3->time_to_read * k3->entries;
 	delay = ktime_to_ns(ns_to_ktime(delay));
@@ -635,7 +569,7 @@ static u64 lsm330dlc_gyro_get_delay_ns(struct lsm330dlc_gyro_data *k3)
 	return delay;
 }
 
-static int lsm330dlc_gyro_set_delay_ns(struct lsm330dlc_gyro_data *k3\
+static int k330_gyro_set_delay_ns(struct k330_gyro_data *k3\
 	, u64 delay_ns)
 {
 	int res = 0;
@@ -697,7 +631,7 @@ static int lsm330dlc_gyro_set_delay_ns(struct lsm330dlc_gyro_data *k3\
 		enable_irq(k3->client->irq);
 
 		/* (re)start fifo */
-		lsm330dlc_gyro_restart_fifo(k3);
+		k330_gyro_restart_fifo(k3);
 	}
 
 	if (!k3->interruptible) {
@@ -714,47 +648,47 @@ static int lsm330dlc_gyro_set_delay_ns(struct lsm330dlc_gyro_data *k3\
 	return res;
 }
 
-static ssize_t lsm330dlc_gyro_show_delay(struct device *dev,
+static ssize_t k330_gyro_show_delay(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct lsm330dlc_gyro_data *data  = dev_get_drvdata(dev);
+	struct k330_gyro_data *data  = dev_get_drvdata(dev);
 	u64 delay;
 
 	if (!data->interruptible)
 		return sprintf(buf, "%lld\n", ktime_to_ns(data->polling_delay));
 
-	delay = lsm330dlc_gyro_get_delay_ns(data);
+	delay = k330_gyro_get_delay_ns(data);
 
 	return sprintf(buf, "%lld\n", delay);
 }
 
-static ssize_t lsm330dlc_gyro_set_delay(struct device *dev,
+static ssize_t k330_gyro_set_delay(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	int res;
-	struct lsm330dlc_gyro_data *data  = dev_get_drvdata(dev);
+	struct k330_gyro_data *data  = dev_get_drvdata(dev);
 	u64 delay_ns;
 
 	res = strict_strtoll(buf, 10, &delay_ns);
 	if (res < 0)
 		return res;
 
-	lsm330dlc_gyro_set_delay_ns(data, delay_ns);
+	k330_gyro_set_delay_ns(data, delay_ns);
 
 	return size;
 }
 
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR | S_IWGRP,
-			lsm330dlc_gyro_show_enable, lsm330dlc_gyro_set_enable);
+			k330_gyro_show_enable, k330_gyro_set_enable);
 static DEVICE_ATTR(poll_delay, S_IRUGO | S_IWUSR | S_IWGRP,
-			lsm330dlc_gyro_show_delay, lsm330dlc_gyro_set_delay);
+			k330_gyro_show_delay, k330_gyro_set_delay);
 
 /*************************************************************************/
-/* lsm330dlc_gyro Sysfs															 */
+/* k330_gyro Sysfs															 */
 /*************************************************************************/
 
 /* Device Initialization  */
-static int device_init(struct lsm330dlc_gyro_data *data)
+static int device_init(struct k330_gyro_data *data)
 {
 	int err;
 	u8 buf[5];
@@ -771,24 +705,24 @@ static int device_init(struct lsm330dlc_gyro_data *data)
 
 	return err;
 }
-static ssize_t lsm330dlc_gyro_power_off(struct device *dev,
+static ssize_t k330_gyro_power_off(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
 	int err;
 
 	err = i2c_smbus_write_byte_data(data->client,
 					CTRL_REG1, 0x00);
 
-	printk(KERN_INFO "[%s] result of power off = %d\n", __func__, err);
+	pr_info("[%s] result of power off = %d\n", __func__, err);
 
 	return sprintf(buf, "%d\n", (err < 0 ? 0 : 1));
 }
 
-static ssize_t lsm330dlc_gyro_power_on(struct device *dev,
+static ssize_t k330_gyro_power_on(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
 	int err;
 
 	err = device_init(data);
@@ -797,29 +731,25 @@ static ssize_t lsm330dlc_gyro_power_on(struct device *dev,
 		return 0;
 	}
 
-	printk(KERN_INFO "[%s] result of device init = %d\n", __func__, err);
+	pr_info("[%s] result of device init = %d\n", __func__, err);
 
 	return sprintf(buf, "%d\n", 1);
 }
 
-static ssize_t lsm330dlc_gyro_get_temp(struct device *dev,
+static ssize_t k330_gyro_get_temp(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
-	char temp;
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
+	signed char temp;
 
 	temp = i2c_smbus_read_byte_data(data->client, OUT_TEMP);
-	if (temp < 0) {
-		pr_err("%s: STATUS_REGS i2c reading failed\n", __func__);
-		return 0;
-	}
 
-	printk(KERN_INFO "[%s] read temperature : %d\n", __func__, temp);
+	pr_info("[%s] read temperature : %d\n", __func__, temp);
 
 	return sprintf(buf, "%d\n", temp);
 }
 
-static int lsm330dlc_gyro_fifo_self_test(struct lsm330dlc_gyro_data *data,\
+static int k330_gyro_fifo_self_test(struct k330_gyro_data *data,\
 	u8 *cal_pass, s16 *zero_rate_data)
 {
 	struct gyro_t raw_data;
@@ -902,15 +832,15 @@ read_zero_rate_again:
 	}
 
 	/* read fifo entries */
-	err = lsm330dlc_gyro_read_values(data->client,
+	err = k330_gyro_read_values(data->client,
 				&raw_data, FIFO_TEST_WTM + 2);
 	if (err < 0) {
-		pr_err("%s: lsm330dlc_gyro_read_values() failed\n", __func__);
+		pr_err("%s: k330_gyro_read_values() failed\n", __func__);
 		goto exit;
 	}
 
 	/* print out fifo data */
-	printk(KERN_INFO "[gyro_self_test] fifo data\n");
+	pr_info("[gyro_self_test] fifo data\n");
 	for (i = 0; i < sizeof(raw_data) * (FIFO_TEST_WTM + 1);
 		i += sizeof(raw_data)) {
 		raw[0] = (data->fifo_data[i+1] << 8)
@@ -986,7 +916,6 @@ read_zero_rate_again:
 			if (err != 3 * sizeof(s16)) {
 				pr_err("%s: Can't write the cal data to file\n",
 					__func__);
-				err = -EIO;
 			}
 
 			filp_close(cal_filp, current->files);
@@ -1014,8 +943,8 @@ exit:
 	return fifo_pass;
 }
 
-static int lsm330dlc_gyro_bypass_self_test\
-	(struct lsm330dlc_gyro_data *gyro_data, int NOST[3], int ST[3])
+static int k330_gyro_bypass_self_test\
+	(struct k330_gyro_data *gyro_data, int NOST[3], int ST[3])
 {
 	int differ_x = 0, differ_y = 0, differ_z = 0;
 	int err, i, j, sample_num = 6;
@@ -1097,22 +1026,22 @@ static int lsm330dlc_gyro_bypass_self_test\
 		NOST[1] += raw[1];
 		NOST[2] += raw[2];
 
-		printk(KERN_INFO "[gyro_self_test] raw[0] = %d\n", raw[0]);
-		printk(KERN_INFO "[gyro_self_test] raw[1] = %d\n", raw[1]);
-		printk(KERN_INFO "[gyro_self_test] raw[2] = %d\n\n", raw[2]);
+		pr_info("[gyro_self_test] raw[0] = %d\n", raw[0]);
+		pr_info("[gyro_self_test] raw[1] = %d\n", raw[1]);
+		pr_info("[gyro_self_test] raw[2] = %d\n\n", raw[2]);
 	}
 
 	for (i = 0; i < 3; i++)
-		printk(KERN_INFO "[gyro_self_test] "
+		pr_info("[gyro_self_test] "
 			"SUM of NOST[%d] = %d\n", i, NOST[i]);
 
 	/* calculate average of NOST and covert from ADC to DPS */
 	for (i = 0; i < 3; i++) {
 		NOST[i] = (NOST[i] / 5) * 70 / 1000;
-		printk(KERN_INFO "[gyro_self_test] "
+		pr_info("[gyro_self_test] "
 			"AVG of NOST[%d] = %d\n", i, NOST[i]);
 	}
-	printk(KERN_INFO "\n");
+	pr_info("\n");
 
 	/* Enable Self Test */
 	reg[0] = 0xA2;
@@ -1130,7 +1059,7 @@ static int lsm330dlc_gyro_bypass_self_test\
 	msleep(100);
 
 	/* Read 5 samples output after self-test on */
-	/* The first data is useless on the LSM330DLC selftest. */
+	/* The first data is useless on the k330 selftest. */
 	for (i = 0; i < sample_num; i++) {
 		/* check ZYXDA ready bit */
 		for (j = 0; j < 10; j++) {
@@ -1169,20 +1098,20 @@ static int lsm330dlc_gyro_bypass_self_test\
 		ST[1] += raw[1];
 		ST[2] += raw[2];
 
-		printk(KERN_INFO "[gyro_self_test] raw[0] = %d\n", raw[0]);
-		printk(KERN_INFO "[gyro_self_test] raw[1] = %d\n", raw[1]);
-		printk(KERN_INFO "[gyro_self_test] raw[2] = %d\n\n", raw[2]);
+		pr_info("[gyro_self_test] raw[0] = %d\n", raw[0]);
+		pr_info("[gyro_self_test] raw[1] = %d\n", raw[1]);
+		pr_info("[gyro_self_test] raw[2] = %d\n\n", raw[2]);
 	}
 
 	for (i = 0; i < 3; i++)
-		printk(KERN_INFO "[gyro_self_test] "
+		pr_info("[gyro_self_test] "
 			"SUM of ST[%d] = %d\n", i, ST[i]);
 
 	/* calculate average of ST and convert from ADC to dps */
 	for (i = 0; i < 3; i++)	{
 		/* When FS=2000, 70 mdps/digit */
 		ST[i] = (ST[i] / 5) * 70 / 1000;
-		printk(KERN_INFO "[gyro_self_test] "
+		pr_info("[gyro_self_test] "
 			"AVG of ST[%d] = %d\n", i, ST[i]);
 	}
 
@@ -1202,7 +1131,7 @@ static int lsm330dlc_gyro_bypass_self_test\
 	else
 		differ_z = NOST[2] - ST[2];
 
-	printk(KERN_INFO "[gyro_self_test] differ x:%d, y:%d, z:%d\n",
+	pr_info("[gyro_self_test] differ x:%d, y:%d, z:%d\n",
 						differ_x, differ_y, differ_z);
 
 	if ((MIN_ST <= differ_x && differ_x <= MAX_ST)
@@ -1216,10 +1145,10 @@ exit:
 	return bypass_pass;
 }
 
-static ssize_t lsm330dlc_gyro_self_test(struct device *dev,
+static ssize_t k330_gyro_self_test(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
 	int NOST[3] = {0,}, ST[3] = {0,};
 	int err;
 	int i;
@@ -1234,7 +1163,7 @@ static ssize_t lsm330dlc_gyro_self_test(struct device *dev,
 	for (i = 0; i < 10; i++) {
 		err = i2c_smbus_read_i2c_block_data(data->client,
 			CTRL_REG1 | AC,	sizeof(backup_regs), backup_regs);
-		if (err >= 0)
+		if (err == sizeof(backup_regs))
 			break;
 	}
 	if (err < 0) {
@@ -1243,39 +1172,39 @@ static ssize_t lsm330dlc_gyro_self_test(struct device *dev,
 	}
 
 	for (i = 0; i < 5; i++)
-		printk(KERN_INFO "[gyro_self_test] "
+		pr_info("[gyro_self_test] "
 			"backup reg[%d] = %2x\n", i, backup_regs[i]);
 
 	/* fifo self test & gyro calibration */
-	printk(KERN_INFO "\n[gyro_self_test] fifo self-test\n");
+	pr_info("\n[gyro_self_test] fifo self-test\n");
 
-	fifo_pass = lsm330dlc_gyro_fifo_self_test(data,
+	fifo_pass = k330_gyro_fifo_self_test(data,
 		&cal_pass, zero_rate_data);
 
 	/* fifo self test result */
 	if (fifo_pass == 1)
-		printk(KERN_INFO "[gyro_self_test] fifo self-test success\n");
+		pr_info("[gyro_self_test] fifo self-test success\n");
 	else if (!fifo_pass)
-		printk(KERN_INFO "[gyro_self_test] fifo self-test fail\n");
+		pr_info("[gyro_self_test] fifo self-test fail\n");
 	else
-		printk(KERN_INFO "[gyro_self_test] fifo self-test retry\n");
+		pr_info("[gyro_self_test] fifo self-test retry\n");
 
 	/* calibration result */
 	if (cal_pass == 1)
-		printk(KERN_INFO "[gyro_self_test] calibration success\n");
+		pr_info("[gyro_self_test] calibration success\n");
 	else if (!cal_pass)
-		printk(KERN_INFO "[gyro_self_test] calibration fail\n");
+		pr_info("[gyro_self_test] calibration fail\n");
 
 	/* bypass self test */
-	printk(KERN_INFO "\n[gyro_self_test] bypass self-test\n");
+	pr_info("\n[gyro_self_test] bypass self-test\n");
 
-	bypass_pass = lsm330dlc_gyro_bypass_self_test(data, NOST, ST);
+	bypass_pass = k330_gyro_bypass_self_test(data, NOST, ST);
 	if (bypass_pass == 1)
-		printk(KERN_INFO "[gyro_self_test] bypass self-test success\n\n");
+		pr_info("[gyro_self_test] bypass self-test success\n\n");
 	else if (!bypass_pass)
-		printk(KERN_INFO "[gyro_self_test] bypass self-test fail\n\n");
+		pr_info("[gyro_self_test] bypass self-test fail\n\n");
 	else
-		printk(KERN_INFO "[gyro_self_test] bypass self-test retry\n\n");
+		pr_info("[gyro_self_test] bypass self-test retry\n\n");
 
 	/* restore backup register */
 	for (i = 0; i < 10; i++) {
@@ -1299,9 +1228,9 @@ exit:
 	}
 
 	if (fifo_pass == 2 && bypass_pass == 2)
-		printk(KERN_INFO "[gyro_self_test] self-test result : retry\n");
+		pr_info("[gyro_self_test] self-test result : retry\n");
 	else
-		printk(KERN_INFO "[gyro_self_test] self-test result : %s\n",
+		pr_info("[gyro_self_test] self-test result : %s\n",
 			fifo_pass & bypass_pass & cal_pass ? "pass" : "fail");
 
 	return sprintf(buf, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
@@ -1310,74 +1239,77 @@ exit:
 		fifo_pass & bypass_pass & cal_pass, fifo_pass, cal_pass);
 }
 
-static ssize_t lsm330dlc_gyro_vendor_show(struct device *dev,
+static ssize_t k330_gyro_vendor_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", VENDOR);
 }
 
-static ssize_t lsm330dlc_gyro_name_show(struct device *dev,
+static ssize_t k330_gyro_name_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", CHIP_ID);
 }
 
 static ssize_t
-lsm330dlc_gyro_position_show(struct device *dev,
+k330_gyro_position_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", data->position);
+	return sprintf(buf, "%u\n", data->position);
 }
 
 static ssize_t
-lsm330dlc_gyro_position_store(struct device *dev,
+k330_gyro_position_store(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
 		size_t count)
 {
-	struct lsm330dlc_gyro_data *data = dev_get_drvdata(dev);
-	int err = 0;
+	struct k330_gyro_data *data = dev_get_drvdata(dev);
+	int err;
 
-	err = kstrtoint(buf, 10, &data->position);
+	err = kstrtou8(buf, 10, &data->position);
 	if (err < 0)
 		pr_err("%s, kstrtoint failed.", __func__);
+
+	if (data->select_func)
+		data->convert_axes = data->select_func(data->position);
 
 	return count;
 }
 
-static DEVICE_ATTR(power_off, 0664,
-	lsm330dlc_gyro_power_off, NULL);
-static DEVICE_ATTR(power_on, 0664,
-	lsm330dlc_gyro_power_on, NULL);
-static DEVICE_ATTR(temperature, 0664,
-	lsm330dlc_gyro_get_temp, NULL);
-static DEVICE_ATTR(selftest, 0664,
-	lsm330dlc_gyro_self_test, NULL);
-static DEVICE_ATTR(selftest_dps, 0664,
-	lsm330dlc_gyro_selftest_dps_show, lsm330dlc_gyro_selftest_dps_store);
-static DEVICE_ATTR(vendor, 0664,
-	lsm330dlc_gyro_vendor_show, NULL);
-static DEVICE_ATTR(name, 0664,
-	lsm330dlc_gyro_name_show, NULL);
-static DEVICE_ATTR(position, 0664,
-	lsm330dlc_gyro_position_show, lsm330dlc_gyro_position_store);
+static DEVICE_ATTR(power_off, S_IRUGO,
+	k330_gyro_power_off, NULL);
+static DEVICE_ATTR(power_on, S_IRUGO,
+	k330_gyro_power_on, NULL);
+static DEVICE_ATTR(temperature, S_IRUGO,
+	k330_gyro_get_temp, NULL);
+static DEVICE_ATTR(selftest, S_IRUGO,
+	k330_gyro_self_test, NULL);
+static DEVICE_ATTR(selftest_dps,  S_IRUGO | S_IRWXU | S_IRWXG,
+	k330_gyro_selftest_dps_show, k330_gyro_selftest_dps_store);
+static DEVICE_ATTR(vendor, S_IRUGO,
+	k330_gyro_vendor_show, NULL);
+static DEVICE_ATTR(name, S_IRUGO,
+	k330_gyro_name_show, NULL);
+static DEVICE_ATTR(position,  S_IRUGO | S_IRWXU | S_IRWXG,
+	k330_gyro_position_show, k330_gyro_position_store);
 #ifdef DEBUG_REGISTER
-static DEVICE_ATTR(reg_data, 0664,
+static DEVICE_ATTR(reg_data, S_IRUGO,
 	register_data_show, NULL);
 #endif
 
 /*************************************************************************/
-/* End of lsm330dlc_gyro Sysfs							 */
+/* End of k330_gyro Sysfs							 */
 /*************************************************************************/
-static int lsm330dlc_gyro_probe(struct i2c_client *client,
+static int k330_gyro_probe(struct i2c_client *client,
 			       const struct i2c_device_id *devid)
 {
-	int ret;
+	int ret, retry = 0;
 	int err = 0;
-	struct lsm330dlc_gyro_data *data;
+	struct k330_gyro_data *data;
 	struct input_dev *input_dev;
 	struct gyro_platform_data *pdata;
 
@@ -1393,22 +1325,23 @@ static int lsm330dlc_gyro_probe(struct i2c_client *client,
 	data->client = client;
 	data->dps = DPS500;
 	/* read chip id */
-	ret = i2c_smbus_read_byte_data(client, WHO_AM_I);
+	do {
+		ret = i2c_smbus_read_byte_data(client, WHO_AM_I);
+		if (ret == DEVICE_ID)
+			break;
+		usleep_range(10000, 10000);
+		retry++;
+		pr_err("%s, ret=%d, retry=%d\n", __func__, ret, retry);
+	} while (ret != DEVICE_ID && retry < 3);
 
-#if defined(CONFIG_MACH_GRANDE) || defined(CONFIG_MACH_IRON)
-	if (system_rev == 13) {
-		if (ret == 0xD5) /*KR330D chip ID only use CHN rev.13 */
-			ret = 0xD4;
-		}
-#endif
 	if (ret != DEVICE_ID) {
 		if (ret < 0) {
 			pr_err("%s: i2c for reading chip id failed\n",
-								__func__);
+				__func__);
 			err = ret;
 		} else {
-			pr_err("%s : Device identification failed\n",
-								__func__);
+			pr_err("%s : Device identification failed(%d)\n",
+				__func__, ret);
 			err = -ENODEV;
 		}
 		goto err_read_reg;
@@ -1428,7 +1361,7 @@ static int lsm330dlc_gyro_probe(struct i2c_client *client,
 
 	data->input_dev = input_dev;
 	input_set_drvdata(input_dev, data);
-	input_dev->name = L3GD20_GYR_INPUT_NAME;
+	input_dev->name = K330_GYR_INPUT_NAME;
 	/* X */
 	input_set_capability(input_dev, EV_REL, REL_RX);
 	/* Y */
@@ -1452,9 +1385,9 @@ static int lsm330dlc_gyro_probe(struct i2c_client *client,
 		data->interruptible = true;
 		data->entries = 1;
 		err = request_threaded_irq(data->client->irq, NULL,
-			lsm330dlc_gyro_interrupt_thread\
+			k330_gyro_interrupt_thread\
 			, IRQF_TRIGGER_RISING | IRQF_ONESHOT,\
-				"lsm330dlc_gyro", data);
+				"k330_gyro", data);
 		if (err < 0) {
 			pr_err("%s: can't allocate irq.\n", __func__);
 			goto err_request_irq;
@@ -1467,19 +1400,19 @@ static int lsm330dlc_gyro_probe(struct i2c_client *client,
 		/* hrtimer settings.  we poll for gyro values using a timer. */
 		hrtimer_init(&data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		data->polling_delay = ns_to_ktime(200 * NSEC_PER_MSEC);
-		data->timer.function = lsm330dlc_gyro_timer_func;
+		data->timer.function = k330_gyro_timer_func;
 
 		/* the timer just fires off a work queue request.
 		   We need a thread to read i2c (can be slow and blocking). */
-		data->lsm330dlc_gyro_wq \
-		= create_singlethread_workqueue("lsm330dlc_gyro_wq");
-		if (!data->lsm330dlc_gyro_wq) {
+		data->k330_gyro_wq \
+		= create_singlethread_workqueue("k330_gyro_wq");
+		if (!data->k330_gyro_wq) {
 			err = -ENOMEM;
 			pr_err("%s: could not create workqueue\n", __func__);
 			goto err_create_workqueue;
 		}
 		/* this is the thread function we run on the work queue */
-		INIT_WORK(&data->work, lsm330dlc_gyro_work_func);
+		INIT_WORK(&data->work, k330_gyro_work_func);
 	}
 
 	if (device_create_file(&input_dev->dev,
@@ -1496,7 +1429,7 @@ static int lsm330dlc_gyro_probe(struct i2c_client *client,
 		goto err_device_create_file2;
 	}
 
-	/* create device node for lsm330dlc_gyro digital gyroscope */
+	/* create device node for k330_gyro digital gyroscope */
 	data->dev = sensors_classdev_register("gyro_sensor");
 
 	if (IS_ERR(data->dev)) {
@@ -1549,17 +1482,19 @@ static int lsm330dlc_gyro_probe(struct i2c_client *client,
 
 	/* set mounting position of the sensor */
 	pdata = client->dev.platform_data;
-	if (!pdata) {
-		/*Set by default position 2, it doesn't adjust raw value*/
-		data->position = 2;
-		data->axis_adjust = false;
-		pr_info("%s, using defualt position = %d\n", __func__,
-			data->position);
-	} else {
+
+	if (pdata) {
+		data->gyro_en = pdata->gyro_en;
+		*data->gyro_en = false;
+	}
+
+	if (pdata && pdata->select_func) {
+		data->select_func = pdata->select_func;
 		data->position = pdata->gyro_get_position();
-		data->axis_adjust = pdata->axis_adjust;
+		data->convert_axes = pdata->select_func(data->position);
 		pr_info("%s, position = %d\n", __func__, data->position);
 	}
+
 	err = device_create_file(data->dev, &dev_attr_position);
 	if (err < 0) {
 		pr_err("%s: Failed to create device file(%s)\n",
@@ -1608,7 +1543,7 @@ err_device_create_file:
 	if (data->interruptible)
 		free_irq(data->client->irq, data);
 	else
-		destroy_workqueue(data->lsm330dlc_gyro_wq);
+		destroy_workqueue(data->k330_gyro_wq);
 err_create_workqueue:
 err_request_irq:
 	input_unregister_device(data->input_dev);
@@ -1616,15 +1551,16 @@ err_input_register_device:
 err_input_allocate_device:
 	mutex_destroy(&data->lock);
 err_read_reg:
+	pr_err("%s, err = %d\n", __func__, err);
 	kfree(data);
 exit:
 	return err;
 }
 
-static int lsm330dlc_gyro_remove(struct i2c_client *client)
+static int k330_gyro_remove(struct i2c_client *client)
 {
 	int err = 0;
-	struct lsm330dlc_gyro_data *data = i2c_get_clientdata(client);
+	struct k330_gyro_data *data = i2c_get_clientdata(client);
 
 	device_remove_file(data->dev, &dev_attr_position);
 	device_remove_file(data->dev, &dev_attr_vendor);
@@ -1646,7 +1582,7 @@ static int lsm330dlc_gyro_remove(struct i2c_client *client)
 	} else {
 		hrtimer_cancel(&data->timer);
 	    cancel_work_sync(&data->work);
-		destroy_workqueue(data->lsm330dlc_gyro_wq);
+		destroy_workqueue(data->k330_gyro_wq);
 	}
 
 	if (data->enable)
@@ -1662,11 +1598,11 @@ static int lsm330dlc_gyro_remove(struct i2c_client *client)
 	return err;
 }
 
-static int lsm330dlc_gyro_suspend(struct device *dev)
+static int k330_gyro_suspend(struct device *dev)
 {
 	int err = 0;
 	struct i2c_client *client = to_i2c_client(dev);
-	struct lsm330dlc_gyro_data *data = i2c_get_clientdata(client);
+	struct k330_gyro_data *data = i2c_get_clientdata(client);
 
 	if (data->enable) {
 		mutex_lock(&data->lock);
@@ -1684,11 +1620,11 @@ static int lsm330dlc_gyro_suspend(struct device *dev)
 	return err;
 }
 
-static int lsm330dlc_gyro_resume(struct device *dev)
+static int k330_gyro_resume(struct device *dev)
 {
 	int err = 0;
 	struct i2c_client *client = to_i2c_client(dev);
-	struct lsm330dlc_gyro_data *data = i2c_get_clientdata(client);
+	struct k330_gyro_data *data = i2c_get_clientdata(client);
 
 	if (data->enable) {
 		mutex_lock(&data->lock);
@@ -1699,7 +1635,7 @@ static int lsm330dlc_gyro_resume(struct device *dev)
 		if (data->interruptible) {
 			enable_irq(data->client->irq);
 
-			lsm330dlc_gyro_restart_fifo(data);
+			k330_gyro_restart_fifo(data);
 		}
 
 		if (!data->interruptible)
@@ -1712,42 +1648,42 @@ static int lsm330dlc_gyro_resume(struct device *dev)
 	return err;
 }
 
-static const struct dev_pm_ops lsm330dlc_gyro_pm_ops = {
-	.suspend = lsm330dlc_gyro_suspend,
-	.resume = lsm330dlc_gyro_resume
+static const struct dev_pm_ops k330_gyro_pm_ops = {
+	.suspend = k330_gyro_suspend,
+	.resume = k330_gyro_resume
 };
 
-static const struct i2c_device_id lsm330dlc_gyro_id[] = {
-	{ LSM330DLC_GYRO_DEV_NAME, 0 },
+static const struct i2c_device_id k330_gyro_id[] = {
+	{ K330_GYRO_DEV_NAME, 0 },
 	{ }
 };
 
-MODULE_DEVICE_TABLE(i2c, lsm330dlc_gyro_id);
+MODULE_DEVICE_TABLE(i2c, k330_gyro_id);
 
-static struct i2c_driver lsm330dlc_gyro_driver = {
-	.probe = lsm330dlc_gyro_probe,
-	.remove = __devexit_p(lsm330dlc_gyro_remove),
-	.id_table = lsm330dlc_gyro_id,
+static struct i2c_driver k330_gyro_driver = {
+	.probe = k330_gyro_probe,
+	.remove = __devexit_p(k330_gyro_remove),
+	.id_table = k330_gyro_id,
 	.driver = {
-		.pm = &lsm330dlc_gyro_pm_ops,
+		.pm = &k330_gyro_pm_ops,
 		.owner = THIS_MODULE,
-		.name = LSM330DLC_GYRO_DEV_NAME,
+		.name = K330_GYRO_DEV_NAME,
 	},
 };
 
-static int __init lsm330dlc_gyro_init(void)
+static int __init k330_gyro_init(void)
 {
-	return i2c_add_driver(&lsm330dlc_gyro_driver);
+	return i2c_add_driver(&k330_gyro_driver);
 }
 
-static void __exit lsm330dlc_gyro_exit(void)
+static void __exit k330_gyro_exit(void)
 {
-	i2c_del_driver(&lsm330dlc_gyro_driver);
+	i2c_del_driver(&k330_gyro_driver);
 }
 
-module_init(lsm330dlc_gyro_init);
-module_exit(lsm330dlc_gyro_exit);
+module_init(k330_gyro_init);
+module_exit(k330_gyro_exit);
 
-MODULE_DESCRIPTION("LSM330DLC digital gyroscope driver");
+MODULE_DESCRIPTION("K330 digital gyroscope driver");
 MODULE_AUTHOR("Samsung Electronics");
 MODULE_LICENSE("GPL");
